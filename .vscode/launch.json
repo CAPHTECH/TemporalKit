@@ -1,0 +1,22 @@
+{
+  "configurations": [
+    {
+      "type": "swift",
+      "request": "launch",
+      "args": [],
+      "cwd": "${workspaceFolder:TemporalKit}",
+      "name": "Debug TemporalKitDemo",
+      "program": "${workspaceFolder:TemporalKit}/.build/debug/TemporalKitDemo",
+      "preLaunchTask": "swift: Build Debug TemporalKitDemo"
+    },
+    {
+      "type": "swift",
+      "request": "launch",
+      "args": [],
+      "cwd": "${workspaceFolder:TemporalKit}",
+      "name": "Release TemporalKitDemo",
+      "program": "${workspaceFolder:TemporalKit}/.build/release/TemporalKitDemo",
+      "preLaunchTask": "swift: Build Release TemporalKitDemo"
+    }
+  ]
+}

@@ -16,7 +16,6 @@ let package = Package(
             targets: ["TemporalKit"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-testing.git", from: "0.5.0"), // Reverted to 0.5.0 as per previous working state implied by logs
         .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
     ],
     targets: [
@@ -30,8 +29,12 @@ let package = Package(
             name: "TemporalKitTests",
             dependencies: [
                 "TemporalKit",
-                .product(name: "Testing", package: "swift-testing"),
             ]
         ),
+        .executableTarget( // Add this new executable target
+            name: "TemporalKitDemo",
+            dependencies: ["TemporalKit"],
+            path: "Sources/TemporalKitDemo"
+        )
     ]
 )

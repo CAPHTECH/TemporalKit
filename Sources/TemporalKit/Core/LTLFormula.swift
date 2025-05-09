@@ -95,4 +95,16 @@ public indirect enum LTLFormula<P: TemporalProposition>: Hashable where P.Value 
             return false
         }
     }
+
+    // MARK: - Computed Properties
+
+    /// Returns `true` if the formula is an atomic proposition or a boolean literal.
+    public var isAtomic: Bool {
+        switch self {
+        case .atomic, .booleanLiteral:
+            return true
+        default:
+            return false
+        }
+    }
 }

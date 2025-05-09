@@ -1,0 +1,113 @@
+---
+description: Rules for writing tests
+globs: 
+alwaysApply: false
+---
+# Swift Testing Best Practices
+
+This document outlines best practices for writing tests in Swift projects, with a particular emphasis on leveraging the `swift-testing` framework.
+
+## General Best Practices
+
+1.  **Write Small, Focused Tests:** Each test method should verify a single piece of functionality or a single specific scenario. This makes tests easier to understand, debug, and maintain.
+2.  **Descriptive Test Names:** Test method names should clearly describe what they are testing. A common convention is `test_UnitOfWork_Condition_ExpectedBehavior()`.
+3.  **Arrange, Act, Assert (AAA):** Structure your tests clearly:
+    *   **Arrange:** Set up the necessary preconditions and inputs.
+    *   **Act:** Execute the code being tested.
+    *   **Assert:** Verify that the outcome is as expected.
+4.  **Independent Tests:** Tests should not depend on each other or the order in which they are run. Each test should set up its own environment and clean up after itself if necessary.
+5.  **Test Coverage:** Aim for high test coverage, but prioritize testing critical and complex parts of your codebase. Don't just chase numbers; focus on meaningful tests.
+6.  **Avoid Testing Implementation Details:** Focus on testing the public API and behavior of your code, not its internal implementation. This makes your tests more resilient to refactoring.
+7.  **Use Mocks and Stubs Effectively:** Isolate the unit under test by using mocks or stubs for its dependencies. This helps in creating deterministic tests and avoids reliance on external systems.
+8.  **Keep Tests Fast:** Slow tests can hinder development flow. Optimize tests for speed, especially unit tests.
+9.  **Regularly Run Tests:** Integrate tests into your CI/CD pipeline and run them frequently during development.
+
+## Utilizing `swift-testing`
+
+The `swift-testing` framework ([swift-testing](mdc:.build/checkouts/swift-testing)) is the modern approach for writing tests in Swift, offering more expressive and flexible ways to define and organize tests.
+
+1.  **Adopt `@Test`:** Use the `@Test` attribute to mark test functions. This provides more flexibility than XCTest's subclassing requirement.
+    ```swift
+    import Testing
+
+    @Test func additionPerformsCorrectly() {
+      #expect(1 + 1 == 2)
+    }
+    ```
+2.  **Leverage Parameterized Tests:** Use parameterized tests to run the same test logic with different inputs, reducing boilerplate.
+    ```swift
+    import Testing
+
+    @Test(arguments: [0, 1, Int.max])
+    func testIsPositive(number: Int) {
+      #expect(number >= 0)
+    }
+    ```
+3.  **Use Tags for Organization:** Organize tests using tags for better filtering and grouping. This can be useful for running specific sets of tests (e.g., unit, integration, UI).
+    ```swift
+    import Testing
+
+    struct MyTags {
+      @Tag static var unit: Self
+      @Tag static var networking: Self
+    }
+
+    @Test(.tags(MyTags.unit, MyTags.networking))
+    func fetchDataFromServer() {
+      // ... test logic ...
+    }
+    ```
+4.  **Descriptive Expectations:** Use the `#expect()` macro for assertions. It provides rich failure messages and integrates well with the `swift-testing` ecosystem. For boolean conditions, `#expect(Bool)` is concise. For throwing expressions, use `#expect(throws:)`.
+5.  **Test Suites (`struct` or `actor`):** Group related tests within a `struct` or `actor` conforming to the `TestSuite` protocol (though explicit conformance is often not needed if just using `@Test` attributes within). This helps in organizing tests logically.
+    ```swift
+    import Testing
+
+    struct CalculatorTests {
+      @Test func testAddition() {
+        #expect(1 + 1 == 2)
+      }
+
+      @Test func testSubtraction() {
+        #expect(3 - 1 == 2)
+      }
+    }
+    ```
+6.  **Explore Advanced Features:** `swift-testing` includes features like custom traits, test plans, and more advanced expectation capabilities. Refer to the official documentation for comprehensive guidance:
+    *   [Testing
+    Documentation](mdc:.build/checkouts/swift-testing/Sources/Testing/Testing.docc)
+
+## Running Tests with `swift-testing`
+
+Tests written with `swift-testing` can be executed in several ways:
+
+1.  **From Xcode:**
+    *   If your project is open in Xcode, tests can be run using the Test Navigator (Cmd+6).
+    *   You can run all tests, specific test suites, or individual test functions by clicking the play button next to them.
+    *   Test results will be displayed in the Test Navigator and within the source editor.
+
+2.  **From the Command Line (Swift Package Manager):**
+    *   Navigate to your project's root directory in the terminal.
+    *   Run all tests using the command:
+        ```bash
+        swift test
+        ```
+    *   To run tests for a specific target:
+        ```bash
+        swift test --filter YourTestTargetName
+        ```
+    *   To run specific tests using their fully qualified name (e.g., `ModuleName.TestSuitName/testFunctionName` or `ModuleName.testFunctionName`):
+        ```bash
+        swift test --filter ModuleName.TestSuitName/testFunctionName
+        ```
+    *   You can also filter tests based on tags:
+        ```bash
+        swift test --filter MyTags.unit
+        ```
+    *   For more command-line options, refer to the SwiftPM documentation or use `swift test --help`.
+
+## Test Location
+
+*   Unit tests for `TemporalKit` should generally be placed in [Tests/TemporalKitTests](mdc:Tests/TemporalKitTests).
+*   The `Testing` library is bundled with modern Swift toolchains (typically Swift 5.10 and later), so an explicit dependency declaration in `Package.swift` ([Package.swift](mdc:Package.swift)) is usually not required for your test targets.
+
+By following these practices and utilizing the `swift-testing` framework, you can create a robust, maintainable, and effective test suite for your Swift projects.
