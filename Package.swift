@@ -34,7 +34,10 @@ let package = Package(
         .executableTarget( // Add this new executable target
             name: "TemporalKitDemo",
             dependencies: ["TemporalKit"],
-            path: "Sources/TemporalKitDemo"
+            path: "Sources/TemporalKitDemo",
+            resources: [
+                .copy("README.md")
+            ]
         )
     ]
 )

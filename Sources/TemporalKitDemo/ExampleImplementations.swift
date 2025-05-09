@@ -59,10 +59,14 @@ public class AppProposition: TemporalProposition {
     
     /// Base implementation that attempts to get the AppState from the context.
     /// Subclasses should override this method to perform their specific evaluation.
-    public func evaluate(in context: EvaluationContext) -> Bool {
+    public func evaluate(in context: EvaluationContext) throws -> Bool {
         guard let appContext = context as? AppEvaluationContext else {
-            print("Warning: AppProposition '\(name)' ('\(id.rawValue)') evaluated in a non-AppEvaluationContext. Context type: \(type(of: context))")
-            return false // Or throw an error, depending on desired strictness
+            throw TemporalKit.TemporalKitError.stateTypeMismatch(
+                expected: "AppEvaluationContext (providing AppState)",
+                actual: String(describing: type(of: context)),
+                propositionID: self.id,
+                propositionName: self.name
+            )
         }
         return evaluateWithAppState(appContext.state)
     }

@@ -3,11 +3,30 @@ import TemporalKit
 
 print("TemporalKit Demo Application")
 
-// 1. Define Propositions
-let isLoggedIn = IsUserLoggedInProposition()
-let hasMessages = HasUnreadMessagesProposition()
-let cartHasItems = CartHasItemsProposition()
-let cartHasMoreThanTwoItems = CartItemCountExceedsProposition(threshold: 2)
+// 1. Define Propositions using the global factory method from TemporalKit
+let isLoggedIn = TemporalKit.makeProposition(
+    id: "isUserLoggedInFunc",
+    name: "User is logged in (Functional)",
+    evaluate: { (appState: AppState) in appState.isUserLoggedIn } // Swift infers StateType=AppState, PropositionResultType=Bool
+)
+
+let hasMessages = TemporalKit.makeProposition(
+    id: "hasUnreadMessagesFunc",
+    name: "User has unread messages (Functional)",
+    evaluate: { (appState: AppState) in appState.hasUnreadMessages }
+)
+
+let cartHasItems = TemporalKit.makeProposition(
+    id: "cartHasItemsFunc",
+    name: "Cart has items (Functional)",
+    evaluate: { (appState: AppState) in appState.cartItemCount > 0 }
+)
+
+let cartHasMoreThanTwoItems = TemporalKit.makeProposition(
+    id: "cartItemCountExceeds_2_Func",
+    name: "Cart items > 2 (Functional)",
+    evaluate: { (appState: AppState) in appState.cartItemCount > 2 }
+)
 
 // 2. Create a Trace (a sequence of AppStates)
 let trace: [AppState] = [
@@ -23,28 +42,24 @@ func contextFor(appState: AppState, at index: Int) -> AppEvaluationContext {
     return AppEvaluationContext(appState: appState, index: index)
 }
 
-// 3. Define LTL Formulas
-// Example 1: "Eventually, the user is logged in"
-// F (isLoggedIn)
-let eventuallyLoggedIn: LTLFormula<AppProposition> = .eventually(.atomic(isLoggedIn))
+// Define a typealias for the specific proposition type used in this demo, for LTL formulas
+// This typealias now correctly refers to the type returned by TemporalKit.makeProposition
+// when the closure matches AppState -> Bool.
+// So, DemoLTLProposition IS TemporalKit.ClosureTemporalProposition<AppState, Bool>
+typealias DemoLTLProposition = TemporalKit.ClosureTemporalProposition<AppState, Bool>
 
-// Example 2: "Globally, if the user is logged in, they eventually have messages"
-// G (isLoggedIn -> F hasMessages)
-let loggedInImpliesEventuallyMessages: LTLFormula<AppProposition> = .globally(
+// 3. Define LTL Formulas using the typealias (which matches the inferred type of propositions)
+let eventuallyLoggedIn: LTLFormula<DemoLTLProposition> = .eventually(.atomic(isLoggedIn))
+
+let loggedInImpliesEventuallyMessages: LTLFormula<DemoLTLProposition> = .globally(
     .implies(.atomic(isLoggedIn), .eventually(.atomic(hasMessages)))
 )
 
-// Example 3: "The user is logged in UNTIL the cart has more than two items"
-// isLoggedIn U cartHasMoreThanTwoItems
-let loggedInUntilCartFull: LTLFormula<AppProposition> = .until(.atomic(isLoggedIn), .atomic(cartHasMoreThanTwoItems))
+let loggedInUntilCartFull: LTLFormula<DemoLTLProposition> = .until(.atomic(isLoggedIn), .atomic(cartHasMoreThanTwoItems))
 
-// Example 4: "Next, the cart will have items"
-// X cartHasItems
-let nextCartHasItems: LTLFormula<AppProposition> = .next(.atomic(cartHasItems))
+let nextCartHasItems: LTLFormula<DemoLTLProposition> = .next(.atomic(cartHasItems))
 
-// Example 5: "Always (the cart has items implies Next (cart has items or not logged in))"
-// G (cartHasItems -> X (cartHasItems \/ !isLoggedIn))
-let complexFormula: LTLFormula<AppProposition> = .globally(
+let complexFormula: LTLFormula<DemoLTLProposition> = .globally(
     .implies(
         .atomic(cartHasItems),
         .next(
@@ -53,18 +68,17 @@ let complexFormula: LTLFormula<AppProposition> = .globally(
     )
 )
 
-
 // 4. Evaluate formulas on the trace
-let evaluator = LTLFormulaTraceEvaluator<AppProposition>()
+let evaluator = LTLFormulaTraceEvaluator<DemoLTLProposition>()
 
 print("\n--- Evaluating Formulas ---")
 
-let formulasToTest: [(String, LTLFormula<AppProposition>)] = [
+let formulasToTest: [(String, LTLFormula<DemoLTLProposition>)] = [
     ("Eventually Logged In (F isLoggedIn)", eventuallyLoggedIn),
     ("Logged In -> F Has Messages (G (isLoggedIn -> F hasMessages))", loggedInImpliesEventuallyMessages),
     ("Logged In Until Cart Full (isLoggedIn U cartHasMoreThanTwoItems)", loggedInUntilCartFull),
     ("Next Cart Has Items (X cartHasItems)", nextCartHasItems),
-    ("Complex Formula (G (cartHasItems -> X (cartHasItems \\/ !isLoggedIn)))", complexFormula)
+    ("Complex Formula (G (cartHasItems -> X (cartHasItems or !isLoggedIn)))", complexFormula)
 ]
 
 for (description, formula) in formulasToTest {
@@ -78,19 +92,24 @@ for (description, formula) in formulasToTest {
 
 print("\n--- Manual Proposition Evaluation at specific states ---")
 if let firstStateContext = trace.first.map({ contextFor(appState: $0, at: 0) }) {
-    print("At time 0, isLoggedIn: \(isLoggedIn.evaluate(in: firstStateContext))")
+    let result = try? isLoggedIn.evaluate(in: firstStateContext)
+    let outputString = result.map { String($0) } ?? "N/A (Error)"
+    print("At time 0, isLoggedIn: \(outputString)")
 }
 if trace.count > 1 {
     let secondStateContext = contextFor(appState: trace[1], at: 1)
-    print("At time 1, isLoggedIn: \(isLoggedIn.evaluate(in: secondStateContext))")
-    print("At time 1, cartHasItems: \(cartHasItems.evaluate(in: secondStateContext))")
+    let result1 = try? isLoggedIn.evaluate(in: secondStateContext)
+    let outputString1 = result1.map { String($0) } ?? "N/A (Error)"
+    print("At time 1, isLoggedIn: \(outputString1)")
+
+    let result2 = try? cartHasItems.evaluate(in: secondStateContext)
+    let outputString2 = result2.map { String($0) } ?? "N/A (Error)"
+    print("At time 1, cartHasItems: \(outputString2)")
 }
 
-
 // Example using the renamed '~>>' operator (implies)
-// G (isLoggedIn ~>> F hasMessages)
-let formulaWithCustomOperator: LTLFormula<AppProposition> = .globally(
-    .implies(.atomic(isLoggedIn), .eventually(.atomic(hasMessages))) // Assuming ~>> is implemented via .implies for LTLFormula
+let formulaWithCustomOperator: LTLFormula<DemoLTLProposition> = .globally(
+    .implies(.atomic(isLoggedIn), .eventually(.atomic(hasMessages)))
 )
 do {
     let result = try evaluator.evaluate(formula: formulaWithCustomOperator, trace: trace, contextProvider: contextFor)
