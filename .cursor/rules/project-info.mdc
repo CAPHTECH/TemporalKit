@@ -1,0 +1,10 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Project Information
+
+This rule provides key information about the TemporalKit project.
+
+The main overview of the project, its features, installation, and usage can be found in the [README.md](mdc:README.md) file.

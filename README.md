@@ -113,7 +113,7 @@ do {
 
 ## Examples
 
-See the `Sources/TemporalKit/Examples` directory for complete examples of using the library.
+See the `Sources/TemporalKitDemo` directory for complete examples of using the library.
 
 ## Architecture
 
