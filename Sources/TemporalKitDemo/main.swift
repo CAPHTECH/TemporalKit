@@ -119,3 +119,49 @@ do {
 }
 
 print("\nDemo finished.")
+
+// MARK: - LTL Model Checking Demo
+
+print("\n--- LTL Model Checking Demo ---")
+
+// Kripke Structure and its propositions are defined in ExampleImplementations.swift
+// (DemoKripkeStructure, p_kripke, q_kripke, r_kripke, KripkeDemoProposition)
+
+// Define LTL formulas to check against the DemoKripkeStructure
+let formula_Gp_kripke: LTLFormula<KripkeDemoProposition> = .globally(.atomic(p_kripke)) // G p
+let formula_Fq_kripke: LTLFormula<KripkeDemoProposition> = .eventually(.atomic(q_kripke)) // F q
+let formula_Gr_kripke: LTLFormula<KripkeDemoProposition> = .globally(.atomic(r_kripke)) // G r (should fail on s0->s1 path)
+let formula_GFp_kripke: LTLFormula<KripkeDemoProposition> = .globally(.eventually(.atomic(p_kripke))) // GF p (p is infinitely often true)
+let formula_X_q_kripke: LTLFormula<KripkeDemoProposition> = .next(.atomic(q_kripke)) // X q
+let formula_p_U_r_kripke: LTLFormula<KripkeDemoProposition> = .until(.atomic(p_kripke), .atomic(r_kripke)) // p U r
+
+let modelChecker = LTLModelChecker<DemoKripkeStructure>()
+let kripkeModel = DemoKripkeStructure()
+
+let formulasToModelCheck: [(String, LTLFormula<KripkeDemoProposition>)] = [
+    ("G p_kripke (Always p)", formula_Gp_kripke),
+    ("F q_kripke (Eventually q)", formula_Fq_kripke),
+    ("G r_kripke (Always r)", formula_Gr_kripke),
+    ("GF p_kripke (Infinitely often p)", formula_GFp_kripke),
+    ("X q_kripke (Next q)", formula_X_q_kripke),
+    ("p_kripke U r_kripke (p Until r)", formula_p_U_r_kripke)
+]
+
+for (description, ltlFormula) in formulasToModelCheck {
+    print("\nChecking: \(description) -- Formula: \(ltlFormula)")
+    do {
+        let result = try modelChecker.check(formula: ltlFormula, model: kripkeModel)
+        switch result {
+        case .holds:
+            print("  Result: HOLDS")
+        case .fails(let counterexample):
+            print("  Result: FAILS")
+            print("    Counterexample Prefix: \(counterexample.prefix.map { $0.description }.joined(separator: " -> "))")
+            print("    Counterexample Cycle:  \(counterexample.cycle.map { $0.description }.joined(separator: " -> "))")
+        }
+    } catch {
+        print("  Error during model checking: \(error)")
+    }
+}
+
+print("\nModel Checking Demo finished.")

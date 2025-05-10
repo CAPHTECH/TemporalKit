@@ -65,10 +65,7 @@ struct LTLToBuchiConverterTests {
         #expect(transitionsOnP.first?.destinationState == initialState, "Transition on 'p' should loop to initial state")
 
         let transitionsOnNotP = buchiAutomaton.transitions.filter { $0.sourceState == initialState && $0.symbol == notPSymbol }
-        // #expect(transitionsOnNotP.isEmpty, "Should be no explicit transition on '!p' from initial state for minimal BA (or it goes to a non-accepting sink)")
-        // Temporarily adjust expectation due to current liveness sink heuristic in solve:
-        #expect(transitionsOnNotP.count == 1, "TEMPORARY: Expected one transition on '!p' due to current solve heuristic")
-        #expect(transitionsOnNotP.first?.destinationState == initialState, "TEMPORARY: Transition on '!p' should loop due to current solve heuristic")
+        #expect(transitionsOnNotP.isEmpty, "Should be no transition on '!p' from initial state for atomic(p) if path is inconsistent.")
     }
     
     @Test func eventually_p() throws {
@@ -123,6 +120,107 @@ struct LTLToBuchiConverterTests {
 
         let s1_on_notP_transitions = buchiAutomaton.transitions.filter { $0.sourceState == s1 && $0.symbol == notPSymbol }
         #expect(!s1_on_notP_transitions.isEmpty, "Accepting state s1 should have a transition on !p (could be a loop)")
+    }
+
+    @Test func testGlobally_p() throws {
+        let pIdString = "p"
+        let pId = PropositionID(rawValue: pIdString)
+        let g_pFormula: Formula = .globally(Formula.prop(pIdString))
+        let relevantPropositions: Set<PropositionID> = [pId]
+
+        let buchiAutomaton: BA = try LTLToBuchiConverter.translateLTLToBuchi(
+            g_pFormula,
+            relevantPropositions: relevantPropositions
+        )
+
+        print("--- Test: Globally 'p' ---")
+        LTLToBuchiConverterTests.printBA(buchiAutomaton, testName: "testGlobally_p", relevantPropositions: relevantPropositions)
+
+        #expect(!buchiAutomaton.states.isEmpty, "BA should have states for G p.")
+        #expect(!buchiAutomaton.initialStates.isEmpty, "BA should have initial states for G p.")
+        #expect(!buchiAutomaton.acceptingStates.isEmpty, "BA should have accepting states for G p.")
+
+        let initialState = try #require(buchiAutomaton.initialStates.first, "Should have one initial state for G p")
+        #expect(buchiAutomaton.acceptingStates.contains(initialState), "Initial state for G p should be accepting.")
+
+        let pSymbol: BuchiSymbol = [pId]
+        let notPSymbol: BuchiSymbol = [] // Represents !p when p is the only relevant proposition
+
+        // From initial (accepting) state, on 'p', should loop to itself or another accepting state maintaining G p.
+        let transitionsOnP = buchiAutomaton.transitions.filter { $0.sourceState == initialState && $0.symbol == pSymbol }
+        #expect(transitionsOnP.count == 1, "For G p, on 'p', should be one transition from initial state (likely a loop).")
+        let nextStateOnP = try #require(transitionsOnP.first?.destinationState)
+        #expect(buchiAutomaton.acceptingStates.contains(nextStateOnP), "For G p, state reached on 'p' should be accepting.")
+        // Ideally, nextStateOnP == initialState for a simple G p automaton.
+        // #expect(nextStateOnP == initialState, "For G p, transition on 'p' should loop to the initial state.") // Temporarily commented out, as a 2-state BA is also possible and correct.
+
+        // From initial (accepting) state, on '!p', there should be no transition to an accepting state.
+        // Ideally, it goes to a non-accepting trap state, or there's no transition for '!p' at all from an accepting state.
+        let transitionsOnNotP = buchiAutomaton.transitions.filter { $0.sourceState == initialState && $0.symbol == notPSymbol }
+        if let trapDestination = transitionsOnNotP.first?.destinationState {
+            #expect(!buchiAutomaton.acceptingStates.contains(trapDestination), "For G p, if a transition on '!p' exists from an accepting state, it must go to a non-accepting state.")
+        } else {
+            // No transition on !p is also acceptable, meaning the path implicitly fails.
+            #expect(transitionsOnNotP.isEmpty, "For G p, ideally no transition on '!p' from an accepting state, or it goes to a trap. Here, checking for empty.")
+        }
+    }
+
+    @Test func testX_p() throws {
+        let pIdString = "p"
+        let pId = PropositionID(rawValue: pIdString)
+        let x_pFormula: Formula = .next(Formula.prop(pIdString))
+        let relevantPropositions: Set<PropositionID> = [pId]
+
+        let buchiAutomaton: BA = try LTLToBuchiConverter.translateLTLToBuchi(
+            x_pFormula,
+            relevantPropositions: relevantPropositions
+        )
+
+        print("--- Test: Next 'p' (X p) ---")
+        LTLToBuchiConverterTests.printBA(buchiAutomaton, testName: "testX_p", relevantPropositions: relevantPropositions)
+
+        #expect(!buchiAutomaton.states.isEmpty, "BA should have states for X p.")
+        #expect(!buchiAutomaton.initialStates.isEmpty, "BA should have initial states for X p.")
+        // For X p, accepting states might depend on the tableau construction details and GBA default acceptance.
+        // We will verify specific path properties instead of just non-empty accepting states initially.
+
+        let initialState = try #require(buchiAutomaton.initialStates.first, "Should have one initial state for X p")
+        #expect(!buchiAutomaton.acceptingStates.contains(initialState), "Initial state for X p should generally be non-accepting.")
+
+        let pSymbol: BuchiSymbol = [pId]
+        let notPSymbol: BuchiSymbol = []
+
+        // From initial state, on ANY symbol, should transition to a state where 'p' is expected next.
+        let transitionsFromInitialOnP = buchiAutomaton.transitions.filter { $0.sourceState == initialState && $0.symbol == pSymbol }
+        #expect(!transitionsFromInitialOnP.isEmpty, "Should be a transition from initial state on 'p' for X p.")
+        let s1_viaP = try #require(transitionsFromInitialOnP.first?.destinationState, "Must have a successor from initial on p")
+
+        let transitionsFromInitialOnNotP = buchiAutomaton.transitions.filter { $0.sourceState == initialState && $0.symbol == notPSymbol }
+        #expect(!transitionsFromInitialOnNotP.isEmpty, "Should be a transition from initial state on '!p' for X p.")
+        _ = try #require(transitionsFromInitialOnNotP.first?.destinationState, "Must have a successor from initial on !p")
+        
+        // For a simple X p, both paths should lead to the same intermediate state or equivalent states.
+        // This intermediate state s1 is where the 'p' from Xp is actually checked.
+        // We will check paths from s1_viaP (assuming s1_viaNotP behaves similarly or leads to same state if BA is minimal)
+
+        // From s1 (reached via initial on P), on 'p', should lead to an accepting cycle/state.
+        let s1_on_P_transitions = buchiAutomaton.transitions.filter { $0.sourceState == s1_viaP && $0.symbol == pSymbol }
+        #expect(!s1_on_P_transitions.isEmpty, "Intermediate state s1 should have transition on 'p' for X p.")
+        let s2_acceptingPath = try #require(s1_on_P_transitions.first?.destinationState, "s1 must have successor on p")
+        // This s2 (or a state reachable from it forming a cycle) should be part of an accepting run.
+        // This requires checking if s2 is an accepting state OR can lead to one that loops.
+        // For Xp, if GBA default acceptance makes all states accepting, this will pass if a transition exists.
+        // A more precise check: s2 must be an accepting state if Xp simply means "next state satisfies p and then we are done (accept)".
+        #expect(buchiAutomaton.acceptingStates.contains(s2_acceptingPath), "State s2 (after X and p) should be accepting for X p, assuming default GBA acceptance or simple tableau.")
+
+        // From s1 (reached via initial on P), on '!p', should NOT lead to an accepting state/cycle for p.
+        let s1_on_NotP_transitions = buchiAutomaton.transitions.filter { $0.sourceState == s1_viaP && $0.symbol == notPSymbol }
+        if let s2_nonAcceptingPath_dest = s1_on_NotP_transitions.first?.destinationState {
+            #expect(!buchiAutomaton.acceptingStates.contains(s2_nonAcceptingPath_dest), "If s1 has transition on '!p', it should go to non-accepting state for X p.")
+        } else {
+            // No transition on !p from s1 is also fine (implicitly rejected).
+            #expect(s1_on_NotP_transitions.isEmpty, "Intermediate state s1 for X p ideally has no transition on '!p', or it goes to a non-accepting state.")
+        }
     }
 
     // --- Helper to print BA for debugging ---

@@ -9,6 +9,8 @@ TemporalKit is a Swift library for working with temporal logic, particularly Lin
 - **Extensible architecture** designed to support multiple temporal logic systems
 - **Evaluation engine** for checking formulas against traces
 - **Formula normalization** to simplify and optimize expressions
+- **LTL Model Checking**: Verification of LTL formulas against Kripke structures using Büchi automata.
+- **State Space Representation**: Basic structures for defining system models (Kripke structures).
 - **Comprehensive examples** demonstrating real-world usage
 
 ## Installation
@@ -138,9 +140,12 @@ We are considering the following enhancements for the TemporalKit project:
   - **Introduction of Past LTL Operators**: Introduce past-time operators to LTL (e.g., Yesterday (Y), SoFar (S̅), Triggered (T)) to enhance expressive power.
   - **Consideration of MTL (Metric Temporal Logic) / TPTL (Timed Propositional Temporal Logic)**: Explore the introduction of temporal logics that can handle time constraints more precisely (e.g., "Event B occurs within 5 hours after Event A"), expanding the range of applications to real-time systems and domains where temporal constraints are critical.
 
-- **Implementation of Model Checking Features**:
-  - **LTL Model Checking**: In addition to trace evaluation, implement model checking algorithms (e.g., using Büchi automata) to verify if a given state transition system (model) satisfies an LTL formula. This allows verification of properties over the entire behavior of a system, not just finite traces.
-  - **State Space Representation**: Define data structures to represent the systems to be model-checked (states, transitions, labeling of atomic propositions, etc.).
+- **Further Enhancements to Model Checking Features**:
+  // Note: LTL Model Checking core and basic State Space Representation are now implemented.
+  // Future work could include:
+  - **Advanced Algorithms**: Exploration of more advanced model checking algorithms (e.g., on-the-fly, symbolic model checking) for performance and scalability.
+  - **Richer Model Representations**: Support for more complex or specialized state system representations.
+  - **Counterexample Refinement**: More detailed and user-friendly counterexample traces.
 
 - **Enhancement of Usability and DSL**:
   - **Provision of Property Specification Patterns**: Introduce high-level patterns and macros into the DSL to easily describe common properties (e.g., Safety, Liveness, Response).

@@ -125,3 +125,64 @@ public class CartItemCountExceedsProposition: AppProposition {
         return state.cartItemCount > threshold
     }
 }
+
+// MARK: - Kripke Structure and Propositions for Model Checking Demo
+
+/// State type for the DemoKripkeStructure.
+public enum DemoKripkeModelState: Hashable, CustomStringConvertible {
+    case s0, s1, s2
+    public var description: String {
+        switch self {
+        case .s0: return "s0"
+        case .s1: return "s1"
+        case .s2: return "s2"
+        }
+    }
+}
+
+/// Proposition type for the Kripke structure used in model checking demo.
+public typealias KripkeDemoProposition = TemporalKit.ClosureTemporalProposition<DemoKripkeModelState, Bool>
+
+// Define propositions that will label the Kripke structure states.
+public let p_kripke = TemporalKit.makeProposition(
+    id: "p_kripke", 
+    name: "p (for Kripke)", 
+    evaluate: { (state: DemoKripkeModelState) -> Bool in state == .s0 || state == .s2 }
+)
+public let q_kripke = TemporalKit.makeProposition(
+    id: "q_kripke", 
+    name: "q (for Kripke)", 
+    evaluate: { (state: DemoKripkeModelState) -> Bool in state == .s1 }
+)
+public let r_kripke = TemporalKit.makeProposition(
+    id: "r_kripke", 
+    name: "r (for Kripke)", 
+    evaluate: { (state: DemoKripkeModelState) -> Bool in state == .s2 }
+)
+
+/// A simple Kripke Structure for LTL model checking demonstration.
+/// States: s0 (initial, {p_kripke}), s1 ({q_kripke}), s2 ({p_kripke, r_kripke})
+/// Transitions: s0->s1, s1->s2, s2->s0, s2->s2 (self-loop)
+public struct DemoKripkeStructure: KripkeStructure {
+    public typealias State = DemoKripkeModelState
+    public typealias AtomicPropositionIdentifier = PropositionID
+
+    public let initialStates: Set<State> = [.s0]
+    public let allStates: Set<State> = [.s0, .s1, .s2]
+
+    public func successors(of state: State) -> Set<State> {
+        switch state {
+        case .s0: return [.s1]
+        case .s1: return [.s2]
+        case .s2: return [.s0, .s2]
+        }
+    }
+
+    public func atomicPropositionsTrue(in state: State) -> Set<AtomicPropositionIdentifier> {
+        var trueProps = Set<AtomicPropositionIdentifier>()
+        if state == .s0 || state == .s2 { trueProps.insert(p_kripke.id) }
+        if state == .s1 { trueProps.insert(q_kripke.id) }
+        if state == .s2 { trueProps.insert(r_kripke.id) }
+        return trueProps
+    }
+}

@@ -69,12 +69,71 @@ public class LTLModelChecker<Model: KripkeStructure> {
         model: Model
     ) throws -> ModelCheckResult<Model.State> where P.ID == Model.AtomicPropositionIdentifier, P.Value == Bool {
 
+        // --- SPECIAL HANDLING FOR ATOMIC PROPOSITIONS ---
+        // For a simple atomic proposition P, M |= P if P holds in all initial states of M.
+        // For a simple negated atomic proposition !P, M |= !P if !P holds in all initial states of M (i.e., P is false).
+        switch formula {
+        case .atomic(let prop):
+            print("[LTLModelChecker] Special check for .atomic(\(prop.name))")
+            var failingInitialState: Model.State? = nil
+            if model.initialStates.isEmpty {
+                 print("    Model has no initial states. Formula \(prop.name) vacuously holds? Or fails? Standard LTL usually assumes non-empty paths. For atomic prop, consider this FAILS if no state to check.")
+                 // Or, based on typical TLA+ style, if Init => P, and Init is false, then formula holds.
+                 // Let's consider it fails if no initial state satisfies it / no initial state at all.
+                 return .fails(counterexample: Counterexample(prefix: [], cycle: [])) // Or specific error
+            }
+            for initState in model.initialStates {
+                let truePropsInInitState = model.atomicPropositionsTrue(in: initState)
+                if !truePropsInInitState.contains(prop.id) { // prop is false in this initial state
+                    failingInitialState = initState 
+                    break
+                }
+            }
+            if let violatingState = failingInitialState {
+                print("    Atomic prop \(prop.name) is FALSE in initial state \(violatingState). Formula FAILS.")
+                return .fails(counterexample: Counterexample(prefix: [violatingState], cycle: [violatingState]))
+            } else {
+                print("    Atomic prop \(prop.name) is TRUE in all initial states. Formula HOLDS.")
+                return .holds
+            }
+
+        case .not(let subFormula):
+            if case .atomic(let prop) = subFormula {
+                print("[LTLModelChecker] Special check for .not(.atomic(\(prop.name)))")
+                var failingInitialState: Model.State? = nil // Here, failing means !P is false (P is true)
+                if model.initialStates.isEmpty {
+                    print("    Model has no initial states. Formula !\(prop.name) vacuously holds? Or fails? Consider this FAILS.")
+                    return .fails(counterexample: Counterexample(prefix: [], cycle: []))
+                }
+                for initState in model.initialStates {
+                    let truePropsInInitState = model.atomicPropositionsTrue(in: initState)
+                    if truePropsInInitState.contains(prop.id) { // prop is true in this initial state, so !prop is false
+                        failingInitialState = initState
+                        break
+                    }
+                }
+                if let violatingState = failingInitialState {
+                    print("    Negated atomic prop !\(prop.name) is FALSE (prop \(prop.name) is TRUE) in initial state \(violatingState). Formula FAILS.")
+                    return .fails(counterexample: Counterexample(prefix: [violatingState], cycle: [violatingState]))
+                } else {
+                    print("    Negated atomic prop !\(prop.name) is TRUE (prop \(prop.name) is FALSE) in all initial states. Formula HOLDS.")
+                    return .holds
+                }
+            }
+            // If not .not(.atomic), fall through to standard model checking.
+            break 
+        default:
+            // Proceed with standard Büchi automata-based model checking for other formulas
+            break
+        }
+        print("[LTLModelChecker] Proceeding with standard Büchi automata based check for: \(String(describing: formula))")
+
         let negatedFormula = LTLFormula.not(formula)
         
         let relevantProps = self.extractPropositions(from: formula, and: model)
 
         // Call the static method from LTLToBuchiConverter
-        let automatonForNegatedFormula: BuchiAutomaton<LTLToBuchiConverter.FormulaAutomatonState, LTLToBuchiConverter.BuchiAlphabetSymbol<Model.AtomicPropositionIdentifier>>
+        let automatonForNegatedFormula: BuchiAutomaton<FormulaAutomatonState, TemporalKit.BuchiAlphabetSymbol<Model.AtomicPropositionIdentifier>>
         do {
             automatonForNegatedFormula = try LTLToBuchiConverter.translateLTLToBuchi(
                 negatedFormula, 
@@ -92,12 +151,12 @@ public class LTLModelChecker<Model: KripkeStructure> {
         }
 
         // Type alignment for constructProductAutomaton
-        let castedAutomatonForNegatedFormula = BuchiAutomaton<FormulaAutomatonState, BuchiAlphabetSymbol>(
+        let castedAutomatonForNegatedFormula = BuchiAutomaton<FormulaAutomatonState, TemporalKit.BuchiAlphabetSymbol<Model.AtomicPropositionIdentifier>>(
             states: automatonForNegatedFormula.states,
             alphabet: automatonForNegatedFormula.alphabet, 
             initialStates: automatonForNegatedFormula.initialStates,
             transitions: Set(automatonForNegatedFormula.transitions.map { t in 
-                BuchiAutomaton<FormulaAutomatonState, BuchiAlphabetSymbol>.Transition(from: t.sourceState, on: t.symbol, to: t.destinationState)
+                BuchiAutomaton<FormulaAutomatonState, TemporalKit.BuchiAlphabetSymbol<Model.AtomicPropositionIdentifier>>.Transition(from: t.sourceState, on: t.symbol, to: t.destinationState)
             }),
             acceptingStates: automatonForNegatedFormula.acceptingStates
         )
@@ -123,28 +182,25 @@ public class LTLModelChecker<Model: KripkeStructure> {
     // These would contain the actual complex logic.
 
     private func extractPropositions<P: TemporalProposition>(from formula: LTLFormula<P>, and model: Model) -> Set<Model.AtomicPropositionIdentifier> where P.Value == Bool {
-        var propositions = Set<Model.AtomicPropositionIdentifier>()
+        var propositionsInFormula = Set<Model.AtomicPropositionIdentifier>()
         
         func collectProps(from f: LTLFormula<P>) {
             switch f {
             case .booleanLiteral:
-                // Boolean literals do not contain propositions
                 break
             case .atomic(let p):
                 if let propId = p.id as? Model.AtomicPropositionIdentifier {
-                     propositions.insert(propId)
+                     propositionsInFormula.insert(propId)
                 } else {
-                    // This warning is important if KripkeStructure.AtomicPropositionIdentifier
-                    // is not always directly compatible with P.ID (TemporalProposition.ID)
                     print("Warning: Proposition ID \(p.id) of type \(type(of: p.id)) could not be cast to Model.AtomicPropositionIdentifier")
                 }
             case .not(let subFormula):
                 collectProps(from: subFormula)
-            case .next(let subFormula): // Corrected from .X
+            case .next(let subFormula): 
                 collectProps(from: subFormula)
-            case .eventually(let subFormula): // Corrected from .F
+            case .eventually(let subFormula): 
                 collectProps(from: subFormula)
-            case .globally(let subFormula): // Corrected from .G
+            case .globally(let subFormula): 
                 collectProps(from: subFormula)
             case .and(let left, let right):
                 collectProps(from: left)
@@ -155,24 +211,30 @@ public class LTLModelChecker<Model: KripkeStructure> {
             case .implies(let left, let right):
                 collectProps(from: left)
                 collectProps(from: right)
-            case .until(let left, let right): // Added case
+            case .until(let left, let right): 
                 collectProps(from: left)
                 collectProps(from: right)
-            case .weakUntil(let left, let right): // Added case
+            case .weakUntil(let left, let right): 
                 collectProps(from: left)
                 collectProps(from: right)
-            case .release(let left, let right): // Added case
+            case .release(let left, let right): 
                 collectProps(from: left)
                 collectProps(from: right)
-            // No default needed if all LTLFormula cases are explicitly handled.
-            // If LTLFormula might have more cases in the future not covered here, 
-            // a default with a warning/error would be good practice.
             }
         }
         collectProps(from: formula)
         
-        print("LTLModelChecker Helper: extractPropositions - Updated with LTLFormula.swift cases.")
-        return propositions
+        // Ensure the formula automaton considers all propositions present in the model,
+        // so its alphabet is compatible for product construction.
+        var allPropsEverTrueInModel = Set<Model.AtomicPropositionIdentifier>()
+        for state in model.allStates {
+            allPropsEverTrueInModel.formUnion(model.atomicPropositionsTrue(in: state))
+        }
+        propositionsInFormula.formUnion(allPropsEverTrueInModel)
+        
+        // print("LTLModelChecker Helper: extractPropositions - Updated with LTLFormula.swift cases.") // Original print
+        print("LTLModelChecker Helper: extractPropositions - Formula Props: \(propositionsInFormula), Model Props Considered: \(allPropsEverTrueInModel)")
+        return propositionsInFormula
     }
 
     /// Converts a KripkeStructure (system model) into an equivalent Büchi Automaton.
@@ -240,9 +302,43 @@ public class LTLModelChecker<Model: KripkeStructure> {
     /// The product automaton Am × A¬φ accepts runs that are in both Am and A¬φ.
     private func constructProductAutomaton(
         modelAutomaton: BuchiAutomaton<ModelAutomatonState, BuchiAlphabetSymbol>,
-        formulaAutomaton: BuchiAutomaton<FormulaAutomatonState, BuchiAlphabetSymbol>
+        formulaAutomaton: BuchiAutomaton<FormulaAutomatonState, TemporalKit.BuchiAlphabetSymbol<Model.AtomicPropositionIdentifier>>
     ) throws -> BuchiAutomaton<ActualProductAutomatonState, BuchiAlphabetSymbol> {
         
+        print("[ProductConstruct] Model Automaton: States=\(modelAutomaton.states.count), Initial=\(modelAutomaton.initialStates.count), Accepting=\(modelAutomaton.acceptingStates.count), Alphabet=\(modelAutomaton.alphabet.count)")
+        print("[ProductConstruct] Formula Automaton: States=\(formulaAutomaton.states.count), Initial=\(formulaAutomaton.initialStates.count), Accepting=\(formulaAutomaton.acceptingStates.count), Alphabet=\(formulaAutomaton.alphabet.count)")
+
+        // VERBOSE LOGGING FOR F(!p) DEBUGGING
+        let targetFormulaStateForDebug: FormulaAutomatonState = 0 // Assuming 0 is the key accepting state for F(!p)
+        let pDemoLikeRawValueToFind = "p_demo_like"
+        
+        print("[ProductConstruct-Debug F(!p)] Inspecting formula automaton transitions from state \(targetFormulaStateForDebug) for symbol involving '\(pDemoLikeRawValueToFind)'.")
+        var foundPotentialTargetTransition = false
+        for fTrans_debug in formulaAutomaton.transitions {
+            if fTrans_debug.sourceState == targetFormulaStateForDebug {
+                let symbolElements = fTrans_debug.symbol
+                var isOurTargetSymbol = false
+                if symbolElements.count == 1 {
+                    // Assuming Model.AtomicPropositionIdentifier is PropositionID or similar with a rawValue or debug description containing it.
+                    if let firstElement = symbolElements.first, String(describing: firstElement).contains(pDemoLikeRawValueToFind) {
+                        isOurTargetSymbol = true
+                    }
+                }
+
+                if isOurTargetSymbol {
+                    print("    [F(!p) Debug] Potential formula transition FOUND: \(fTrans_debug.sourceState) -- \(String(describing: fTrans_debug.symbol)) --> \(fTrans_debug.destinationState)")
+                    foundPotentialTargetTransition = true
+                } else {
+                    // Log other transitions from target state to see alternatives
+                     print("    [F(!p) Debug] Other formula transition from state \(targetFormulaStateForDebug): \(fTrans_debug.sourceState) -- \(String(describing: fTrans_debug.symbol)) --> \(fTrans_debug.destinationState)")
+                }
+            }
+        }
+        if !foundPotentialTargetTransition {
+            print("    [F(!p) Debug] CRITICAL: No potential target transition (symbol containing '\(pDemoLikeRawValueToFind)') found from formula state \(targetFormulaStateForDebug).")
+        }
+        // END VERBOSE LOGGING
+
         var productStates = Set<ActualProductAutomatonState>()
         var productInitialStates = Set<ActualProductAutomatonState>()
         var productTransitions = Set<BuchiAutomaton<ActualProductAutomatonState, BuchiAlphabetSymbol>.Transition>()
@@ -313,6 +409,11 @@ public class LTLModelChecker<Model: KripkeStructure> {
            print("Warning: Product automaton has states but no initial states. This might be correct if one of the input automata had no initial states or no overlapping initial behavior.")
            // Depending on the LTL to Büchi tool, an LTL formula might result in an automaton with no initial states if it's a contradiction like (false).
         }
+
+        print("[ProductConstruct] Product Automaton: States=\(productStates.count), Initial=\(productInitialStates.count), Transitions=\(productTransitions.count), Accepting=\(productAcceptingStates.count)")
+        // print("[ProductConstruct] Product Initial: \(productInitialStates)")
+        // print("[ProductConstruct] Product Transitions: \(productTransitions.map { "(\($0.sourceState), \($0.symbol), \($0.destinationState))" })")
+        // print("[ProductConstruct] Product Accepting: \(productAcceptingStates)")
 
         return BuchiAutomaton(
             states: productStates,
