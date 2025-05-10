@@ -1,17 +1,21 @@
 # TemporalKit
 
-TemporalKit is a Swift library for working with temporal logic, particularly Linear Temporal Logic (LTL). It provides a type-safe, composable, and Swift-idiomatic way to express and evaluate temporal logic formulas.
+TemporalKit is a Swift library for working with temporal logic, particularly Linear Temporal Logic (LTL). It provides a type-safe, composable, and Swift-idiomatic way to express and evaluate temporal logic formulas, and to perform LTL model checking.
 
 ## Features
 
 - **Type-safe representation** of Linear Temporal Logic (LTL) formulas
 - **Swift-idiomatic DSL** for constructing formulas with natural syntax
 - **Extensible architecture** designed to support multiple temporal logic systems
-- **Evaluation engine** for checking formulas against traces
+- **Evaluation engine** for checking formulas against traces (sequences of states)
 - **Formula normalization** to simplify and optimize expressions
-- **LTL Model Checking**: Verification of LTL formulas against Kripke structures using Büchi automata.
-- **State Space Representation**: Basic structures for defining system models (Kripke structures).
-- **Comprehensive examples** demonstrating real-world usage
+- **LTL Model Checking**: Verification of LTL formulas against system models (Kripke structures) using Büchi automata. This includes:
+  - Translation of LTL formulas to Büchi Automata.
+  - Construction of product automata between a model and a formula automaton.
+  - Emptiness checking of Büchi automata (e.g., using Nested DFS) to find counterexamples.
+- **State Space Representation**: Protocols and structures for defining system models, specifically `KripkeStructure`.
+- **Büchi Automaton Implementation**: A representation for Büchi automata, used internally for model checking.
+- **Comprehensive examples** demonstrating trace evaluation and model checking.
 
 ## Installation
 
@@ -21,7 +25,7 @@ Add TemporalKit to your `Package.swift` file:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/yourusername/TemporalKit.git", from: "1.0.0")
+    .package(url: "https://github.com/yourusername/TemporalKit.git", from: "1.0.0") // Replace with actual URL and version
 ]
 ```
 
@@ -33,99 +37,121 @@ Temporal logic extends classical logic with operators that refer to time. Linear
 
 Key LTL operators:
 
-- `X p`: Next - p holds at the next time step
-- `F p`: Eventually - p holds at some future time step
-- `G p`: Always - p holds at all future time steps
-- `p U q`: Until - p holds until q holds (DSL: `p ~>> q`)
-- `p W q`: Weak Until - p holds until q holds, or p holds forever
-- `p R q`: Release - q holds until and including when p holds
+- `X p` / `.next(.atomic(p))`: Next - p holds at the next time step
+- `F p` / `.eventually(.atomic(p))`: Eventually - p holds at some future time step
+- `G p` / `.globally(.atomic(p))`: Always - p holds at all future time steps
+- `p U q` / `.until(.atomic(p), .atomic(q))`: Until - p holds until q holds
+- `p W q` / `.weakUntil(.atomic(p), .atomic(q))`: Weak Until - p holds until q holds, or p holds forever
+- `p R q` / `.release(.atomic(p), .atomic(q))`: Release - q holds until and including when p holds
 
 ### Using TemporalKit
 
 #### 1. Define Propositions
 
-First, create propositions that can be evaluated at specific points in time:
+Propositions are statements about the system state that can be true or false.
 
 ```swift
-class IsUserLoggedInProposition: TemporalProposition {
-    let id = PropositionID(rawValue: "isUserLoggedIn") 
-    let name = "User is logged in"
-    
-    func evaluate(in context: EvaluationContext) -> Bool {
-        guard let appContext = context as? AppEvaluationContext else { return false }
-        return appContext.state.isUserLoggedIn
-    }
+// For Trace Evaluation (example from Demo)
+let isLoggedIn_trace = TemporalKit.makeProposition(
+    id: "isUserLoggedInFunc",
+    name: "User is logged in (Functional)",
+    evaluate: { (appState: AppState) in appState.isUserLoggedIn }
+)
+
+// For Model Checking (example from Demo)
+public let p_kripke = TemporalKit.makeProposition(
+    id: "p_kripke", 
+    name: "p (for Kripke)", 
+    evaluate: { (state: DemoKripkeModelState) -> Bool in state == .s0 || state == .s2 }
+)
+```
+
+#### 2. Create Evaluation Contexts (for Trace Evaluation)
+
+Define a context that provides the necessary information to evaluate propositions over a trace.
+
+```swift
+struct AppEvaluationContext: EvaluationContext { /* ... see Demo ... */ }
+```
+
+#### 3. Define a Kripke Structure (for Model Checking)
+
+Implement the `KripkeStructure` protocol to define your system model.
+
+```swift
+public struct DemoKripkeStructure: KripkeStructure {
+    public typealias State = DemoKripkeModelState
+    public typealias AtomicPropositionIdentifier = PropositionID
+
+    public let initialStates: Set<State> = [.s0]
+    public let allStates: Set<State> = [.s0, .s1, .s2]
+
+    public func successors(of state: State) -> Set<State> { /* ... transitions ... */ }
+    public func atomicPropositionsTrue(in state: State) -> Set<AtomicPropositionIdentifier> { /* ... state labeling ... */ }
 }
 ```
 
-#### 2. Create Evaluation Contexts
+#### 4. Construct Formulas
 
-Define a context that provides the necessary information to evaluate propositions:
+Use the Swift-friendly DSL to construct temporal logic formulas. The proposition type in the formula must match the context or model.
 
 ```swift
-struct AppEvaluationContext: EvaluationContext {
-    let state: AppState
-    let index: Int
-    
-    func currentStateAs<T>(_ type: T.Type) -> T? {
-        return state as? T
-    }
-    
-    var traceIndex: Int? { return index }
-}
+// For Trace Evaluation
+typealias DemoLTLProposition = TemporalKit.ClosureTemporalProposition<AppState, Bool>
+let eventuallyLoggedIn: LTLFormula<DemoLTLProposition> = .eventually(.atomic(isLoggedIn_trace))
+
+// For Model Checking
+typealias KripkeDemoProposition = TemporalKit.ClosureTemporalProposition<DemoKripkeModelState, Bool>
+let formula_Gp_kripke: LTLFormula<KripkeDemoProposition> = .globally(.atomic(p_kripke))
 ```
 
-#### 3. Construct Formulas
+#### 5. Evaluate Formulas or Perform Model Checking
 
-Use the Swift-friendly DSL to construct temporal logic formulas:
+**Trace Evaluation:**
 
 ```swift
-// Create atomic propositions
-let isLoggedIn: LTLFormula<MyProposition> = .atomic(IsUserLoggedInProposition())
-let hasUnread: LTLFormula<MyProposition> = .atomic(HasUnreadMessagesProposition())
-
-// Build complex formulas
-// "Eventually the user is logged in"
-let eventuallyLoggedIn = LTLFormula.F(isLoggedIn)
-
-// "Once logged in, eventually has unread messages"
-let loggedInLeadsToUnread = isLoggedIn ==> LTLFormula.F(hasUnread)
-
-// "Always, if has unread messages then is logged in"
-let unreadImpliesLoggedIn = LTLFormula.G(hasUnread ==> isLoggedIn)
-
-// "Logged in until cart has items"
-let loggedInUntilCart = isLoggedIn ~>> cartHasItems
+let trace: [AppState] = [/* ... sequence of AppStates ... */]
+let evaluator = LTLFormulaTraceEvaluator<DemoLTLProposition>()
+let result = try evaluator.evaluate(formula: eventuallyLoggedIn, trace: trace, contextProvider: contextFor)
+print("Formula holds on trace: \(result)")
 ```
 
-#### 4. Evaluate Formulas
-
-Evaluate formulas against a trace (sequence of states):
+**Model Checking:**
 
 ```swift
-let trace: [AppEvaluationContext] = createTraceFromAppStates()
+let modelChecker = LTLModelChecker<DemoKripkeStructure>()
+let kripkeModel = DemoKripkeStructure()
+let checkResult = try modelChecker.check(formula: formula_Gp_kripke, model: kripkeModel)
 
-do {
-    let result = try eventuallyLoggedIn.evaluate(over: trace)
-    print("Formula 'Eventually logged in' holds: \(result)")
-} catch {
-    print("Error evaluating formula: \(error)")
+switch checkResult {
+case .holds:
+    print("Formula HOLDS for the model.")
+case .fails(let counterexample):
+    print("Formula FAILS. Counterexample: \(counterexample.infinitePathDescription)")
 }
 ```
 
 ## Examples
 
-See the `Sources/TemporalKitDemo` directory for complete examples of using the library.
+See the `Sources/TemporalKitDemo` directory for complete examples of using the library, including both trace evaluation and LTL model checking.
 
 ## Architecture
 
 TemporalKit is designed with the following key components:
 
-- **Core protocols**: `EvaluationContext` and `TemporalProposition` define the interfaces for context and proposition evaluation.
-- **Formula representation**: `LTLFormula` enum represents the structure of LTL formulas.
-- **DSL**: Operator overloads and helper methods provide a Swift-idiomatic syntax.
+- **Core protocols**: `EvaluationContext`, `TemporalProposition`, `KripkeStructure`.
+- **Formula representation**: `LTLFormula` enum.
+- **DSL**: Operator overloads and helper methods.
 - **Evaluation**: Step-wise and trace-based evaluation of formulas.
 - **Normalization**: Simplification and standardization of formulas.
+- **Model Checking Engine**:
+  - `LTLToBuchiConverter`: Translates LTL to Büchi automata.
+  - `GBAConditionGenerator`, `GBAToBAConverter`: Support for Generalized Büchi Automata.
+  - `TableauGraphConstructor`: Core of the LTL to GBA tableau construction.
+  - `NestedDFSAlgorithm`: Checks Büchi automaton emptiness.
+  - `LTLModelChecker`: Orchestrates the model checking process.
+  - `BuchiAutomaton`: Represents Büchi automata.
+  - `ProductState`: Used in product automaton construction.
 
 ## License
 
@@ -136,26 +162,26 @@ TemporalKit is available under the MIT license. See the LICENSE file for more in
 We are considering the following enhancements for the TemporalKit project:
 
 - **Expansion of Supported Logics**:
-  - **CTL (Computation Tree Logic) Support**: Support CTL, a branching-time temporal logic, to describe and verify properties related to the "possibility" of system states (e.g., whether a state can be reached, or whether a state can be reached while always maintaining another state).
-  - **Introduction of Past LTL Operators**: Introduce past-time operators to LTL (e.g., Yesterday (Y), SoFar (S̅), Triggered (T)) to enhance expressive power.
-  - **Consideration of MTL (Metric Temporal Logic) / TPTL (Timed Propositional Temporal Logic)**: Explore the introduction of temporal logics that can handle time constraints more precisely (e.g., "Event B occurs within 5 hours after Event A"), expanding the range of applications to real-time systems and domains where temporal constraints are critical.
+  - **CTL (Computation Tree Logic) Support**: Introduce CTL for branching-time properties.
+  - **Past LTL Operators**: Add past-time operators (e.g., Yesterday (Y)).
+  - **Metric/Timed Temporal Logics (MTL/TPTL)**: Explore support for precise time constraints.
 
 - **Further Enhancements to Model Checking Features**:
-  // Note: LTL Model Checking core and basic State Space Representation are now implemented.
-  // Future work could include:
-  - **Advanced Algorithms**: Exploration of more advanced model checking algorithms (e.g., on-the-fly, symbolic model checking) for performance and scalability.
-  - **Richer Model Representations**: Support for more complex or specialized state system representations.
-  - **Counterexample Refinement**: More detailed and user-friendly counterexample traces.
+  - **Advanced Algorithms**: Investigate on-the-fly model checking, symbolic model checking (e.g., using BDDs/SMT solvers) for improved performance and scalability with larger state spaces.
+  - **Richer Model Representations**: Support for more complex or specialized system model representations beyond basic Kripke structures (e.g., timed automata, Petri nets interface).
+  - **Counterexample Refinement & Analysis**: Provide more detailed, potentially interactive, analysis tools for counterexamples.
+  - **Abstraction Techniques**: Implement abstraction methods (e.g., predicate abstraction) to handle larger systems.
 
 - **Enhancement of Usability and DSL**:
-  - **Provision of Property Specification Patterns**: Introduce high-level patterns and macros into the DSL to easily describe common properties (e.g., Safety, Liveness, Response).
-  - **Enrichment of Diagnostic Information**: Enhance the functionality to present evaluation results and counterexamples from model checking to the user in an understandable way, facilitating the identification of property violation causes.
-  - **Expansion of Documentation and Samples**: Provide comprehensive documentation, tutorials, and diverse usage examples to reduce the learning curve.
+  - **Property Specification Patterns**: Introduce high-level patterns and macros for common properties (e.g., Dwyer's patterns: Absence, Existence, Universality, Precedence, Response).
+  - **Improved Diagnostic Information**: Enhance error messages and presentation of counterexamples.
+  - **Visualization Tools**: Consider tools for visualizing Kripke structures, Büchi automata, and counterexample paths.
+  - **Expansion of Documentation and Tutorials**: Provide comprehensive documentation, tutorials, and diverse usage examples.
 
 - **Performance and Extensibility**:
-  - **Optimization of Evaluation/Checking Algorithms**: Optimize performance, especially when dealing with large traces or complex state spaces (e.g., consider on-the-fly verification, symbolic model checking techniques).
-  - **Architectural Flexibility**: Maintain and improve a modular and extensible architecture that allows for relatively easy integration of new temporal logics and checking algorithms.
+  - **Ongoing Optimization**: Continuously optimize existing algorithms.
+  - **Modular Architecture**: Maintain and improve architectural flexibility for integrating new logics and algorithms.
 
 - **Expansion of Application Scope**:
-  - **Runtime Verification**: Consider supporting functionality to monitor LTL formulas during system execution and detect violations.
-  - **Integration with Swift Concurrency**: Explore utilities and integration methods for describing and verifying temporal properties in Swift's Actor model and asynchronous processing.
+  - **Runtime Verification**: Develop capabilities for monitoring LTL formulas during system execution.
+  - **Integration with Swift Concurrency**: Explore utilities for verifying temporal properties in Swift's Actor model and structured concurrency.

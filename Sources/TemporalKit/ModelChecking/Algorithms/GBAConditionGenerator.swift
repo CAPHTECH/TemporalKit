@@ -70,23 +70,24 @@ internal struct GBAConditionGenerator<P: TemporalProposition> where P.Value == B
         let untilSubformulas = collectUntilSubformulas(from: originalNNFFormula)
         var gbaAcceptanceSets: [Set<FormulaAutomatonState>] = []
 
-        // ---- GBAConditionGenerator DEBUG ----
-        let pDemoLikeRawValue = "p_demo_like" // For identifying F(!p_demo_like) related U-formula
+        // ---- REMOVED GBAConditionGenerator DEBUG ----
+        // let pDemoLikeRawValue = "p_demo_like" 
         // ---- END DEBUG ----
 
         if !untilSubformulas.isEmpty {
-            print("[GBAConditionGenerator DEBUG] Found \(untilSubformulas.count) Until-subformulas. Processing them.")
+            // ---- REMOVED GBAConditionGenerator DEBUG ----
+            // print("[GBAConditionGenerator DEBUG] Found \(untilSubformulas.count) Until-subformulas. Processing them.")
             for uFormula in untilSubformulas {
-                guard case .until(let lhsU, let rhsU) = uFormula else { continue }
+                guard case .until(_ /*lhsU*/, let rhsU) = uFormula else { continue }
                 var specificAcceptanceSetForThisU = Set<FormulaAutomatonState>()
 
-                // ---- GBAConditionGenerator DEBUG ----
-                var isTargetFNotPFormula = false
-                if case .booleanLiteral(true) = lhsU, case .not(let inner) = rhsU, case .atomic(let p) = inner, String(describing: p.id).contains(pDemoLikeRawValue) {
-                    isTargetFNotPFormula = true
-                    print("[GBAConditionGenerator DEBUG] Processing U-formula relevant to F(!\(pDemoLikeRawValue)): \(String(describing: uFormula))")
-                    print("    rhsU (should be !\(pDemoLikeRawValue)): \(String(describing: rhsU))")
-                }
+                // ---- REMOVED GBAConditionGenerator DEBUG ----
+                // var isTargetFNotPFormula = false
+                // if case .booleanLiteral(true) = lhsU, case .not(let inner) = rhsU, case .atomic(let p) = inner, String(describing: p.id).contains(pDemoLikeRawValue) {
+                //     isTargetFNotPFormula = true
+                //     print("[GBAConditionGenerator DEBUG] Processing U-formula relevant to F(!\(pDemoLikeRawValue)): \(String(describing: uFormula))")
+                //     print("    rhsU (should be !\(pDemoLikeRawValue)): \(String(describing: rhsU))")
+                // }
                 // ---- END DEBUG ----
 
                 for tableauNode in tableauNodes {
@@ -98,48 +99,42 @@ internal struct GBAConditionGenerator<P: TemporalProposition> where P.Value == B
                     if satisfiedRhsU || uFormulaNotActiveOverall {
                         if let stateID = nodeToStateIDMap[tableauNode] {
                             specificAcceptanceSetForThisU.insert(stateID)
-                            if isTargetFNotPFormula {
-                                print("    [F(!\(pDemoLikeRawValue)) DEBUG] Adding GBA state ID \(stateID) to acceptance set. Node: {current: \(tableauNode.currentFormulas.map{String(describing:$0)}), next: \(tableauNode.nextFormulas.map{String(describing:$0)})}. SatisfiedRhsU: \(satisfiedRhsU), UNotActiveOverall: \(uFormulaNotActiveOverall)")
-                            }
+                            // ---- REMOVED GBAConditionGenerator DEBUG ----
+                            // if isTargetFNotPFormula {
+                            //     print("    [F(!\(pDemoLikeRawValue)) DEBUG] Adding GBA state ID \(stateID) to acceptance set. Node: {current: \(tableauNode.currentFormulas.map{String(describing:$0)}), next: \(tableauNode.nextFormulas.map{String(describing:$0)})}. SatisfiedRhsU: \(satisfiedRhsU), UNotActiveOverall: \(uFormulaNotActiveOverall)")
+                            // }
                         }
                     }
                 }
-                if isTargetFNotPFormula {
-                    print("[GBAConditionGenerator DEBUG] Acceptance set for F(!\(pDemoLikeRawValue)) (orig U: \(String(describing:uFormula))): \(specificAcceptanceSetForThisU.sorted())")
-                }
+                // ---- REMOVED GBAConditionGenerator DEBUG ----
+                // if isTargetFNotPFormula {
+                //     print("[GBAConditionGenerator DEBUG] Acceptance set for F(!\(pDemoLikeRawValue)) (orig U: \(String(describing:uFormula))): \(specificAcceptanceSetForThisU.sorted())")
+                // }
                 gbaAcceptanceSets.append(specificAcceptanceSetForThisU)
             }
         } else {
-            // No Until subformulas found.
-            // Default acceptance: if the formula is not a Next, all states form a single acceptance set.
-            // For Next(sub), only states where 'sub' is current should be accepting.
             if !tableauNodes.isEmpty {
                 if case .next(let subFormula) = originalNNFFormula {
-                    print("GBAConditionGenerator: Handling Next formula: \(originalNNFFormula)")
+                    // print("GBAConditionGenerator: Handling Next formula: \(originalNNFFormula)") // Informational, can be removed or kept if rare
                     var nextAcceptanceSet = Set<FormulaAutomatonState>()
                     for tableauNode in tableauNodes {
-                        // A state is accepting for X(sub) if sub is now current in that state node.
-                        // This means the X has been "consumed".
                         if tableauNode.currentFormulas.contains(subFormula) {
                             if let stateID = nodeToStateIDMap[tableauNode] {
                                 nextAcceptanceSet.insert(stateID)
                             }
                         }
                     }
-                    // If subFormula itself could be true (always), this might still make many states accepting.
-                    // Example: X true. subFormula is true. All nodes where current has true are accepting.
-                    // If nextAcceptanceSet is empty, it means 'sub' never became current alone.
                     gbaAcceptanceSets.append(nextAcceptanceSet)
-                    print("GBAConditionGenerator: Acceptance for Next: \(nextAcceptanceSet)")
+                    // print("GBAConditionGenerator: Acceptance for Next: \(nextAcceptanceSet)") // Informational
                 } else {
-                    // Not a Next formula, and no Until. E.g. true, p, p AND q.
-                    // print("GBAConditionGenerator: No Until-subformulas and not Next. Defaulting to all GBA states as one acceptance set.") // Removed
                     gbaAcceptanceSets.append(Set(nodeToStateIDMap.values))
                 }
             }
         }
         
+        // This condition might indicate an issue, so the print can remain, or be converted to an assertion/error.
         if gbaAcceptanceSets.isEmpty && !tableauNodes.isEmpty {
+            // print("Warning: GBAConditionGenerator generated empty acceptance sets for a non-empty tableau. Original Formula: \(originalNNFFormula)")
         }
         return gbaAcceptanceSets
     }

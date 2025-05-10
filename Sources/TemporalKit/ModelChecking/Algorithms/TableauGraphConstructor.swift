@@ -79,6 +79,7 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
             processedNodesLookup.insert(currentNodeToExpand)
             
             guard let currentGBAStateID = nodeToStateIDMap[currentNodeToExpand] else {
+                // This print is an error condition, so it can remain.
                 print("Error: TableauNode on worklist has no mapped GBA state ID.") 
                 continue
             }
@@ -101,30 +102,14 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
 
                     let successorGBAStateID = getOrCreateGBAStateID(for: successorNode)
                     
-                    // ---- MODIFIED GBA TRANSITION INSERT LOG ----
-                    // Log all GBA transitions being formed, with extra detail for suspected F(!p) sink context
-                    let sourceNodeDescForLog = String(describing: currentNodeToExpand)
-                    let pDemoLikeRawValueForLog = "p_demo_like"
-                    var isPotentiallyFNotPSinkNode = false
-                    if currentNodeToExpand.nextFormulas.isEmpty && 
-                       currentNodeToExpand.currentFormulas.count == 1, 
-                       let singleCurrent = currentNodeToExpand.currentFormulas.first {
-                        if case .not(let inner) = singleCurrent, case .atomic(let p) = inner, String(describing: p.id).contains(pDemoLikeRawValueForLog) {
-                             if case .not(let topNot) = self.originalPreNNFLTLFormula, case .globally(let gSub) = topNot, case .atomic(let gAtomicP) = gSub, gAtomicP.id == p.id {
-                                isPotentiallyFNotPSinkNode = true
-                            } else if case .eventually(let fSub) = self.originalPreNNFLTLFormula, case .not(let fInner) = fSub, case .atomic(let fAtomicP) = fInner, fAtomicP.id == p.id {
-                                isPotentiallyFNotPSinkNode = true
-                            }
-                        }
-                    }
-
-                    print("[TGC GBA Insert] From GBA ID \(currentGBAStateID) (Node: \(sourceNodeDescForLog)) -- Symbol: \(String(describing: symbol)) --> To GBA ID \(successorGBAStateID) (Node: \(String(describing: successorNode)))")
-                    if isPotentiallyFNotPSinkNode {
-                        print("    Context: Potentially F(!p) sink node. ExpansionResult: current=\(expansionResult.nextSetOfCurrentObligations.map {String(describing:$0)}), next=\(expansionResult.nextSetOfNextObligations.map {String(describing:$0)}), consistent=\(expansionResult.isConsistent)")
-                        if currentGBAStateID == successorGBAStateID {
-                            print("    CONFIRMED GBA SELF-LOOP FOR F(!p) SINK CONTEXT.")
-                        }
-                    }
+                    // ---- MODIFIED GBA TRANSITION INSERT LOG ---- REMOVED
+                    // print("[TGC GBA Insert] From GBA ID \(currentGBAStateID) (Node: \(sourceNodeDescForLog)) -- Symbol: \(String(describing: symbol)) --> To GBA ID \(successorGBAStateID) (Node: \(String(describing: successorNode)))")
+                    // if isPotentiallyFNotPSinkNode {
+                    //     print("    Context: Potentially F(!p) sink node. ExpansionResult: current=\(expansionResult.nextSetOfCurrentObligations.map {String(describing:$0)}), next=\(expansionResult.nextSetOfNextObligations.map {String(describing:$0)}), consistent=\(expansionResult.isConsistent)")
+                    //     if currentGBAStateID == successorGBAStateID {
+                    //         print("    CONFIRMED GBA SELF-LOOP FOR F(!p) SINK CONTEXT.")
+                    //     }
+                    // }
                     // ---- END MODIFIED GBA TRANSITION INSERT LOG ----
 
                     gbaTransitions.insert(.init(from: currentGBAStateID, on: symbol, to: successorGBAStateID))
@@ -133,7 +118,8 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
                         worklist.append(successorNode)
                     }
                     
-                    if nodeToStateIDMap.count > 150 { // Increased limit slightly for safety, default was 50
+                    if nodeToStateIDMap.count > 150 { 
+                        // This print is a warning, so it can remain.
                         print("Warning: Max GBA states (150) reached in tableau. Aborting expansion.")
                         self.worklist.removeAll()
                         break 
@@ -254,11 +240,11 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
     ) {
         var worklist = currentWorklist
         var processed = processedOnPath
-        var V = vSet // Make V mutable 
+        let V = vSet
         let P_atomic = pAtomicSet
         let N_atomic = nAtomicSet
 
-        if worklist.isEmpty { // Base case for this path of recursion
+        if worklist.isEmpty { 
             var currentBasicFormulas = Set<LTLFormula<P>>()
             var consistentPath = true
 
@@ -268,52 +254,39 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
             var allowBypassForLivenessSymbolCheck = false
             var isStickyAcceptingStateOfEventuality = false 
 
-            let pDemoLikeRawValueForSolveLog = "p_demo_like" 
-            var logHeuristicDetails = false
-            if initialWorklistForSolve.count == 1, let singleObl = initialWorklistForSolve.first {
-                if case .not(let inner) = singleObl, case .atomic(let p) = inner, String(describing: p.id).contains(pDemoLikeRawValueForSolveLog) {
-                    logHeuristicDetails = true 
-                }
-            }
+            // ---- REMOVED LIVENESS DEBUG LOGS ----
+            // let pDemoLikeRawValueForSolveLog = "p_demo_like" 
+            // var logHeuristicDetails = false
+            // if initialWorklistForSolve.count == 1, let singleObl = initialWorklistForSolve.first {
+            //     if case .not(let inner) = singleObl, case .atomic(let p) = inner, String(describing: p.id).contains(pDemoLikeRawValueForSolveLog) {
+            //         logHeuristicDetails = true 
+            //     }
+            // }
             
-            if logHeuristicDetails {
-                print(">>> [SolveLivenessDebug] BaseCase for initialWorklist: \(initialWorklistForSolve.map{String(describing:$0)}), Symbol: \(String(describing: forSymbol))")
-                print("    V_in: \(V.map{String(describing:$0)}), P_atomic: \(P_atomic.map{String(describing:$0)}), N_atomic: \(N_atomic.map{String(describing:$0)})")
-                print("    consistentPath (pre-heuristic): \(consistentPath)")
-            }
+            // if logHeuristicDetails {
+            //     print(">>> [SolveLivenessDebug] BaseCase for initialWorklist: \(initialWorklistForSolve.map{String(describing:$0)}), Symbol: \(String(describing: forSymbol))")
+            //     print("    V_in: \(V.map{String(describing:$0)}), P_atomic: \(P_atomic.map{String(describing:$0)}), N_atomic: \(N_atomic.map{String(describing:$0)})")
+            //     print("    consistentPath (pre-heuristic): \(consistentPath)")
+            // }
 
             if consistentPath { 
                 if initialWorklistForSolve.count == 1, let singleObligation = initialWorklistForSolve.first {
                     var isHeuristicAnEventualityEquivalent = false
                     var subFormulaOfEventuality: LTLFormula<P>? = nil
 
-                    // Check for F(phi) form
                     if case .eventually(let sub) = heuristicOriginalLTLFormula {
                         isHeuristicAnEventualityEquivalent = true
                         subFormulaOfEventuality = sub
-                        if logHeuristicDetails { print("    Heuristic is F(phi) form.") }
+                        // if logHeuristicDetails { print("    Heuristic is F(phi) form.") }
                     } 
-                    // Check for not(G(not(phi))) which is also F(phi)
-                    // Our negated G(p) becomes F(!p), which is not(G(p)) if we take !p as phi.
-                    // Or, if original was G(psi), negated is F(!psi). Here heuristicOriginalLTLFormula = F(!psi).
-                    // If original was !F(psi), negated is G(!psi). Heuristic is G(!psi).
-                    // We need to ensure that if heuristicOriginalLTLFormula semantically means "eventually X", we detect it.
-                    // The F(!p) case: heuristicOriginalLTLFormula = .eventually(.not(.atomic(p)))
-                    // NNF of F(!p) is true U !p. This should be handled by .until case if NNF is aggressive.
-                    // However, heuristicOriginalLTLFormula is pre-NNF.
-
                     else if case .not(let innerGlobal) = heuristicOriginalLTLFormula, case .globally(let gSub) = innerGlobal {
-                        // This is F(not(gSub))
                         isHeuristicAnEventualityEquivalent = true
                         subFormulaOfEventuality = LTLFormula.not(gSub)
-                        if logHeuristicDetails { print("    Heuristic is !G(psi) -> F(!psi) form.") }
+                        // if logHeuristicDetails { print("    Heuristic is !G(psi) -> F(!psi) form.") }
                     } 
-                    // It's also common to convert F(phi) to true U phi in NNF.
-                    // The heuristicOriginalLTLFormula is pre-NNF, so .eventually is the direct case.
-                    // The .until(true, ...) case was from the previous more complex heuristic.
                     
                     if isHeuristicAnEventualityEquivalent, let eventualityTarget = subFormulaOfEventuality {
-                        if logHeuristicDetails { print("    Eventuality target: \(String(describing: eventualityTarget)), NNFd: \(String(describing: LTLFormulaNNFConverter.convert(eventualityTarget))). Single Obligation: \(String(describing: singleObligation))") }
+                        // if logHeuristicDetails { print("    Eventuality target: \(String(describing: eventualityTarget)), NNFd: \(String(describing: LTLFormulaNNFConverter.convert(eventualityTarget))). Single Obligation: \(String(describing: singleObligation))") }
                         if LTLFormulaNNFConverter.convert(eventualityTarget) == singleObligation {
                             isStickyAcceptingStateOfEventuality = true
                         }
@@ -324,33 +297,33 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
             if isStickyAcceptingStateOfEventuality {
                 allowBypassForLivenessSymbolCheck = true
             }
-            if logHeuristicDetails { print("    isSticky: \(isStickyAcceptingStateOfEventuality), allowBypass: \(allowBypassForLivenessSymbolCheck)") }
+            // if logHeuristicDetails { print("    isSticky: \(isStickyAcceptingStateOfEventuality), allowBypass: \(allowBypassForLivenessSymbolCheck)") }
             
-            if logHeuristicDetails { 
-                print("    PRE-CHECK: consistentPath=\(consistentPath), allowBypassForLivenessSymbolCheck=\(allowBypassForLivenessSymbolCheck), !allowBypassForLivenessSymbolCheck=\(!allowBypassForLivenessSymbolCheck), combinedCondition (A)=\(consistentPath && !allowBypassForLivenessSymbolCheck), combinedCondition (B)=\(consistentPath && allowBypassForLivenessSymbolCheck)")
-            }
+            // if logHeuristicDetails { 
+            //     print("    PRE-CHECK: consistentPath=\(consistentPath), allowBypassForLivenessSymbolCheck=\(allowBypassForLivenessSymbolCheck), !allowBypassForLivenessSymbolCheck=\(!allowBypassForLivenessSymbolCheck), combinedCondition (A)=\(consistentPath && !allowBypassForLivenessSymbolCheck), combinedCondition (B)=\(consistentPath && allowBypassForLivenessSymbolCheck)")
+            // }
 
-            if consistentPath && !allowBypassForLivenessSymbolCheck { // BLOCK A: Perform check
-                if logHeuristicDetails { print("    BLOCK A EXECUTED: Performing symbol consistency check.") }
+            if consistentPath && !allowBypassForLivenessSymbolCheck { 
+                // if logHeuristicDetails { print("    BLOCK A EXECUTED: Performing symbol consistency check.") }
                 for p_true in P_atomic {
                     if let p_id = p_true.id as? PropositionIDType, !forSymbol.contains(p_id) {
-                        consistentPath = false; if logHeuristicDetails { print("        Failed P_atomic check: \(String(describing:p_true)) not in symbol.") }; break
+                        consistentPath = false; /*if logHeuristicDetails { print("        Failed P_atomic check: \(String(describing:p_true)) not in symbol.") }*/ break
                     }
                 }
                 if consistentPath {
                     for p_false_prop in N_atomic {
                         if let p_id = p_false_prop.id as? PropositionIDType, forSymbol.contains(p_id) {
-                            consistentPath = false; if logHeuristicDetails { print("        Failed N_atomic check: \(String(describing:p_false_prop)) IS in symbol.") }; break
+                            consistentPath = false; /*if logHeuristicDetails { print("        Failed N_atomic check: \(String(describing:p_false_prop)) IS in symbol.") }*/ break
                         }
                     }
                 }
-            } else if consistentPath && allowBypassForLivenessSymbolCheck { // BLOCK B: Bypass
-                 if logHeuristicDetails { print("    BLOCK B EXECUTED: BYPASSING symbol consistency check. consistentPath remains \(consistentPath).") }
-            } else if !consistentPath { // BLOCK C: Already inconsistent
-                 if logHeuristicDetails { print("    BLOCK C EXECUTED: Path ALREADY inconsistent (\(consistentPath)) before symbol check/bypass decision.") }
+            } else if consistentPath && allowBypassForLivenessSymbolCheck { 
+                 // if logHeuristicDetails { print("    BLOCK B EXECUTED: BYPASSING symbol consistency check. consistentPath remains \(consistentPath).") }
+            } else if !consistentPath { 
+                 // if logHeuristicDetails { print("    BLOCK C EXECUTED: Path ALREADY inconsistent (\(consistentPath)) before symbol check/bypass decision.") }
             }
             
-            if logHeuristicDetails { print("    consistentPath (FINAL for this outcome): \(consistentPath)") }
+            // if logHeuristicDetails { print("    consistentPath (FINAL for this outcome): \(consistentPath)") }
             
             if consistentPath { 
                 for p_atom in P_atomic { currentBasicFormulas.insert(.atomic(p_atom)) }
@@ -360,9 +333,9 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
             }
             
             let finalV = isStickyAcceptingStateOfEventuality ? Set<LTLFormula<P>>() : V
-            if logHeuristicDetails { 
-                print("    OUTCOME TO APPEND: current=\(currentBasicFormulas.map{String(describing:$0)}), next=\(finalV.map{String(describing:$0)}), consistent=\(consistentPath)")
-            }
+            // if logHeuristicDetails { 
+            //     print("    OUTCOME TO APPEND: current=\(currentBasicFormulas.map{String(describing:$0)}), next=\(finalV.map{String(describing:$0)}), consistent=\(consistentPath)")
+            // }
 
             allPossibleOutcomes.append((currentBasicFormulas, finalV, consistentPath))
             return
@@ -483,6 +456,8 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
         case .not(.not(_)), .not(.and(_, _)), .not(.or(_, _)), .not(.implies(_, _)), 
              .not(.next(_)), .not(.eventually(_)), .not(.globally(_)), 
              .not(.until(_, _)), .not(.weakUntil(_, _)), .not(.release(_, _)):
+            // This outcome append might be an error path, not necessarily debug log to remove.
+            // For now, let's assume it's part of the logic.
             allPossibleOutcomes.append(([],[], false)); return
         }
     }
