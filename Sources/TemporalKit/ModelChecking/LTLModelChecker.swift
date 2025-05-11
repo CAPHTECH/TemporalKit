@@ -98,120 +98,15 @@ public class LTLModelChecker<Model: KripkeStructure> {
         // --- Original model checking logic --- 
         let negatedFormula = LTLFormula.not(formula) // Negate the formula for counterexample search
 
-        // ---- DEBUG Trigger Setup ----
-        let originalFormulaString = String(describing: formula) 
-        var forceLogDetails = true // FORCED FOR DEBUGGING p U r case
-        // let desc = originalFormulaString 
-        // if desc.contains("until") && desc.contains("p_kripke") && desc.contains("r_kripke") && desc.contains("DemoKripkeModelState") {
-        //     forceLogDetails = true
-        // }
-        // if desc.contains("eventually") && desc.contains("LMC_TestProposition") && desc.contains(".r)") {
-        //     if desc.contains("s3") { 
-        //          forceLogDetails = true 
-        //     }
-        // }
-        // if desc.contains("booleanLiteral(true)") && desc.contains("LMC_TestProposition") { 
-        //     forceLogDetails = true
-        // }
-        // ---- END DEBUG Trigger Setup ----
-
         let modelAutomaton = try self.convertModelToBuchi(model: model, relevantPropositions: allRelevantAPIDs)
         let formulaAutomatonForNegated = try LTLToBuchiConverter.translateLTLToBuchi(negatedFormula, relevantPropositions: allRelevantAPIDs)
 
-        // ---- DEBUG PRINT MOVED HERE (after automata are built) ----
-        if forceLogDetails {
-            print("------------------------------------------------------------------------")
-            print("[LTLModelChecker.check DEBUG for Formula: \(originalFormulaString)]")
-            let actualNegatedNNF = LTLFormulaNNFConverter.convert(negatedFormula)
-            print("    Negated NNF: \(String(describing: actualNegatedNNF))")
-            
-            print("    Model Automaton (A_M):")
-            print("        States: \(modelAutomaton.states.map { String(describing: $0) }.sorted())")
-            print("        Initial States: \(modelAutomaton.initialStates.map { String(describing: $0) }.sorted())")
-            print("        Accepting States (all states for Kripke model BA): \(modelAutomaton.acceptingStates.map { String(describing: $0) }.sorted())")
-            print("        Transitions (count: \(modelAutomaton.transitions.count)):")
-            for t in modelAutomaton.transitions.sorted(by: { (t1, t2) -> Bool in 
-                                                        let s1Str = String(describing: t1.sourceState)
-                                                        let s2Str = String(describing: t2.sourceState)
-                                                        if s1Str != s2Str { return s1Str < s2Str }
-                                                        let sym1Str = t1.symbol.map{ String(describing: $0) }.sorted().joined(separator: ",")
-                                                        let sym2Str = t2.symbol.map{ String(describing: $0) }.sorted().joined(separator: ",")
-                                                        return sym1Str < sym2Str
-                                                      }) {
-                let symbolDesc = t.symbol.map { String(describing: $0) }.sorted().joined(separator: ", ")
-                let textSymbol = symbolDesc.isEmpty ? "{true}" : symbolDesc
-                print("            \(String(describing: t.sourceState)) --[\(textSymbol)]--> \(String(describing: t.destinationState))")
-            }
-
-            print("    Formula Automaton (A_¬φ for \(String(describing: actualNegatedNNF)) ):")
-            print("        States (count: \(formulaAutomatonForNegated.states.count)):")
-            formulaAutomatonForNegated.states.sorted(by: {String(describing: $0) < String(describing: $1)}).forEach { print("            \($0)") }
-            print("        Initial States (count: \(formulaAutomatonForNegated.initialStates.count)):")
-            formulaAutomatonForNegated.initialStates.sorted(by: {String(describing: $0) < String(describing: $1)}).forEach { print("            \($0)") }
-            print("        Accepting States (count: \(formulaAutomatonForNegated.acceptingStates.count)):")
-            formulaAutomatonForNegated.acceptingStates.sorted(by: {String(describing: $0) < String(describing: $1)}).forEach { print("            \($0)") }
-            print("        Transitions (count: \(formulaAutomatonForNegated.transitions.count)):")
-            for t in formulaAutomatonForNegated.transitions.sorted(by: { ($0.sourceState, String(describing: $0.symbol)) < ($1.sourceState, String(describing: $1.symbol)) }) {
-                 // P.ID is Model.AtomicPropositionIdentifier, so String(describing:) is fine.
-                 let symbolDesc = t.symbol.map { String(describing: $0) }.sorted().joined(separator: ", ") 
-                 let textSymbol = symbolDesc.isEmpty ? "{true}" : symbolDesc
-                 print("            \(t.sourceState) --[\(textSymbol)]--> \(t.destinationState)")
-            }
-        }
-        // ---- END DEBUG PRINT for A_M and A_¬φ ----
-
         let productAutomaton = try constructProductAutomaton(
             modelAutomaton: modelAutomaton, 
-            formulaAutomaton: formulaAutomatonForNegated,
-            forceLogDetails: forceLogDetails
+            formulaAutomaton: formulaAutomatonForNegated
         )
 
-        // ---- DEBUG PRINT for Product Automaton ----
-        if forceLogDetails { // Use this flag for all demo p U r logging sections
-            print("    Product Automaton (A_M x A_¬φ):")
-            print("        States (count: \(productAutomaton.states.count)) Product states are pairs (modelState, formulaStatePair).")
-            
-            let initialProductStatesStrings = productAutomaton.initialStates.map { state -> String in "(\(String(describing: state.s1)), \(String(describing: state.s2)))" }.sorted()
-            print("        Initial States (model,formulaPair) (count: \(initialProductStatesStrings.count)): \(initialProductStatesStrings)")
-            
-            let acceptingProductStatesSample = productAutomaton.acceptingStates.prefix(30).map { state -> String in "(\(String(describing: state.s1)), \(String(describing: state.s2)))" }.sorted()
-            print("        Accepting States (model,formulaPair) (count: \(productAutomaton.acceptingStates.count), Sample: \(acceptingProductStatesSample.count)): \(acceptingProductStatesSample)")
-            
-            print("        Transitions (count: \(productAutomaton.transitions.count), sample of first 30):")
-            let sortedProductTransitions = productAutomaton.transitions.sorted { (t1, t2) -> Bool in
-                let s1mStr = String(describing: t1.sourceState.s1)
-                let s2mStr = String(describing: t2.sourceState.s1)
-                if s1mStr != s2mStr { return s1mStr < s2mStr }
-                if t1.sourceState.s2 != t2.sourceState.s2 { return t1.sourceState.s2 < t2.sourceState.s2 }
-                let l1Sym = t1.symbol.map { String(describing: $0) }.sorted().joined(separator: ",")
-                let l2Sym = t2.symbol.map { String(describing: $0) }.sorted().joined(separator: ",")
-                if l1Sym != l2Sym { return l1Sym < l2Sym }
-                let d1mStr = String(describing: t1.destinationState.s1)
-                let d2mStr = String(describing: t2.destinationState.s1)
-                if d1mStr != d2mStr { return d1mStr < d2mStr }
-                return t1.destinationState.s2 < t2.destinationState.s2
-            }
-            for t in sortedProductTransitions.prefix(30) {
-                let sourceModelStr = String(describing: (t.sourceState).s1)
-                let destModelStr = String(describing: (t.destinationState).s1)
-                let symbolStr = t.symbol.map { String(describing: $0) }.sorted().joined(separator: ",") 
-                let textSymbol = symbolStr.isEmpty ? "{true}" : symbolStr
-                print("            (\(sourceModelStr),\((t.sourceState).s2)) --[\(textSymbol)]--> (\(destModelStr),\((t.destinationState).s2))")
-            }
-        }
-        // ---- END DEBUG PRINT for Product Automaton ----
-
         if let acceptingRun = try NestedDFSAlgorithm.findAcceptingRun(in: productAutomaton) {
-            // ---- DEBUG PRINT for Accepting Run ----
-            if forceLogDetails { // Use this flag for all demo p U r logging sections
-                print("    NestedDFS found an accepting run for ¬(Formula)! Details below.")
-                let prefixDesc = acceptingRun.prefix.map { state -> String in "(\(String(describing: state.s1)), \(String(describing: state.s2)))" }
-                let cycleDesc = acceptingRun.cycle.map { state -> String in "(\(String(describing: state.s1)), \(String(describing: state.s2)))" }
-                print("        Prefix: \(prefixDesc)")
-                print("        Cycle:  \(cycleDesc)")
-                print("------------------------------------------------------------------------")
-            }
-            // ---- END DEBUG PRINT for Accepting Run ----
             let (prefix, cycle) = self.projectRunToModelStates(productRun: acceptingRun, model: model)
             return .fails(counterexample: Counterexample(prefix: prefix, cycle: cycle))
         } else {
@@ -322,15 +217,8 @@ public class LTLModelChecker<Model: KripkeStructure> {
     /// The product automaton Am × A¬φ accepts runs that are in both Am and A¬φ.
     private func constructProductAutomaton(
         modelAutomaton: BuchiAutomaton<ModelAutomatonState, BuchiAlphabetSymbol>,
-        formulaAutomaton: BuchiAutomaton<FormulaAutomatonState, BuchiAlphabetSymbol>,
-        forceLogDetails: Bool
+        formulaAutomaton: BuchiAutomaton<FormulaAutomatonState, BuchiAlphabetSymbol>
     ) throws -> BuchiAutomaton<ActualProductAutomatonState, BuchiAlphabetSymbol> {
-        
-        // ---- REMOVED ProductConstruct LOGS ----
-        // print("[ProductConstruct] Model Automaton: States=\(modelAutomaton.states.count), Initial=\(modelAutomaton.initialStates.count), Accepting=\(modelAutomaton.acceptingStates.count), Alphabet=\(modelAutomaton.alphabet.count)")
-        // print("[ProductConstruct] Formula Automaton: States=\(formulaAutomaton.states.count), Initial=\(formulaAutomaton.initialStates.count), Accepting=\(formulaAutomaton.acceptingStates.count), Alphabet=\(formulaAutomaton.alphabet.count)")
-
-        // ---- REMOVED ProductConstruct-Debug F(!p) LOGS ----
         
         var productStates = Set<ActualProductAutomatonState>()
         var productInitialStates = Set<ActualProductAutomatonState>()
@@ -384,14 +272,6 @@ public class LTLModelChecker<Model: KripkeStructure> {
             transitions: productTransitions,
             acceptingStates: productAcceptingStates
         )
-        // ---- DEBUG PRINT for actual product accepting states ----
-        if forceLogDetails { // Use passed flag
-            print("[LTLModelChecker.constructProductAutomaton DEBUG] Product BA Accepting States directly from construction (count: \(finalProductAutomaton.acceptingStates.count)):")
-            finalProductAutomaton.acceptingStates.sorted(by: {String(describing: $0) < String(describing: $1)}).forEach { accState in
-                print("    Accepting Product State: (\(String(describing: accState.s1)), \(String(describing: accState.s2)))")
-            }
-        }
-        // ---- END DEBUG ----
         return finalProductAutomaton
     }
 

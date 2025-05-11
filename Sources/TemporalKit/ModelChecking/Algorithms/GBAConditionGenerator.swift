@@ -49,34 +49,18 @@ internal struct GBAConditionGenerator<P: TemporalProposition> where P.Value == B
         nodeToStateIDMap: [TableauNode<P>: FormulaAutomatonState],
         originalNNFFormula: LTLFormula<P>
     ) -> [Set<FormulaAutomatonState>] {
-        // Special case for a constant false formula -> no accepting states in its BA
         if case .booleanLiteral(let bVal) = originalNNFFormula, !bVal {
-            // print("[GBACond DEBUG] NNF is 'false'. Returning GBA sets [[]] for no BA accepting states.")
-            return [Set<FormulaAutomatonState>()] // One empty set signals BA should have no accepting states
+            return [Set<FormulaAutomatonState>()]
         }
 
         let livenessSubformulas = collectLivenessSubformulas(from: originalNNFFormula)
         var gbaAcceptanceSets: [Set<FormulaAutomatonState>] = []
-        let nnfDesc = String(describing: originalNNFFormula)
 
         if livenessSubformulas.isEmpty {
-            // For non-liveness formulas (like Xp, p, true), GBA sets are empty, BA becomes all-accepting.
-            // 'false' is handled above.
-            // print("[GBACond DEBUG] NNF \(nnfDesc) has NO U/F/R/G liveness. GBA sets empty (BA all accepting).")
+            // No explicit liveness, GBA implicitly all-accepting (converted to BA all-accepting)
         } else {
             for livenessFormula in livenessSubformulas {
                 var specificAcceptanceSet = Set<FormulaAutomatonState>()
-                var isTargetReleaseFormulaForLog_OuterLoop = false // For the final set log
-                if case .release(let l_log_outer, let r_log_outer) = livenessFormula {
-                    let lDesc_outer = String(describing: l_log_outer)
-                    let rDesc_outer = String(describing: r_log_outer)
-                    if lDesc_outer.contains("r_kripke") && lDesc_outer.contains("not(atomic") &&
-                       rDesc_outer.contains("p_kripke") && rDesc_outer.contains("not(atomic") &&
-                       (lDesc_outer.contains("DemoKripkeModelState") || rDesc_outer.contains("DemoKripkeModelState")) {
-                        isTargetReleaseFormulaForLog_OuterLoop = true
-                    }
-                }
-
                 for tableauNode in tableauNodes {
                     guard let nodeID = nodeToStateIDMap[tableauNode] else { continue }
                     var conditionMet = false
@@ -87,52 +71,41 @@ internal struct GBAConditionGenerator<P: TemporalProposition> where P.Value == B
                             conditionMet = tableauNode.currentFormulas.contains(rhsU) 
                         } else { 
                             conditionMet = tableauNode.currentFormulas.contains(rhsU) || 
-                                         !tableauNode.nextFormulas.contains(livenessFormula) 
-                        }
-                    case .eventually(let subE): 
-                        conditionMet = tableauNode.currentFormulas.contains(subE) || 
-                                     !tableauNode.currentFormulas.contains(livenessFormula)
-                    
-                    case .release(let lhsR, let rhsR):
-                        if lhsR.isBooleanLiteralFalse() { // G rhsR (NNF: false R rhsR)
-                            conditionMet = tableauNode.currentFormulas.contains(LTLFormula.not(rhsR))
-                        } else { // Standard A R B
-                            conditionMet = tableauNode.currentFormulas.contains(rhsR) || 
                                          !tableauNode.currentFormulas.contains(livenessFormula)
                         }
-                    case .globally(let subG): // G subG (where subG is A)
-                        conditionMet = tableauNode.currentFormulas.contains(LTLFormula.not(subG))
 
-                    default:
-                         print("[GBACond WARN] Unexpected liveness formula type in loop: \(livenessFormula) for NNF \(nnfDesc). Skipping.")
-                         continue 
-                    }
+                    case .eventually(let subE):
+                        conditionMet = tableauNode.currentFormulas.contains(subE) || 
+                                     !tableauNode.currentFormulas.contains(livenessFormula) 
                     
+                    case .release(let lhsR, let rhsR):
+                        let currentContainsRhsR = tableauNode.currentFormulas.contains(rhsR)
+                        if lhsR.isBooleanLiteralFalse() { // G form
+                            conditionMet = !tableauNode.currentFormulas.contains(LTLFormula.not(rhsR))
+                        } else { // Standard A R B
+                            conditionMet = currentContainsRhsR || !tableauNode.currentFormulas.contains(livenessFormula)
+                        }
+
+                    case .globally(let subG):
+                        conditionMet = !tableauNode.currentFormulas.contains(LTLFormula.not(subG))
+                    
+                    default:
+                        continue 
+                    }
+
                     if conditionMet {
                         specificAcceptanceSet.insert(nodeID)
                     }
                 }
-
-                if isTargetReleaseFormulaForLog_OuterLoop { // Use the outer flag for the summary log
-                    print("[GBACond DEBUG REL_SET_FINAL for (¬r)R(¬p)] Liveness: \(String(describing:livenessFormula).prefix(100)), SpecificAcceptanceSet: \(specificAcceptanceSet.sorted().map {String(describing:$0)}) (Size: \(specificAcceptanceSet.count))")
-                }
-
-                if !specificAcceptanceSet.isEmpty {
-                    gbaAcceptanceSets.append(specificAcceptanceSet)
+                
+                if !specificAcceptanceSet.isEmpty || livenessSubformulas.count == 1 { 
+                     gbaAcceptanceSets.append(specificAcceptanceSet)
                 } else {
-                    print("[GBACond WARN] Liveness formula \(livenessFormula) in \(nnfDesc) yielded empty specific acceptance set. Appending empty set.")
                     gbaAcceptanceSets.append(Set<FormulaAutomatonState>())
                 }
             }
         }
         
-        // Final debug print (expanded trigger)
-        let descForFinalLog = String(describing: originalNNFFormula) // Use original NNF for trigger condition
-        if descForFinalLog.contains("until(booleanLiteral(true), atomic") || 
-           (descForFinalLog.contains("release(not(atomic") && descForFinalLog.contains("r_kripke") && descForFinalLog.contains("p_kripke")) || 
-           descForFinalLog.contains("release(booleanLiteral(false), atomic") {
-             print("[GBACond DEBUG FINAL] Final gbaAcceptanceSets for NNF \(nnfDesc): count = \(gbaAcceptanceSets.count), content = \(gbaAcceptanceSets.map { $0.sorted().map { String(describing: $0) } })")
-        }
         return gbaAcceptanceSets
     }
 }
@@ -145,8 +118,5 @@ fileprivate extension LTLFormula {
     func isBooleanLiteralFalse() -> Bool {
         if case .booleanLiteral(let bVal) = self, !bVal { return true }
         return false
-    }
-    var isRelease: Bool {
-        if case .release = self { return true } else { return false }
     }
 }

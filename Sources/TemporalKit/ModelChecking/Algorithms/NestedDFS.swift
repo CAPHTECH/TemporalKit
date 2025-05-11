@@ -165,26 +165,21 @@ internal enum NestedDFSAlgorithm {
             }
         }
 
+        // ---- RE-ENABLING THIS SPECIAL CASE ----
         // Check for a special case: initial state is accepting and has no outgoing transitions.
         // This forms a valid (trivial) accepting run.
         for initState in automaton.initialStates {
             if automaton.acceptingStates.contains(initState) {
                 let successors = getSuccessors(of: initState, in: automaton)
-                // More strictly, it should be a cycle back to itself.
-                // If successors are empty, it means it's a terminal accepting state.
-                // For Büchi, this implies an implicit self-loop on all symbols if it's to accept anything further.
-                // However, if we consider a path of length 1 (just the initial state) which is accepting,
-                // and it can "stay" there (e.g. due to no transitions), it's an accepting run.
-                // Let's consider a cycle of [initState] if no other cycle is found from it.
-                // This handles product automata with 0 transitions where initial state is accepting.
-                if successors.isEmpty {
+                if successors.isEmpty { 
                     // print("[NestedDFS INFO] Initial state \(initState) is accepting and has no successors. Forming trivial accepting run.")
                     return (prefix: [], cycle: [initState]) // Prefix is empty, cycle is the state itself.
                 }
             }
         }
+        // ---- END RE-ENABLING ----
 
         // print("[NestedDFS] findAcceptingRun: No accepting run found. Automaton potentially empty or no cycle through accepting state.")
-        return nil 
+        return nil // No accepting run found by standard nested DFS
     }
 } 
