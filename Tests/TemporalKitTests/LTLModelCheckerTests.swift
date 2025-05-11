@@ -152,7 +152,12 @@ struct LTLModelCheckerTests {
         let r_atomic = LMC_TestProposition(enumId: .r)
         let fr_formula = LTLFormula<LMC_TestProposition>.eventually(.atomic(r_atomic))
         let result = try checker.check(formula: fr_formula, model: modelWithS3Initial)
-        #expect(result.holds, "Formula 'F r' should hold when starting at s3.")
+        // Formula 'F r' on a model where 'r' is always true from the initial state (s3 loop with {r}).
+        // ¬(F r) = G(¬r). In the model, ¬r is always false because r is always true.
+        // So, G(¬r) is false in the model (it requires ¬r to be true everywhere).
+        // The model checker looks for a run satisfying G(¬r). It should find none.
+        // Therefore, the original formula F r should HOLD.
+        #expect(result.holds, "Formula 'F r' should HOLD on model s3 (always r). G(¬r) is false in the model, so ¬(F r) is false, meaning F r holds.")
     }
 
     @Test("Globally Fails (G p)")
@@ -213,6 +218,11 @@ struct LTLModelCheckerTests {
         let p_formula = LTLFormula<LMC_TestProposition>.atomic(p_prop)
         let q_formula = LTLFormula<LMC_TestProposition>.atomic(q_prop)
         let pUq_formula = LTLFormula<LMC_TestProposition>.until(p_formula, q_formula)
+
+        // ---- DEBUG for testUntilHolds ----
+        print("DEBUG LTLModelCheckerTests: Running testUntilHolds with formula \(String(describing:pUq_formula)) on model1")
+        // ---- END DEBUG ----
+
         let result = try checker.check(formula: pUq_formula, model: model1)
         #expect(result.holds, "Formula 'p U q' should hold for model1 from s0.")
     }

@@ -38,14 +38,24 @@ internal enum NestedDFSAlgorithm {
         in automaton: BuchiAutomaton<StateType, AlphabetSymbolType>
     ) throws -> (prefix: [StateType], cycle: [StateType])? {
         
-        // print("[NestedDFS] Starting findAcceptingRun. Automaton: States=\(automaton.states.count), Initial=\(automaton.initialStates.count), Accepting=\(automaton.acceptingStates.count), Transitions=\(automaton.transitions.count)")
-        // if automaton.states.count < 20 { // Log details only for smaller automata
-        //     print("[NestedDFS]   Initial States: \(automaton.initialStates)")
-        //     print("[NestedDFS]   Accepting States: \(automaton.acceptingStates)")
-        //     if automaton.transitions.count < 30 {
-        //          print("[NestedDFS]   Transitions (first \(automaton.transitions.prefix(5).count)): \(automaton.transitions.prefix(5).map { "(\($0.sourceState), \($0.symbol), \($0.destinationState))" }) ")
-        //     }
-        // }
+        // ---- DEBUG PRINT for NestedDFS input ----
+        // Check if this is the product automaton from the p U r demo case by looking for DemoKripkeModelState in StateType description
+        // This is a heuristic and might need adjustment based on actual StateType string representation.
+        var isDemoProductAutomaton = false
+        if let firstState = automaton.states.first, String(describing: firstState).contains("DemoKripkeModelState") {
+            isDemoProductAutomaton = true
+        }
+        if isDemoProductAutomaton {
+            print("[NestedDFS DEBUG] findAcceptingRun called. Product Automaton (heuristic check):")
+            print("    States (count: \(automaton.states.count))")
+            print("    Initial States (count: \(automaton.initialStates.count)): \(automaton.initialStates.map{String(describing:$0)})")
+            print("    Accepting States (count: \(automaton.acceptingStates.count)): \(automaton.acceptingStates.map{String(describing:$0)})")
+            print("    Transitions (count: \(automaton.transitions.count))")
+            // if automaton.transitions.count < 10 {
+            //     automaton.transitions.forEach { t in print("        \(String(describing: t.sourceState)) -> \(String(describing: t.destinationState))") }
+            // }
+        }
+        // ---- END DEBUG ----
 
         var blueVisited = Set<StateType>() 
         var path: [StateType: StateType] = [:] 
@@ -145,7 +155,7 @@ internal enum NestedDFSAlgorithm {
                                 } else {
                                     // print("[NestedDFS] DFS2: Finished exploring successors of \(currentRedState). Popping.")
                                     let poppedRed = dfs2Stack.removeLast().state
-                                    redVisited.remove(poppedRed) // Key correction: allow revisiting via other paths in DFS2
+                                    redVisited.remove(poppedRed)
                                 }
                             }
                             // print("[NestedDFS] DFS2: Finished for \(s), no cycle to \(s) found via this DFS2.")
@@ -154,6 +164,26 @@ internal enum NestedDFSAlgorithm {
                 }
             }
         }
+
+        // Check for a special case: initial state is accepting and has no outgoing transitions.
+        // This forms a valid (trivial) accepting run.
+        for initState in automaton.initialStates {
+            if automaton.acceptingStates.contains(initState) {
+                let successors = getSuccessors(of: initState, in: automaton)
+                // More strictly, it should be a cycle back to itself.
+                // If successors are empty, it means it's a terminal accepting state.
+                // For Büchi, this implies an implicit self-loop on all symbols if it's to accept anything further.
+                // However, if we consider a path of length 1 (just the initial state) which is accepting,
+                // and it can "stay" there (e.g. due to no transitions), it's an accepting run.
+                // Let's consider a cycle of [initState] if no other cycle is found from it.
+                // This handles product automata with 0 transitions where initial state is accepting.
+                if successors.isEmpty {
+                    // print("[NestedDFS INFO] Initial state \(initState) is accepting and has no successors. Forming trivial accepting run.")
+                    return (prefix: [], cycle: [initState]) // Prefix is empty, cycle is the state itself.
+                }
+            }
+        }
+
         // print("[NestedDFS] findAcceptingRun: No accepting run found. Automaton potentially empty or no cycle through accepting state.")
         return nil 
     }

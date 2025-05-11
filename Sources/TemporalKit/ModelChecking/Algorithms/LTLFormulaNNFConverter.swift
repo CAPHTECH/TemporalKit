@@ -45,11 +45,11 @@ internal struct LTLFormulaNNFConverter {
             let fNotSub = LTLFormula.eventually(convert(.not(subFormula)))
             return convert(fNotSub) // Convert the produced F formula
 
-        case .not(.until(let lhs, let rhs)): // ¬(φ U ψ)  ->  (¬φ R ¬ψ) (NNF)
+        case .not(.until(let lhs, let rhs)): // ¬(φ U ψ)  ->  (¬ψ R ¬φ) (NNF)
             // Note: This definition of Release (R) assumes ¬φ R ¬ψ.
             // Some texts define φ R ψ differently, e.g. as ¬(¬φ U ¬ψ).
             // Ensure consistency with the Release operator's expansion in the tableau.
-            return .release(convert(.not(lhs)), convert(.not(rhs)))
+            return .release(convert(.not(rhs)), convert(.not(lhs)))
         
         case .not(.weakUntil(let lhs, let rhs)):
             // φ W ψ  ≡  (φ U ψ) ∨ Gφ

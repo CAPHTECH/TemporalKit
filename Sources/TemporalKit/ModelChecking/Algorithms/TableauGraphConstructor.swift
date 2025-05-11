@@ -72,7 +72,25 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
     internal func buildGraph() {
         let initialTableauNode = Self.decomposeFormulaForInitialTableauNode(self.nnfLTLFormula)
         self.worklist = [initialTableauNode]
-        let _ = getOrCreateGBAStateID(for: initialTableauNode) 
+        let initialGBAStateID = getOrCreateGBAStateID(for: initialTableauNode) 
+
+        // ---- DEBUG for F p pattern ----
+        let isFpPattern = { (formula: LTLFormula<P>) -> Bool in
+            if case .until(let lhs, let rhs) = formula,
+               case .booleanLiteral(let bVal) = lhs, bVal == true,
+               case .atomic = rhs {
+                return true
+            }
+            return false
+        }
+        let nnfFormulaString = String(describing: self.nnfLTLFormula)
+        let logFpDetails = isFpPattern(self.nnfLTLFormula) || (nnfFormulaString.contains("F(") && nnfFormulaString.contains("p")) // Heuristic for original F(p)
+        if logFpDetails {
+            print("[TGC BUILDGRAPH DEBUG FPAT] Initial Tableau Node for \(nnfFormulaString): ID \(initialGBAStateID)")
+            print("[TGC BUILDGRAPH DEBUG FPAT]   Current: \(initialTableauNode.currentFormulas.map{String(describing:$0)}.sorted())")
+            print("[TGC BUILDGRAPH DEBUG FPAT]   Next: \(initialTableauNode.nextFormulas.map{String(describing:$0)}.sorted())")
+        }
+        // ---- END DEBUG ----
 
         while let currentNodeToExpand = worklist.popLast() {
             if processedNodesLookup.contains(currentNodeToExpand) { continue }
@@ -102,15 +120,15 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
 
                     let successorGBAStateID = getOrCreateGBAStateID(for: successorNode)
                     
-                    // ---- MODIFIED GBA TRANSITION INSERT LOG ---- REMOVED
-                    // print("[TGC GBA Insert] From GBA ID \(currentGBAStateID) (Node: \(sourceNodeDescForLog)) -- Symbol: \(String(describing: symbol)) --> To GBA ID \(successorGBAStateID) (Node: \(String(describing: successorNode)))")
-                    // if isPotentiallyFNotPSinkNode {
-                    //     print("    Context: Potentially F(!p) sink node. ExpansionResult: current=\(expansionResult.nextSetOfCurrentObligations.map {String(describing:$0)}), next=\(expansionResult.nextSetOfNextObligations.map {String(describing:$0)}), consistent=\(expansionResult.isConsistent)")
-                    //     if currentGBAStateID == successorGBAStateID {
-                    //         print("    CONFIRMED GBA SELF-LOOP FOR F(!p) SINK CONTEXT.")
-                    //     }
-                    // }
-                    // ---- END MODIFIED GBA TRANSITION INSERT LOG ----
+                    // ---- DEBUG for F p pattern ----
+                    if logFpDetails && (nodeToStateIDMap[currentNodeToExpand] == initialGBAStateID || nodeToStateIDMap[currentNodeToExpand] == successorGBAStateID) {
+                         print("[TGC BUILDGRAPH DEBUG FPAT] Expanded from Node ID \(currentGBAStateID) for symbol \(symbol)")
+                         print("[TGC BUILDGRAPH DEBUG FPAT]   To Successor Node ID \(successorGBAStateID)")
+                         print("[TGC BUILDGRAPH DEBUG FPAT]     Current: \(successorNode.currentFormulas.map{String(describing:$0)}.sorted())")
+                         print("[TGC BUILDGRAPH DEBUG FPAT]     Next: \(successorNode.nextFormulas.map{String(describing:$0)}.sorted())")
+                         print("[TGC BUILDGRAPH DEBUG FPAT]     ExpansionResult Consistent: \(expansionResult.isConsistent)")
+                    }
+                    // ---- END DEBUG ----
 
                     gbaTransitions.insert(.init(from: currentGBAStateID, on: symbol, to: successorGBAStateID))
 
@@ -137,92 +155,76 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
         nodeFormulas: Set<LTLFormula<P>>, 
         nextObligationsFromPrevious: Set<LTLFormula<P>>,
         forSymbol: BuchiAlphabetSymbol<PropositionIDType>,
-        heuristicOriginalLTLFormula: LTLFormula<P> // For context if needed by heuristics (e.g. sticky F states)
+        heuristicOriginalLTLFormula: LTLFormula<P> 
     ) -> [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)] {
-        // print("TableauGraphConstructor.expandFormulasInNode: Expanding for symbol \(forSymbol).")
+        
+        var foundRelevantReleaseInNodeFormulas = false
+        var initialFormulaForDebug: LTLFormula<P>? = nil
+        for f_node in nodeFormulas {
+            if case .release(let l, let r) = f_node {
+                if case .not(let notL) = l, case .atomic(let pL) = notL, String(describing: pL.id).contains("r_kripke"),
+                   case .not(let notR) = r, case .atomic(let pR) = notR, String(describing: pR.id).contains("p_kripke") {
+                    foundRelevantReleaseInNodeFormulas = true
+                    initialFormulaForDebug = f_node
+                    break
+                }
+            }
+        }
+        
+        let symbolIsExactlyPKripke = forSymbol.count == 1 && forSymbol.allSatisfy { String(describing: $0).contains("p_kripke") }
+        let symbolIsPrKripke = forSymbol.count == 2 && 
+                               forSymbol.contains(where: { String(describing: $0).contains("p_kripke") }) && 
+                               forSymbol.contains(where: { String(describing: $0).contains("r_kripke") })
+
+        let shouldLogExpandDetails = foundRelevantReleaseInNodeFormulas && (symbolIsExactlyPKripke || symbolIsPrKripke)
+
+        if shouldLogExpandDetails {
+            print("[TGC EXPAND_IN DEBUG REL_NOTPAT] expandFormulasInNode called for \(String(describing: initialFormulaForDebug ?? self.nnfLTLFormula)) and Symbol \(forSymbol.map { String(describing: $0) }.sorted())")
+            print("[TGC EXPAND_IN DEBUG REL_NOTPAT]   NodeFormulas: \(nodeFormulas.map{String(describing:$0).prefix(100)})")
+            print("[TGC EXPAND_IN DEBUG REL_NOTPAT]   NextObligationsFromPrevious: \(nextObligationsFromPrevious.map{String(describing:$0).prefix(100)})")
+        }
+        // ---- END DEBUG ----
 
         var allPossibleOutcomes: [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)] = []        
-        // Initial formulas to satisfy for the current state under `forSymbol`.
-        // This includes formulas that must be true now (`nodeFormulas`)
-        // and obligations passed from a previous state that must be true now (`nextObligationsFromPrevious`).
         let initialWorklistForSolve = Array(nodeFormulas.union(nextObligationsFromPrevious))
 
-        // The `solve` function recursively processes formulas according to tableau rules.
-        // It determines if the current set of formulas is consistent with `forSymbol`,
-        // and what formulas must hold in the next state (`V` set).
         solve( 
             currentWorklist: initialWorklistForSolve, 
             processedOnPath: Set(), 
-            vSet: Set(), // Accumulates X-formulas for the next state
-            pAtomicSet: Set(), // True atomic propositions implied by current formulas
-            nAtomicSet: Set(), // False atomic propositions (¬p) implied
+            vSet: Set(), 
+            pAtomicSet: Set(), 
+            nAtomicSet: Set(), 
             forSymbol: forSymbol,
-            initialWorklistForSolve: initialWorklistForSolve, // For liveness heuristics
-            heuristicOriginalLTLFormula: heuristicOriginalLTLFormula, // For liveness heuristics
+            initialWorklistForSolve: initialWorklistForSolve, 
+            heuristicOriginalLTLFormula: heuristicOriginalLTLFormula, 
             allPossibleOutcomes: &allPossibleOutcomes
         )
 
-        if allPossibleOutcomes.isEmpty {
-            if !initialWorklistForSolve.isEmpty {
-                // print("TableauGraphConstructor.expandFormulasInNode (Symbol: \(forSymbol)): No outcomes from non-empty initial worklist: \(initialWorklistForSolve). Returning inconsistent.")
-                return [(nextSetOfCurrentObligations: [], nextSetOfNextObligations: [], isConsistent: false)]
+        let finalFilteredOutcomes = allPossibleOutcomes.filter { outcome in
+            // If outcome.isConsistent is false, solve already determined it's contradictory.
+            // If true, it means it was consistent with the symbol OR bypassed the symbol check.
+            // No additional filtering here for now, relying on solve's consistency flag.
+            return outcome.isConsistent 
+        }
+        
+        // ---- DEBUG for expandFormulasInNode results ----
+        if shouldLogExpandDetails {
+            print("[TGC EXPAND_OUT DEBUG REL_NOTPAT] Results for \(String(describing: initialFormulaForDebug ?? self.nnfLTLFormula)) and Symbol \(forSymbol.map { String(describing: $0) }.sorted())):")
+            if finalFilteredOutcomes.isEmpty && !initialWorklistForSolve.isEmpty {
+                print("[TGC EXPAND_OUT DEBUG REL_NOTPAT]   NO consistent outcomes generated.")
             } else {
-                // print("TableauGraphConstructor.expandFormulasInNode (Symbol: \(forSymbol)): No outcomes from empty initial worklist. Returning consistent with empty next obligations.")
-                return [(nextSetOfCurrentObligations: [], nextSetOfNextObligations: [], isConsistent: true)]
+                for (idx, outcome) in finalFilteredOutcomes.enumerated() {
+                    print("[TGC EXPAND_OUT DEBUG REL_NOTPAT]   Outcome \(idx + 1): isConsistent=\(outcome.isConsistent)")
+                    print("[TGC EXPAND_OUT DEBUG REL_NOTPAT]     CurrentObligations: \(outcome.nextSetOfCurrentObligations.map{String(describing:$0).prefix(100)})")
+                    print("[TGC EXPAND_OUT DEBUG REL_NOTPAT]     NextObligations: \(outcome.nextSetOfNextObligations.map{String(describing:$0).prefix(100)})")
+                }
             }
         }
-        // print("TableauGraphConstructor.expandFormulasInNode (Symbol: \(forSymbol)): All outcomes = \(allPossibleOutcomes.map { (curr: $0.nextSetOfCurrentObligations, next: $0.nextSetOfNextObligations, cons: $0.isConsistent) })")
-        
-        // Post-processing: Filter outcomes for consistency with `forSymbol` AFTER `solve` has run.
-        // The `solve` function's `allowBypassForLiveness` might skip this for specific liveness sink states.
-        // Here, we ensure that for outcomes *not* bypassed, the atomic formulas derived (P_atomic, N_atomic implicitly in currentBasicFormulas)
-        // are consistent with the `forSymbol`.
-        var finalFilteredOutcomes: [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)] = []
+        // ---- END DEBUG ----
 
-        for outcome in allPossibleOutcomes {
-            if !outcome.isConsistent { continue } // Already marked inconsistent by solve
-
-            // Re-evaluate consistency based on how `solve` determined `currentBasicFormulas` vs `forSymbol`
-            // This depends on the `allowBypassForLiveness` logic within `solve`.
-            // If `solve` included atomic formulas in `outcome.nextSetOfCurrentObligations` despite symbol mismatch (due to bypass),
-            // that needs to be handled. The current `solve` attempts to clear currentBasicFormulas if bypassed.
-
-            // Heuristic check for bypass (crude approximation):
-            // If the outcome's current obligations are empty AND it was a potential liveness sink in `solve`,
-            // it might have been bypassed. The `solve` logic is complex here.
-            // The key is that `solve` itself sets `isConsistent` and `currentBasicFormulas`.
-            // If `allowBypassForLiveness` was true and it was a `isPotentialLivenessSinkCandidate`,
-            // `solve` would set `resultingV` to empty, and `currentBasicFormulas` might be empty.
-            // The critical check for `forSymbol` consistency happens *inside* `solve` before setting `consistentPath` unless bypassed.
-
-            // Let's refine: `solve` passes back `nextSetOfCurrentObligations` (which are basically atomic or boolean literals)
-            // and `isConsistent`. The `isConsistent` flag from `solve` should already account for symbol mismatches
-            // *unless* `allowBypassForLiveness` was true.
-
-            // The `solve` function already populates `currentBasicFormulas` based on `P_atomic` and `N_atomic`
-            // AND then checks consistency with `forSymbol` (unless `allowBypassForLiveness`).
-            // So the `isConsistent` flag from `solve` should be mostly reliable.
-            // The additional check here could be if we want to enforce it universally *after* `solve` if there was a bypass.
-            // The original `LTLToBuchiConverter` had the symbol check *after* `solve` loop in some iterations.
-            // Let's assume `solve` correctly sets `isConsistent` considering the bypass.
-
-            // The current `solve` inside this file: `consistentPath` is set, and `allowBypassForLiveness` guards the check against `forSymbol`.
-            // `allPossibleOutcomes.append((currentBasicFormulas, resultingV, consistentPath))`
-            // So, `outcome.isConsistent` (which is `consistentPath`) already reflects symbol consistency (or bypass).
-
-            // No further filtering needed here if `solve` handles it correctly.
-            finalFilteredOutcomes.append(outcome)
-        }
-
-        // return finalFilteredOutcomes.isEmpty && !initialWorklistForSolve.isEmpty ? 
-        //         [(nextSetOfCurrentObligations: [], nextSetOfNextObligations: [], isConsistent: false)] :
-        //         finalFilteredOutcomes
-        // If all outcomes were filtered out (e.g. due to a stricter post-solve symbol check not implemented here),
-        // then return inconsistent. But for now, rely on solve's `isConsistent`.
         return finalFilteredOutcomes.isEmpty && !initialWorklistForSolve.isEmpty ?
             [(nextSetOfCurrentObligations: [], nextSetOfNextObligations: [], isConsistent: false)] :
             (finalFilteredOutcomes.isEmpty ? [(nextSetOfCurrentObligations: [], nextSetOfNextObligations: [], isConsistent: true)] : finalFilteredOutcomes)
-
     }
     
     // Helper `solve` function, adapted from the original LTLToBuchiConverter.
@@ -230,19 +232,19 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
     private func solve(
         currentWorklist: [LTLFormula<P>], 
         processedOnPath: Set<LTLFormula<P>>, 
-        vSet: Set<LTLFormula<P>>, // Accumulates X-formulas for the next state
-        pAtomicSet: Set<P>,       // True atomic propositions implied by current formulas
-        nAtomicSet: Set<P>,       // False atomic propositions (¬p) implied
+        vSet V: Set<LTLFormula<P>>, 
+        pAtomicSet P_atomic: Set<P>, 
+        nAtomicSet N_atomic: Set<P>,
         forSymbol: BuchiAlphabetSymbol<PropositionIDType>,
-        initialWorklistForSolve: [LTLFormula<P>], // Original obligations for this node expansion, for liveness heuristics
-        heuristicOriginalLTLFormula: LTLFormula<P>, // The very original LTL formula (pre-NNF), for liveness heuristics
+        initialWorklistForSolve: [LTLFormula<P>], // For context in debug/heuristics
+        heuristicOriginalLTLFormula: LTLFormula<P>, // The original LTL formula before NNF, for context
         allPossibleOutcomes: inout [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)]
     ) {
         var worklist = currentWorklist
         var processed = processedOnPath
-        let V = vSet
-        let P_atomic = pAtomicSet
-        let N_atomic = nAtomicSet
+        let V = V
+        let P_atomic = P_atomic
+        let N_atomic = N_atomic
 
         if worklist.isEmpty { 
             var currentBasicFormulas = Set<LTLFormula<P>>()
@@ -251,23 +253,27 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
             let hasInternalContradiction = P_atomic.contains { p_true in N_atomic.contains(p_true) }
             if hasInternalContradiction { consistentPath = false }
 
-            var allowBypassForLivenessSymbolCheck = false
+            var allowBypassForLivenessSymbolCheck = false 
             var isStickyAcceptingStateOfEventuality = false 
 
-            // ---- REMOVED LIVENESS DEBUG LOGS ----
-            // let pDemoLikeRawValueForSolveLog = "p_demo_like" 
-            // var logHeuristicDetails = false
-            // if initialWorklistForSolve.count == 1, let singleObl = initialWorklistForSolve.first {
-            //     if case .not(let inner) = singleObl, case .atomic(let p) = inner, String(describing: p.id).contains(pDemoLikeRawValueForSolveLog) {
-            //         logHeuristicDetails = true 
-            //     }
-            // }
+            // ---- DEBUG for Release path consistency ----
+            var shouldLogConsistencyCheck = false
+            let targetReleaseNNFString = "release(not(atomic(TemporalKit.ClosureTemporalProposition<TemporalKitDemo.DemoKripkeModelState, Swift.Bool>>"
+            let initialWorklistStrings = initialWorklistForSolve.map { String(describing: $0) }
+            let isTargetFormulaContext = initialWorklistStrings.contains(where: { $0.contains(targetReleaseNNFString) && $0.contains("p_kripke") && $0.contains("r_kripke") })
             
-            // if logHeuristicDetails {
-            //     print(">>> [SolveLivenessDebug] BaseCase for initialWorklist: \(initialWorklistForSolve.map{String(describing:$0)}), Symbol: \(String(describing: forSymbol))")
-            //     print("    V_in: \(V.map{String(describing:$0)}), P_atomic: \(P_atomic.map{String(describing:$0)}), N_atomic: \(N_atomic.map{String(describing:$0)})")
-            //     print("    consistentPath (pre-heuristic): \(consistentPath)")
-            // }
+            let symbolIsExactlyPKripke = forSymbol.count == 1 && forSymbol.allSatisfy { pid in String(describing: pid).contains("p_kripke") }
+            let symbolIsPrKripke = forSymbol.count == 2 && 
+                                   forSymbol.contains(where: { String(describing: $0).contains("p_kripke") }) && 
+                                   forSymbol.contains(where: { String(describing: $0).contains("r_kripke") })
+
+            if isTargetFormulaContext && (symbolIsExactlyPKripke || symbolIsPrKripke) {
+                shouldLogConsistencyCheck = true
+                print("[TGC SOLVE CONSISTENCY PRE-CHECK for (¬r)R(¬p) like with symbol \(forSymbol.map{String(describing:$0)}.sorted())]")
+                print("    InitialWorklistForSolve: \(initialWorklistStrings.map{$0.prefix(100)})")
+                print("    P_atomic: \(P_atomic.map{String(describing:$0)}), N_atomic: \(N_atomic.map{String(describing:$0)}), initial consistentPath: \(consistentPath)")
+            }
+            // ---- END DEBUG ----
 
             if consistentPath { 
                 if initialWorklistForSolve.count == 1, let singleObligation = initialWorklistForSolve.first {
@@ -332,11 +338,13 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
                  currentBasicFormulas = Set() 
             }
             
-            let finalV = isStickyAcceptingStateOfEventuality ? Set<LTLFormula<P>>() : V
-            // if logHeuristicDetails { 
-            //     print("    OUTCOME TO APPEND: current=\(currentBasicFormulas.map{String(describing:$0)}), next=\(finalV.map{String(describing:$0)}), consistent=\(consistentPath)")
-            // }
+            // ---- DEBUG for Release path consistency ----
+            if shouldLogConsistencyCheck {
+                print("[TGC SOLVE CONSISTENCY POST-CHECK for (¬r)R(¬p) like with symbol \(forSymbol.map{String(describing:$0)}.sorted())] Final consistentPath: \(consistentPath) for outcome based on P: \(P_atomic.map{String(describing:$0)}), N: \(N_atomic.map{String(describing:$0)})")
+            }
+            // ---- END DEBUG ----
 
+            let finalV = V // Simplified: V passed through from recursive calls is the next state obligations.
             allPossibleOutcomes.append((currentBasicFormulas, finalV, consistentPath))
             return
         }
@@ -413,16 +421,36 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
             solve(currentWorklist: worklistPhiBranch, processedOnPath: processed, vSet: vForPhiBranch, pAtomicSet: P_atomic, nAtomicSet: N_atomic, forSymbol: forSymbol, initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula, allPossibleOutcomes: &allPossibleOutcomes)
 
         case .release(let phi, let psi):
-            var worklistWithPsi = worklist
-            if !processed.contains(psi) { worklistWithPsi.insert(psi, at:0) }
+            let shouldLogBranchDetails = solltenSieProtokollierenErweiternFallFreigeben(initialWorklistForSolve, forSymbol, currentFormula)
 
-            var worklistPsiAndPhi = worklistWithPsi
-            if !processed.contains(phi) { worklistPsiAndPhi.insert(phi, at: 0) } 
-            solve(currentWorklist: worklistPsiAndPhi, processedOnPath: processed, vSet: V, pAtomicSet: P_atomic, nAtomicSet: N_atomic, forSymbol: forSymbol, initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula, allPossibleOutcomes: &allPossibleOutcomes)
+            // Branch 1: psi holds now.
+            var worklistBranchPsi = worklist
+            if !processed.contains(psi) { worklistBranchPsi.insert(psi, at: 0) }
+            var tempOutcomesBranch1: [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)] = []
+            solve(currentWorklist: worklistBranchPsi, processedOnPath: processed, vSet: V, 
+                  pAtomicSet: P_atomic, nAtomicSet: N_atomic, forSymbol: forSymbol, 
+                  initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula, 
+                  allPossibleOutcomes: &tempOutcomesBranch1)
+            if shouldLogBranchDetails {
+                print("[TGC SOLVE DEBUG REL_BRANCH_1] For \(currentFormula) on \(forSymbol.map{String(describing:$0)}.sorted()): psi (\(psi)) branch produced \(tempOutcomesBranch1.count) outcomes. Consistent: \(tempOutcomesBranch1.filter{$0.isConsistent}.count)")
+            }
+            allPossibleOutcomes.append(contentsOf: tempOutcomesBranch1)
 
-            var vForPsiAndXR = V; vForPsiAndXR.insert(currentFormula) 
-            solve(currentWorklist: worklistWithPsi, processedOnPath: processed, vSet: vForPsiAndXR, pAtomicSet: P_atomic, nAtomicSet: N_atomic, forSymbol: forSymbol, initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula, allPossibleOutcomes: &allPossibleOutcomes)
-            
+            // Branch 2: phi holds now AND X(phi R psi) holds next.
+            var worklistBranchPhi = worklist
+            if !processed.contains(phi) { worklistBranchPhi.insert(phi, at: 0) }
+            var vSetBranchPhiAndXR = V
+            vSetBranchPhiAndXR.insert(currentFormula) // Add X(phi R psi)
+            var tempOutcomesBranch2: [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)] = []
+            solve(currentWorklist: worklistBranchPhi, processedOnPath: processed, vSet: vSetBranchPhiAndXR, 
+                  pAtomicSet: P_atomic, nAtomicSet: N_atomic, forSymbol: forSymbol, 
+                  initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula, 
+                  allPossibleOutcomes: &tempOutcomesBranch2)
+            if shouldLogBranchDetails {
+                print("[TGC SOLVE DEBUG REL_BRANCH_2] For \(currentFormula) on \(forSymbol.map{String(describing:$0)}.sorted()): phi_XR (\(phi) & X R) branch produced \(tempOutcomesBranch2.count) outcomes. Consistent: \(tempOutcomesBranch2.filter{$0.isConsistent}.count)")
+            }
+            allPossibleOutcomes.append(contentsOf: tempOutcomesBranch2)
+
         case .eventually(let subFormula): 
             var worklistSubFormulaBranch = worklist
             if !processed.contains(subFormula) { worklistSubFormulaBranch.insert(subFormula, at: 0) }
@@ -456,9 +484,66 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
         case .not(.not(_)), .not(.and(_, _)), .not(.or(_, _)), .not(.implies(_, _)), 
              .not(.next(_)), .not(.eventually(_)), .not(.globally(_)), 
              .not(.until(_, _)), .not(.weakUntil(_, _)), .not(.release(_, _)):
-            // This outcome append might be an error path, not necessarily debug log to remove.
-            // For now, let's assume it's part of the logic.
+            // These should have been resolved by NNF converter.
+            // If they appear here, it's an issue with NNF or prior logic.
+            print("[TGC SOLVE ERROR] Unexpected NNF-violating formula in solve: \(currentFormula)")
             allPossibleOutcomes.append(([],[], false)); return
         }
     }
+
+    // New helper function, ensure it's within the class or accessible (e.g., fileprivate at file scope if P is also file-scoped or generic)
+    private func solltenSieProtokollierenErweiternFallFreigeben(_ initialWorklistForSolvePathContext: [LTLFormula<P>], _ symbol: BuchiAlphabetSymbol<PropositionIDType>, _ currentExpandingFormula: LTLFormula<P>) -> Bool {
+        var isTargetReleaseFormula = false
+        if case .release(let l, let r) = currentExpandingFormula {
+            let lDescCurrent = String(describing: l)
+            let rDescCurrent = String(describing: r)
+            // Check for release(not(atomic(...r_kripke_Demo...)), not(atomic(...p_kripke_Demo...)))
+            if lDescCurrent.contains("not(atomic") && lDescCurrent.contains("r_kripke") && lDescCurrent.contains("DemoKripkeModelState") &&
+               rDescCurrent.contains("not(atomic") && rDescCurrent.contains("p_kripke") && rDescCurrent.contains("DemoKripkeModelState") {
+                isTargetReleaseFormula = true
+            }
+        }
+        let symbolIsPKripke = symbol.count == 1 && symbol.allSatisfy { String(describing: $0).contains("p_kripke") }
+        return isTargetReleaseFormula && symbolIsPKripke
+    }
 } 
+
+// Helper extensions for LTLFormula to check patterns
+// These should ideally be part of LTLFormula or a utility extension file.
+fileprivate extension LTLFormula {
+    func isFpPattern() -> Bool {
+        if case .until(let lhs, let rhs) = self,
+           case .booleanLiteral(let bVal) = lhs, bVal == true,
+           case .atomic = rhs {
+            return true
+        }
+        return false
+    }
+
+    func isReleaseNotNotPattern() -> Bool {
+        if case .release(let lhsR, let rhsR) = self,
+           case .not(let notLhsSub) = lhsR, case .atomic = notLhsSub,
+           case .not(let notRhsSub) = rhsR, case .atomic = notRhsSub {
+            return true
+        }
+        return false
+    }
+    func isBooleanLiteralTrue() -> Bool {
+        if case .booleanLiteral(let bVal) = self, bVal == true {
+            return true
+        }
+        return false
+    }
+}
+
+// Extension for PropositionIDType should be at file scope or global scope if used across files.
+// For now, placing it at file scope.
+fileprivate extension RawRepresentable where RawValue == String {
+    // This provides a default idDescription for any RawRepresentable with String RawValue,
+    // like the PropositionID used in tests.
+    // If PropositionIDType itself is this, then $0.idDescription() would work.
+    // If PropositionIDType is just String, then $0 itself is the string.
+    // If PropositionIDType is some other struct/enum, it needs its own CustomStringConvertible or RawRepresentable.
+    // The String(describing: pid) is generally the safest for debug if unsure about specific type conformance.
+    func idDescription() -> String { return self.rawValue }
+}

@@ -4,55 +4,37 @@ import Foundation
 
 internal struct GBAConditionGenerator<P: TemporalProposition> where P.Value == Bool {
 
-    /// Collects all subformulas of the form 'phi U psi' from a given LTL formula.
-    /// This is used to identify the obligations that contribute to GBA acceptance conditions.
-    private static func collectUntilSubformulas(from formula: LTLFormula<P>) -> Set<LTLFormula<P>> {
-        // Removing DEBUG prints from here as the NNF issue seems resolved.
-        // print("DEBUG: collectUntilSubformulas received formula: \(String(reflecting: formula))")
-        // if case .until(_,_) = formula {
-        //     print("DEBUG: Top-level formula IS an .until case.")
-        // } else {
-        //     print("DEBUG: Top-level formula IS NOT an .until case. Actual case: \(String(describing: formula).split(separator: "(").first ?? "Unknown")")
-        // }
-
-        var untils = Set<LTLFormula<P>>()
-        var worklist = [LTLFormula<P>]()
+    /// Collects all subformulas of the form 'U', 'F', 'R', or 'G'.
+    private static func collectLivenessSubformulas(from formula: LTLFormula<P>) -> Set<LTLFormula<P>> {
+        var livenessFormulas = Set<LTLFormula<P>>()
+        var worklist = [formula]
         var visited = Set<LTLFormula<P>>()
-
-        // Explicitly check the initial formula before starting the loop
-        // to handle cases where the formula itself is the target and might be missed by loop/visited logic.
-        if case .until(_, _) = formula {
-            untils.insert(formula)
-        }
-        // Add children of the initial formula to the worklist for further exploration
-        // or the formula itself if it wasn't an .until or to explore its children too.
-        // To be safe and explore all, always start with the formula in the worklist strategy.
-        // The original logic was fine, let's ensure the worklist processing is robust.
-        
-        worklist.append(formula) // Reset to original strategy, the issue might be elsewhere or subtle.
 
         while let current = worklist.popLast() {
             if visited.contains(current) { continue }
             visited.insert(current)
 
+            // 1. Add to livenessFormulas ONLY if current itself is U, F, R, or G
             switch current {
-            case .booleanLiteral, .atomic:
-                break // No subformulas to explore
-            case .not(let sub):
-                if !visited.contains(sub) { worklist.append(sub) }
-            case .and(let l, let r), .or(let l, let r), .implies(let l, let r),
-                 .weakUntil(let l, let r), .release(let l, let r):
-                if !visited.contains(l) { worklist.append(l) }
-                if !visited.contains(r) { worklist.append(r) }
-            case .next(let sub), .eventually(let sub), .globally(let sub):
-                if !visited.contains(sub) { worklist.append(sub) }
-            case .until(let l, let r):
-                untils.insert(current) // Add the Until formula itself
-                if !visited.contains(l) { worklist.append(l) }     // Also explore subformulas of the Until
-                if !visited.contains(r) { worklist.append(r) }
+            case .until(_, _), .eventually(_), .release(_, _), .globally(_):
+                livenessFormulas.insert(current)
+            default:
+                break // Not a top-level liveness formula itself
+            }
+
+            // 2. ALWAYS recurse on children to find NESTED liveness formulas
+            switch current {
+                case .not(let sub), .next(let sub), .eventually(let sub), .globally(let sub):
+                    if !visited.contains(sub) { worklist.append(sub) }
+                case .until(let l, let r), .release(let l, let r), .weakUntil(let l, let r), 
+                     .and(let l, let r), .or(let l, let r), .implies(let l, let r):
+                    if !visited.contains(l) { worklist.append(l) }
+                    if !visited.contains(r) { worklist.append(r) }
+                case .booleanLiteral(_), .atomic(_):
+                    break // No children to recurse on
             }
         }
-        return untils
+        return livenessFormulas
     }
 
     /// Determines the Generalized Büchi Automaton (GBA) acceptance conditions.
@@ -67,75 +49,104 @@ internal struct GBAConditionGenerator<P: TemporalProposition> where P.Value == B
         nodeToStateIDMap: [TableauNode<P>: FormulaAutomatonState],
         originalNNFFormula: LTLFormula<P>
     ) -> [Set<FormulaAutomatonState>] {
-        let untilSubformulas = collectUntilSubformulas(from: originalNNFFormula)
+        // Special case for a constant false formula -> no accepting states in its BA
+        if case .booleanLiteral(let bVal) = originalNNFFormula, !bVal {
+            // print("[GBACond DEBUG] NNF is 'false'. Returning GBA sets [[]] for no BA accepting states.")
+            return [Set<FormulaAutomatonState>()] // One empty set signals BA should have no accepting states
+        }
+
+        let livenessSubformulas = collectLivenessSubformulas(from: originalNNFFormula)
         var gbaAcceptanceSets: [Set<FormulaAutomatonState>] = []
+        let nnfDesc = String(describing: originalNNFFormula)
 
-        // ---- REMOVED GBAConditionGenerator DEBUG ----
-        // let pDemoLikeRawValue = "p_demo_like" 
-        // ---- END DEBUG ----
-
-        if !untilSubformulas.isEmpty {
-            // ---- REMOVED GBAConditionGenerator DEBUG ----
-            // print("[GBAConditionGenerator DEBUG] Found \(untilSubformulas.count) Until-subformulas. Processing them.")
-            for uFormula in untilSubformulas {
-                guard case .until(_ /*lhsU*/, let rhsU) = uFormula else { continue }
-                var specificAcceptanceSetForThisU = Set<FormulaAutomatonState>()
-
-                // ---- REMOVED GBAConditionGenerator DEBUG ----
-                // var isTargetFNotPFormula = false
-                // if case .booleanLiteral(true) = lhsU, case .not(let inner) = rhsU, case .atomic(let p) = inner, String(describing: p.id).contains(pDemoLikeRawValue) {
-                //     isTargetFNotPFormula = true
-                //     print("[GBAConditionGenerator DEBUG] Processing U-formula relevant to F(!\(pDemoLikeRawValue)): \(String(describing: uFormula))")
-                //     print("    rhsU (should be !\(pDemoLikeRawValue)): \(String(describing: rhsU))")
-                // }
-                // ---- END DEBUG ----
-
-                for tableauNode in tableauNodes {
-                    let satisfiedRhsU = tableauNode.currentFormulas.contains(rhsU)
-                    let uFormulaStillActiveCurrent = tableauNode.currentFormulas.contains(uFormula)
-                    let uFormulaNotActiveNext = !tableauNode.nextFormulas.contains(uFormula)
-                    let uFormulaNotActiveOverall = !uFormulaStillActiveCurrent && uFormulaNotActiveNext
-                    
-                    if satisfiedRhsU || uFormulaNotActiveOverall {
-                        if let stateID = nodeToStateIDMap[tableauNode] {
-                            specificAcceptanceSetForThisU.insert(stateID)
-                            // ---- REMOVED GBAConditionGenerator DEBUG ----
-                            // if isTargetFNotPFormula {
-                            //     print("    [F(!\(pDemoLikeRawValue)) DEBUG] Adding GBA state ID \(stateID) to acceptance set. Node: {current: \(tableauNode.currentFormulas.map{String(describing:$0)}), next: \(tableauNode.nextFormulas.map{String(describing:$0)})}. SatisfiedRhsU: \(satisfiedRhsU), UNotActiveOverall: \(uFormulaNotActiveOverall)")
-                            // }
-                        }
+        if livenessSubformulas.isEmpty {
+            // For non-liveness formulas (like Xp, p, true), GBA sets are empty, BA becomes all-accepting.
+            // 'false' is handled above.
+            // print("[GBACond DEBUG] NNF \(nnfDesc) has NO U/F/R/G liveness. GBA sets empty (BA all accepting).")
+        } else {
+            for livenessFormula in livenessSubformulas {
+                var specificAcceptanceSet = Set<FormulaAutomatonState>()
+                var isTargetReleaseFormulaForLog_OuterLoop = false // For the final set log
+                if case .release(let l_log_outer, let r_log_outer) = livenessFormula {
+                    let lDesc_outer = String(describing: l_log_outer)
+                    let rDesc_outer = String(describing: r_log_outer)
+                    if lDesc_outer.contains("r_kripke") && lDesc_outer.contains("not(atomic") &&
+                       rDesc_outer.contains("p_kripke") && rDesc_outer.contains("not(atomic") &&
+                       (lDesc_outer.contains("DemoKripkeModelState") || rDesc_outer.contains("DemoKripkeModelState")) {
+                        isTargetReleaseFormulaForLog_OuterLoop = true
                     }
                 }
-                // ---- REMOVED GBAConditionGenerator DEBUG ----
-                // if isTargetFNotPFormula {
-                //     print("[GBAConditionGenerator DEBUG] Acceptance set for F(!\(pDemoLikeRawValue)) (orig U: \(String(describing:uFormula))): \(specificAcceptanceSetForThisU.sorted())")
-                // }
-                gbaAcceptanceSets.append(specificAcceptanceSetForThisU)
-            }
-        } else {
-            if !tableauNodes.isEmpty {
-                if case .next(let subFormula) = originalNNFFormula {
-                    // print("GBAConditionGenerator: Handling Next formula: \(originalNNFFormula)") // Informational, can be removed or kept if rare
-                    var nextAcceptanceSet = Set<FormulaAutomatonState>()
-                    for tableauNode in tableauNodes {
-                        if tableauNode.currentFormulas.contains(subFormula) {
-                            if let stateID = nodeToStateIDMap[tableauNode] {
-                                nextAcceptanceSet.insert(stateID)
-                            }
+
+                for tableauNode in tableauNodes {
+                    guard let nodeID = nodeToStateIDMap[tableauNode] else { continue }
+                    var conditionMet = false
+
+                    switch livenessFormula {
+                    case .until(let lhsU, let rhsU):
+                        if lhsU.isBooleanLiteralTrue() { 
+                            conditionMet = tableauNode.currentFormulas.contains(rhsU) 
+                        } else { 
+                            conditionMet = tableauNode.currentFormulas.contains(rhsU) || 
+                                         !tableauNode.nextFormulas.contains(livenessFormula) 
                         }
+                    case .eventually(let subE): 
+                        conditionMet = tableauNode.currentFormulas.contains(subE) || 
+                                     !tableauNode.currentFormulas.contains(livenessFormula)
+                    
+                    case .release(let lhsR, let rhsR):
+                        if lhsR.isBooleanLiteralFalse() { // G rhsR (NNF: false R rhsR)
+                            conditionMet = tableauNode.currentFormulas.contains(LTLFormula.not(rhsR))
+                        } else { // Standard A R B
+                            conditionMet = tableauNode.currentFormulas.contains(rhsR) || 
+                                         !tableauNode.currentFormulas.contains(livenessFormula)
+                        }
+                    case .globally(let subG): // G subG (where subG is A)
+                        conditionMet = tableauNode.currentFormulas.contains(LTLFormula.not(subG))
+
+                    default:
+                         print("[GBACond WARN] Unexpected liveness formula type in loop: \(livenessFormula) for NNF \(nnfDesc). Skipping.")
+                         continue 
                     }
-                    gbaAcceptanceSets.append(nextAcceptanceSet)
-                    // print("GBAConditionGenerator: Acceptance for Next: \(nextAcceptanceSet)") // Informational
+                    
+                    if conditionMet {
+                        specificAcceptanceSet.insert(nodeID)
+                    }
+                }
+
+                if isTargetReleaseFormulaForLog_OuterLoop { // Use the outer flag for the summary log
+                    print("[GBACond DEBUG REL_SET_FINAL for (¬r)R(¬p)] Liveness: \(String(describing:livenessFormula).prefix(100)), SpecificAcceptanceSet: \(specificAcceptanceSet.sorted().map {String(describing:$0)}) (Size: \(specificAcceptanceSet.count))")
+                }
+
+                if !specificAcceptanceSet.isEmpty {
+                    gbaAcceptanceSets.append(specificAcceptanceSet)
                 } else {
-                    gbaAcceptanceSets.append(Set(nodeToStateIDMap.values))
+                    print("[GBACond WARN] Liveness formula \(livenessFormula) in \(nnfDesc) yielded empty specific acceptance set. Appending empty set.")
+                    gbaAcceptanceSets.append(Set<FormulaAutomatonState>())
                 }
             }
         }
         
-        // This condition might indicate an issue, so the print can remain, or be converted to an assertion/error.
-        if gbaAcceptanceSets.isEmpty && !tableauNodes.isEmpty {
-            // print("Warning: GBAConditionGenerator generated empty acceptance sets for a non-empty tableau. Original Formula: \(originalNNFFormula)")
+        // Final debug print (expanded trigger)
+        let descForFinalLog = String(describing: originalNNFFormula) // Use original NNF for trigger condition
+        if descForFinalLog.contains("until(booleanLiteral(true), atomic") || 
+           (descForFinalLog.contains("release(not(atomic") && descForFinalLog.contains("r_kripke") && descForFinalLog.contains("p_kripke")) || 
+           descForFinalLog.contains("release(booleanLiteral(false), atomic") {
+             print("[GBACond DEBUG FINAL] Final gbaAcceptanceSets for NNF \(nnfDesc): count = \(gbaAcceptanceSets.count), content = \(gbaAcceptanceSets.map { $0.sorted().map { String(describing: $0) } })")
         }
         return gbaAcceptanceSets
     }
-} 
+}
+
+fileprivate extension LTLFormula {
+    func isBooleanLiteralTrue() -> Bool {
+        if case .booleanLiteral(let bVal) = self, bVal == true { return true }
+        return false
+    }
+    func isBooleanLiteralFalse() -> Bool {
+        if case .booleanLiteral(let bVal) = self, !bVal { return true }
+        return false
+    }
+    var isRelease: Bool {
+        if case .release = self { return true } else { return false }
+    }
+}

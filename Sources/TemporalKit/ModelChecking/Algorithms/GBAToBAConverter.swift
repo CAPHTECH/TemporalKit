@@ -130,12 +130,34 @@ internal struct GBAToBAConverter<S: Hashable, SymbolT: Hashable> {
         //     print("    Transition: \(trans.sourceState) -- \(String(describing: trans.symbol)) --> \(trans.destinationState)")
         // }
 
-        return BuchiAutomaton(
+        let finalBuchiAutomaton = BuchiAutomaton(
             states: productBAStates,
             alphabet: alphabet, // Corrected order
             initialStates: productBAInitialStates,
             transitions: productBATransitions,
             acceptingStates: productBAAcceptingStates
         )
+
+        // ---- DEBUG PRINT for GBAToBAConverter output ----
+        // Heuristic check: if original state type might be DemoKripkeModelState (by checking string description of one of the original GBA states)
+        var isDemoRelated = false
+        if let firstGbaState = gbaStates.first, String(describing: firstGbaState).contains("DemoKripkeModelState") {
+            isDemoRelated = true
+        }
+
+        if isDemoRelated {
+            print("[GBAToBAConverter DEBUG OUTPUT for Demo-related Automaton]")
+            print("    Input GBA Acceptance Sets (count: \(gbaAcceptanceSets.count)): \(gbaAcceptanceSets.map { $0.map { String(describing: $0)}.sorted() })")
+            print("    BA Initial States (count: \(finalBuchiAutomaton.initialStates.count)):")
+            finalBuchiAutomaton.initialStates.sorted(by: {String(describing: $0) < String(describing: $1)}).forEach { initState in
+                print("        \(initState)")
+            }
+            print("    BA Accepting States (count: \(finalBuchiAutomaton.acceptingStates.count)):")
+            finalBuchiAutomaton.acceptingStates.sorted(by: {String(describing: $0) < String(describing: $1)}).forEach { accState in
+                print("        \(accState)")
+            }
+        }
+        // ---- END DEBUG ----
+        return finalBuchiAutomaton
     }
 } 
