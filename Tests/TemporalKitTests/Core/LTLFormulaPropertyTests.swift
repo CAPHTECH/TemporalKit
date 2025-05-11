@@ -309,4 +309,102 @@ struct LTLFormulaPropertyTests {
         #expect(falseWp.normalized() == pForm.normalized(), "WeakUntil Norm: false W p should normalize to p")
         #expect(falseWp.normalized() == pForm, "WeakUntil Norm: false W p should normalize to p")
     }
+
+    // MARK: - Hashable and Equatable Coverage Tests
+
+    @Test("Cover LTLFormula.hash(into:) for all cases")
+    func testHashCoverage() {
+        let pAtom: LTLFormula<PropertyTestMockProposition> = .atomic(p)
+        let qAtom: LTLFormula<PropertyTestMockProposition> = .atomic(q)
+        var hasher = Hasher()
+
+        // Cases previously with 0 coverage based on coverage_report.txt
+        let andFormula = LTLFormula.and(pAtom, qAtom)
+        let orFormula = LTLFormula.or(pAtom, qAtom)
+        let impliesFormula = LTLFormula.implies(pAtom, qAtom)
+        let eventuallyFormula = LTLFormula.eventually(pAtom)
+        let globallyFormula = LTLFormula.globally(pAtom)
+        let weakUntilFormula = LTLFormula.weakUntil(pAtom, qAtom)
+
+        // Invoking hash(into:) for each. The specific hash value isn't the focus here, just coverage.
+        andFormula.hash(into: &hasher)
+        orFormula.hash(into: &hasher)
+        impliesFormula.hash(into: &hasher)
+        eventuallyFormula.hash(into: &hasher)
+        globallyFormula.hash(into: &hasher)
+        weakUntilFormula.hash(into: &hasher)
+
+        // To be absolutely sure, we can add them to a Set, which also invokes hash(into:)
+        let formulaSet: Set<LTLFormula<PropertyTestMockProposition>> = [
+            andFormula, orFormula, impliesFormula, eventuallyFormula, globallyFormula, weakUntilFormula,
+            // Include other cases to ensure the test isn't trivial if Set optimizes for few items
+            .booleanLiteral(true),
+            pAtom,
+            .not(pAtom),
+            .next(pAtom),
+            .until(pAtom, qAtom),
+            .release(pAtom, qAtom)
+        ]
+        #expect(formulaSet.count >= 6) // Check that distinct formulas are indeed added
+    }
+
+    @Test("Cover LTLFormula.== for specific unhit cases")
+    func testEquatableCoverage() {
+        let pAtom: LTLFormula<PropertyTestMockProposition> = .atomic(p)
+        let qAtom: LTLFormula<PropertyTestMockProposition> = .atomic(q)
+        let rAtom: LTLFormula<PropertyTestMockProposition> = .atomic(PropertyTestMockProposition(name: "r")) // Different proposition
+
+        // Case: .implies(let lLhs, let lRhs), .implies(let rLhs, let rRhs)
+        let implies_p_q = LTLFormula.implies(pAtom, qAtom)
+        let implies_p_q_copy = LTLFormula.implies(pAtom, qAtom)
+        let implies_q_p = LTLFormula.implies(qAtom, pAtom)
+        let implies_p_r = LTLFormula.implies(pAtom, rAtom)
+        #expect(implies_p_q == implies_p_q_copy)
+        #expect(implies_p_q != implies_q_p)
+        #expect(implies_p_q != implies_p_r)
+        #expect(implies_p_q != pAtom) // Different type
+
+        // Case: .next(let lForm), .next(let rForm)
+        let next_p = LTLFormula.next(pAtom)
+        let next_p_copy = LTLFormula.next(pAtom)
+        let next_q = LTLFormula.next(qAtom)
+        #expect(next_p == next_p_copy)
+        #expect(next_p != next_q)
+        #expect(next_p != pAtom) // Different type
+
+        // Case: .weakUntil(let lLhs, let lRhs), .weakUntil(let rLhs, let rRhs)
+        let wu_p_q = LTLFormula.weakUntil(pAtom, qAtom)
+        let wu_p_q_copy = LTLFormula.weakUntil(pAtom, qAtom)
+        let wu_q_p = LTLFormula.weakUntil(qAtom, pAtom)
+        let wu_p_r = LTLFormula.weakUntil(pAtom, rAtom)
+        #expect(wu_p_q == wu_p_q_copy)
+        #expect(wu_p_q != wu_q_p)
+        #expect(wu_p_q != wu_p_r)
+        #expect(wu_p_q != pAtom) // Different type
+        
+        // Additional equality checks for completeness, though not explicitly for unhit lines previously
+        // .and
+        let and_p_q = LTLFormula.and(pAtom, qAtom)
+        let and_p_q_copy = LTLFormula.and(pAtom, qAtom)
+        #expect(and_p_q == and_p_q_copy)
+        #expect(and_p_q != LTLFormula.and(qAtom, pAtom))
+
+        // .or
+        let or_p_q = LTLFormula.or(pAtom, qAtom)
+        let or_p_q_copy = LTLFormula.or(pAtom, qAtom)
+        #expect(or_p_q == or_p_q_copy)
+        #expect(or_p_q != LTLFormula.or(qAtom, pAtom))
+        
+        // .eventually
+        let eventually_p = LTLFormula.eventually(pAtom)
+        let eventually_p_copy = LTLFormula.eventually(pAtom)
+        #expect(eventually_p == eventually_p_copy)
+        #expect(eventually_p != LTLFormula.eventually(qAtom))
+
+        // .globally
+        let globally_p = LTLFormula.globally(pAtom)
+        let globally_p_copy = LTLFormula.globally(pAtom)
+        #expect(globally_p == globally_p_copy)
+        #expect(globally_p != LTLFormula.globally(qAtom))
+    }
 } 

@@ -1,7 +1,7 @@
 import Foundation
 
 /// LTL論理式のトレース評価時に発生する可能性のあるエラー
-public enum LTLTraceEvaluationError: Error {
+public enum LTLTraceEvaluationError: Error, Equatable {
     /// トレースが空の場合
     case emptyTrace
     

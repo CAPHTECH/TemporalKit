@@ -62,7 +62,25 @@ extension LTLFormula {
 
         case .or(let lhs, let rhs):
             let (lhsHolds, lhsNext) = try lhs.step(with: context)
-            let (rhsHolds, rhsNext) = try rhs.step(with: context)
+            // For OR, if lhsHolds is true, we know currentHolds is true.
+            // However, to determine the correct nextFormula (lhsNext || rhsNext),
+            // we generally need to evaluate rhs as well, unless lhsNext itself implies true for the OR.
+
+            // Short-circuit for holdsNow: if lhsHolds is true, currentHolds is true.
+            // The evaluation of rhs is still needed for nextFormula calculation.
+            // If rhs.step() throws, the error propagates, as nextFormula cannot be determined.
+            let (rhsHolds, rhsNext) : (Bool, LTLFormula<P>) // Declare explicitly for clarity
+            if lhsHolds {
+                // If lhsHolds is true, currentHolds is true.
+                // We still need to evaluate rhs.step() for its nextFormula, but its holdsNow value doesn't affect currentHolds.
+                // If an error occurs in rhs.step(), it should propagate as we can't form the complete next state.
+                // The test `testStepOr_LhsTrue_RhsThrows_ShortCircuit` might need adjustment if it expects error suppression here.
+                (rhsHolds, rhsNext) = try rhs.step(with: context) 
+                // rhsHolds is effectively ignored for currentHolds if lhsHolds is true.
+            } else {
+                // lhsHolds is false, so currentHolds and nextFormula depend on rhs.
+                (rhsHolds, rhsNext) = try rhs.step(with: context)
+            }
 
             let currentHolds = lhsHolds || rhsHolds
 
@@ -77,7 +95,7 @@ extension LTLFormula {
             if case .booleanLiteral(true) = rhsNext { 
                 return (currentHolds, .booleanLiteral(true))
             }
-            if case .booleanLiteral(false) = lhsNext { 
+            if case .booleanLiteral(false) = lhsNext { // Applies if lhsHolds was false and its next is false
                 return (currentHolds, rhsNext)
             }
             if case .booleanLiteral(false) = rhsNext { 
@@ -140,7 +158,7 @@ extension LTLFormula {
             // If subHolds is false, then G p is false now. The overall holdsNow will be false.
             // If subHolds is true, then G p *could* be true, depending on X(G p).
             // The obligation passed to the next step is still G p.
-            return (holdsNow: subHolds, nextFormula: .globally(subFormula))
+            return (holdsNow: subHolds, nextFormula: self)
 
         case .until(let lhs, let rhs):
             // p U q == q || (p && X(p U q))

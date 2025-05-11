@@ -1,0 +1,118 @@
+---
+description: Swift Test Coverage Measurement and Analysis Guide
+globs: 
+alwaysApply: false
+---
+# Swift Test Coverage Measurement and Analysis Guide
+
+This guide outlines the steps to measure test coverage for Swift projects using Swift Package Manager (SPM) and to analyze the generated reports.
+
+## 1. Generating Coverage Data
+
+To generate code coverage data, run your tests with the `--enable-code-coverage` flag:
+
+```bash
+swift test --enable-code-coverage
+```
+
+This command will compile your project, run all tests, and produce coverage data files.
+
+## 2. Locating Coverage Data
+
+The primary coverage data file has a `.profdata` extension. It is typically located in the build directory. The exact path can vary based on your build configuration and architecture, but common locations include:
+
+*   `.build/debug/codecov/default.profdata`
+*   `.build/arm64-apple-macosx/debug/codecov/default.profdata` (for Apple Silicon Macs)
+*   `.build/x86_64-apple-macosx/debug/codecov/default.profdata` (for Intel Macs)
+
+You can use the `find` command to locate it if needed:
+
+```bash
+find .build -name '*.profdata' | cat
+```
+
+The test executable is also needed for report generation. It's usually found within an `.xctest` bundle, for example:
+
+*   `.build/arm64-apple-macosx/debug/YourPackageNamePackageTests.xctest/Contents/MacOS/YourPackageNamePackageTests`
+*   Replace `YourPackageName` with the actual name of your package/target.
+
+You can find this using:
+```bash
+find .build -name YourPackageNamePackageTests -type f -print -quit | cat
+```
+
+## 3. Generating Coverage Reports
+
+Once you have the `.profdata` file and the path to your test executable, you can use `xcrun llvm-cov` to generate reports.
+
+### HTML Report
+
+An HTML report provides a visual overview of coverage, highlighting covered and uncovered lines in your source code.
+
+```bash
+xcrun llvm-cov show \
+    PATH_TO_YOUR_TEST_EXECUTABLE \
+    -instr-profile=PATH_TO_YOUR_PROFDATA_FILE \
+    SOURCES_DIRECTORY_OR_FILE_TO_REPORT_ON \
+    -use-color -format=html > coverage_report.html
+```
+
+**Example:**
+
+```bash
+xcrun llvm-cov show \
+    .build/arm64-apple-macosx/debug/TemporalKitPackageTests.xctest/Contents/MacOS/TemporalKitPackageTests \
+    -instr-profile=.build/arm64-apple-macosx/debug/codecov/default.profdata \
+    Sources/TemporalKit \
+    -use-color -format=html > coverage_report.html
+```
+
+Open `coverage_report.html` in a web browser to view the results.
+
+### Text Report (Summary or Detailed)
+
+A text report can provide a quick summary in the terminal or a detailed line-by-line breakdown.
+
+**Summary Report:**
+
+```bash
+xcrun llvm-cov report \
+    PATH_TO_YOUR_TEST_EXECUTABLE \
+    -instr-profile=PATH_TO_YOUR_PROFDATA_FILE \
+    SOURCES_DIRECTORY_OR_FILE_TO_REPORT_ON
+```
+
+**Detailed Line-by-Line Text Report (similar to `show` but text-based):
+
+```bash
+xcrun llvm-cov show \
+    PATH_TO_YOUR_TEST_EXECUTABLE \
+    -instr-profile=PATH_TO_YOUR_PROFDATA_FILE \
+    SOURCES_DIRECTORY_OR_FILE_TO_REPORT_ON \
+    -use-color=false -format=text > coverage_report.txt
+```
+
+**Example (Detailed Text):**
+
+```bash
+xcrun llvm-cov show \
+    .build/arm64-apple-macosx/debug/TemporalKitPackageTests.xctest/Contents/MacOS/TemporalKitPackageTests \
+    -instr-profile=.build/arm64-apple-macosx/debug/codecov/default.profdata \
+    Sources/TemporalKit/Evaluation/LTLFormulaTraceEvaluator.swift \
+    -use-color=false -format=text > coverage_LTLFormulaTraceEvaluator.txt
+```
+
+## 4. Analyzing Reports
+
+*   **HTML Report**: Look for files with low coverage percentages and lines highlighted in red (uncovered). This indicates areas needing more tests.
+*   **Text Report (Detailed)**: Lines prefixed with `0|` (zero followed by a pipe) indicate lines of code that were not executed by any tests.
+
+Prioritize adding tests for critical or complex logic that is currently uncovered.
+
+## Referenced Files in This Project
+
+*   Package manifest: [Package.swift](mdc:Package.swift)
+*   Main library source: [Sources/TemporalKit](mdc:Sources/TemporalKit)
+*   Main test target: [Tests/TemporalKitTests](mdc:Tests/TemporalKitTests)
+
+This rule helps in consistently measuring and improving test coverage across the project.

@@ -93,21 +93,14 @@ public class LTLModelChecker<Model: KripkeStructure> {
         // --- END SPECIAL HANDLING ---
         
         // Collect all proposition identifiers from the model and formula
-        var allRelevantAPIDs = Set<Model.AtomicPropositionIdentifier>()
-        for state in model.allStates {
-            allRelevantAPIDs.formUnion(model.atomicPropositionsTrue(in: state))
-        }
-        // TODO: Add propositions from the formula to allRelevantAPIDs if not already covered
-        // let formulaAPIDs = formula.propositions.map { $0.id } // Needs LTLFormula.propositions API
-        // allRelevantAPIDs.formUnion(formulaAPIDs)
+        let allRelevantAPIDs = self.extractPropositions(from: formula, and: model)
 
         // --- Original model checking logic --- 
         let negatedFormula = LTLFormula.not(formula) // Negate the formula for counterexample search
 
         let modelAutomaton = try self.convertModelToBuchi(model: model, relevantPropositions: allRelevantAPIDs)
         
-        // Assuming LTLToBuchiConverter has a static method translateLTLToBuchi
-        // The LTLFormula<P> needs to be passed here.
+        // Crucially, LTLToBuchiConverter needs the full set of relevant propositions.
         let formulaAutomatonForNegated = try LTLToBuchiConverter.translateLTLToBuchi(negatedFormula, relevantPropositions: allRelevantAPIDs)
 
         let productAutomaton = try constructProductAutomaton(modelAutomaton: modelAutomaton, formulaAutomaton: formulaAutomatonForNegated)
@@ -132,10 +125,8 @@ public class LTLModelChecker<Model: KripkeStructure> {
             case .booleanLiteral:
                 break
             case .atomic(let p):
-                if let propId = p.id as? Model.AtomicPropositionIdentifier {
-                     propositionsInFormula.insert(propId)
-                } else {
-                    print("Warning: Proposition ID \(p.id) of type \(type(of: p.id)) could not be cast to Model.AtomicPropositionIdentifier")
+                if let modelPropID = p.id as? Model.AtomicPropositionIdentifier {
+                    propositionsInFormula.insert(modelPropID)
                 }
             case .not(let subFormula):
                 collectProps(from: subFormula)

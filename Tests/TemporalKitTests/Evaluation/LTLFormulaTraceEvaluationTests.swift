@@ -686,16 +686,22 @@ let ltl_false: LTLFormula<TestProposition> = .atomic(p_false)
         // Test with IndexEqualsProposition
         let idxEvaluator = LTLFormulaTraceEvaluator<IndexEqualsProposition>()
         let trace_len3_idx = createTestTrace(length: 3) // s0, s1, s2. Indices 0, 1, 2
+        let trace_len5_idx = createTestTrace(length: 5) // s0, s1, s2, s3, s4. Indices 0, 1, 2, 3, 4
 
         let idx_eq_0 = IndexEqualsProposition(name: "idx_eq_0", targetIndex: 0)
         let idx_eq_1 = IndexEqualsProposition(name: "idx_eq_1", targetIndex: 1)
         let idx_eq_2 = IndexEqualsProposition(name: "idx_eq_2", targetIndex: 2)
+        let idx_eq_4 = IndexEqualsProposition(name: "idx_eq_4", targetIndex: 4) // For new test
         let idx_eq_5 = IndexEqualsProposition(name: "idx_eq_5", targetIndex: 5) // Will not occur in trace_len3_idx
+        let idx_eq_10 = IndexEqualsProposition(name: "idx_eq_10", targetIndex: 10) // For new test, will not occur
 
         let formula_F_idx_eq_0: LTLFormula<IndexEqualsProposition> = .eventually(.atomic(idx_eq_0))
         let formula_F_idx_eq_1: LTLFormula<IndexEqualsProposition> = .eventually(.atomic(idx_eq_1))
         let formula_F_idx_eq_2: LTLFormula<IndexEqualsProposition> = .eventually(.atomic(idx_eq_2))
+        let formula_F_idx_eq_4: LTLFormula<IndexEqualsProposition> = .eventually(.atomic(idx_eq_4)) // For new test
         let formula_F_idx_eq_5: LTLFormula<IndexEqualsProposition> = .eventually(.atomic(idx_eq_5))
+        let formula_F_idx_eq_10: LTLFormula<IndexEqualsProposition> = .eventually(.atomic(idx_eq_10)) // For new test
+
 
         // Test 6: F (index == 0) on [s0, s1, s2] -> true (holds at s0)
         #expect(try idxEvaluator.evaluate(formula: formula_F_idx_eq_0, trace: trace_len3_idx, contextProvider: contextProvider))
@@ -722,6 +728,12 @@ let ltl_false: LTLFormula<TestProposition> = .atomic(p_false)
         // Original index is 2. (index == 2) holds.
         let subTrace_s2_onwards = Array(trace_len3_idx.dropFirst(2))
         #expect(try idxEvaluator.evaluate(formula: formula_F_idx_eq_2, trace: subTrace_s2_onwards, contextProvider: contextProvider))
+
+        // Test 13 (New): F (index == 4) on [s0, s1, s2, s3, s4] -> true (holds at the very last state)
+        #expect(try idxEvaluator.evaluate(formula: formula_F_idx_eq_4, trace: trace_len5_idx, contextProvider: contextProvider))
+
+        // Test 14 (New): F (index == 10) on [s0, s1, s2, s3, s4] -> false (never holds on a longer trace)
+        #expect(try !idxEvaluator.evaluate(formula: formula_F_idx_eq_10, trace: trace_len5_idx, contextProvider: contextProvider))
     }
 
     @Test("Globally Operator Evaluation")
@@ -737,6 +749,7 @@ let ltl_false: LTLFormula<TestProposition> = .atomic(p_false)
         // Test 1: G true_literal (should be true on any trace)
         let trace_len1 = createTestTrace(length: 1)
         let trace_len3 = createTestTrace(length: 3)
+        let trace_len5 = createTestTrace(length: 5) // For new test
         #expect(try simpleEvaluator.evaluate(formula: .globally(trueLit), trace: trace_len1, contextProvider: contextProvider))
         #expect(try simpleEvaluator.evaluate(formula: .globally(trueLit), trace: trace_len3, contextProvider: contextProvider))
 
@@ -755,51 +768,56 @@ let ltl_false: LTLFormula<TestProposition> = .atomic(p_false)
         #expect(try simpleEvaluator.evaluate(formula: .globally(p_true_atomic), trace: emptyTrace, contextProvider: contextProvider))
         #expect(try simpleEvaluator.evaluate(formula: .globally(falseLit), trace: emptyTrace, contextProvider: contextProvider)) // Also for literal
 
-        // Test with IndexEqualsProposition
-        let idxEvaluator = LTLFormulaTraceEvaluator<IndexEqualsProposition>()
-        let trace_s012 = createTestTrace(length: 3) // s0, s1, s2. Indices 0, 1, 2
+        // Test with IndexEqualsProposition (using TestProposition with custom evaluation for simplicity for < predicate)
+        let testPropEvaluator = LTLFormulaTraceEvaluator<TestProposition>() 
 
         // Proposition: index < 3 (true for s0, s1, s2 in trace_s012)
-        let idx_lt_3 = TestProposition(name: "idx_lt_3") { context in
+        let idx_lt_3_prop = TestProposition(name: "idx_lt_3") { context in
             guard let currentIdx = context.traceIndex else { return false }
             return currentIdx < 3
         }
-        let formula_G_idx_lt_3: LTLFormula<TestProposition> = .globally(.atomic(idx_lt_3))
-        let testPropEvaluator = LTLFormulaTraceEvaluator<TestProposition>() // Use TestProposition evaluator
-
+        let formula_G_idx_lt_3: LTLFormula<TestProposition> = .globally(.atomic(idx_lt_3_prop))
+        
         // Test 6: G (index < 3) on [s0, s1, s2] -> true
-        #expect(try testPropEvaluator.evaluate(formula: formula_G_idx_lt_3, trace: trace_s012, contextProvider: contextProvider))
+        #expect(try testPropEvaluator.evaluate(formula: formula_G_idx_lt_3, trace: trace_len3, contextProvider: contextProvider))
 
         // Proposition: index < 2 (true for s0, s1; false for s2 in trace_s012)
-        let idx_lt_2 = TestProposition(name: "idx_lt_2") { context in
+        let idx_lt_2_prop = TestProposition(name: "idx_lt_2") { context in
             guard let currentIdx = context.traceIndex else { return false }
             return currentIdx < 2
         }
-        let formula_G_idx_lt_2: LTLFormula<TestProposition> = .globally(.atomic(idx_lt_2))
+        let formula_G_idx_lt_2: LTLFormula<TestProposition> = .globally(.atomic(idx_lt_2_prop))
 
         // Test 7: G (index < 2) on [s0, s1, s2] -> false (fails at s2)
-        #expect(try !testPropEvaluator.evaluate(formula: formula_G_idx_lt_2, trace: trace_s012, contextProvider: contextProvider))
+        #expect(try !testPropEvaluator.evaluate(formula: formula_G_idx_lt_2, trace: trace_len3, contextProvider: contextProvider))
         
         // Test 8: G (index < 1) evaluated on subtrace [s1, s2] (from original s0, s1, s2)
         // Original indices of subtrace are 1, 2. (index < 1) is false at s1 (original index 1).
-        let idx_lt_1 = TestProposition(name: "idx_lt_1") { context in
+        let idx_lt_1_prop = TestProposition(name: "idx_lt_1") { context in
             guard let currentIdx = context.traceIndex else { return false }
             return currentIdx < 1
         }
-        let formula_G_idx_lt_1: LTLFormula<TestProposition> = .globally(.atomic(idx_lt_1))
-        let subTrace_s1_onwards = Array(trace_s012.dropFirst())
-        #expect(try !testPropEvaluator.evaluate(formula: formula_G_idx_lt_1, trace: subTrace_s1_onwards, contextProvider: contextProvider))
+        let formula_G_idx_lt_1: LTLFormula<TestProposition> = .globally(.atomic(idx_lt_1_prop))
+        let subTrace_s1_onwards_len3 = Array(trace_len3.dropFirst())
+        #expect(try !testPropEvaluator.evaluate(formula: formula_G_idx_lt_1, trace: subTrace_s1_onwards_len3, contextProvider: contextProvider))
 
         // Test 9: G (index < 3) evaluated on subtrace [s1, s2]
         // Original indices of subtrace are 1, 2. (index < 3) is true for both.
-        let subTrace_s1_onwards_for_lt3 = Array(trace_s012.dropFirst())
-        #expect(try testPropEvaluator.evaluate(formula: formula_G_idx_lt_3, trace: subTrace_s1_onwards_for_lt3, contextProvider: contextProvider))
+        #expect(try testPropEvaluator.evaluate(formula: formula_G_idx_lt_3, trace: subTrace_s1_onwards_len3, contextProvider: contextProvider))
 
         // Test 10: G (index == 0) on [s0] -> true
+        let idxEvaluator = LTLFormulaTraceEvaluator<IndexEqualsProposition>()
         let idx_eq_0_prop = IndexEqualsProposition(name: "idx_eq_0_specific", targetIndex: 0)
         let formula_G_idx_eq_0 : LTLFormula<IndexEqualsProposition> = .globally(.atomic(idx_eq_0_prop))
-        let trace_s0 = createTestTrace(length: 1)
-        #expect(try idxEvaluator.evaluate(formula: formula_G_idx_eq_0, trace: trace_s0, contextProvider: contextProvider))
+        #expect(try idxEvaluator.evaluate(formula: formula_G_idx_eq_0, trace: trace_len1, contextProvider: contextProvider))
+
+        // Test 11 (New): G (index < 4) on [s0,s1,s2,s3,s4] -> false (fails at last state s4)
+        let idx_lt_4_prop = TestProposition(name: "idx_lt_4") { context in
+            guard let currentIdx = context.traceIndex else { return false }
+            return currentIdx < 4
+        }
+        let formula_G_idx_lt_4: LTLFormula<TestProposition> = .globally(.atomic(idx_lt_4_prop))
+        #expect(try !testPropEvaluator.evaluate(formula: formula_G_idx_lt_4, trace: trace_len5, contextProvider: contextProvider))
     }
 
     @Test("Until Operator Evaluation")
@@ -896,13 +914,9 @@ let ltl_false: LTLFormula<TestProposition> = .atomic(p_false)
                 Issue.record("Error was not of type LTLEvaluationError: \\(error)")
                 return false
             }
-            // Assuming empty trace leads to traceIndexOutOfBounds for atomic proposition
-            // or a specific .emptyTraceError case in LTLEvaluationError.
             if case .traceIndexOutOfBounds = evalError {
                 return true
             } else {
-                // If LTLEvaluationError has an .emptyTrace case, check for that too.
-                // For now, only strict traceIndexOutOfBounds is checked.
                 Issue.record("Error was not traceIndexOutOfBounds for empty trace (atomic): \\(evalError)")
                 return false
             }
@@ -940,21 +954,152 @@ let ltl_false: LTLFormula<TestProposition> = .atomic(p_false)
         let atomic_formula: LTLFormula<IndexEqualsProposition> = .atomic(idx_eq_0)
         let contextProvider = { (context: TestEvaluationContext, _: Int) -> TestEvaluationContext in context }
 
-        // Check evaluation at index 0 (valid for trace [s0])
         let result = try evaluator.evaluate(formula: atomic_formula, trace: trace, contextProvider: contextProvider)
         #expect(result, "Atomic proposition idx_eq_0 should be true at index 0 on trace [s0]")
-
-        // Test for out-of-bounds when trying to evaluate an atomic proposition at an invalid index.
-        // The LTLFormulaTraceEvaluator\'s `evaluateRecursive` for `.atomic` throws `traceIndexOutOfBounds`
-        // if `currentIndex` is out of bounds. The top-level `evaluate` with `contextProvider`
-        // starts `currentIndex` at 0. So, to directly test `traceIndexOutOfBounds` for an atomic proposition
-        // via the public API that takes `contextProvider`, the trace itself would need to be empty,
-        // which is covered by `testEmptyTraceEvaluationThrowsError`.
-
-        // If we want to test the behavior of an atomic proposition being evaluated at a specific, non-zero, invalid index
-        // (e.g., trying to evaluate at index 1 on a trace of length 1), this would typically require an
-        // `evaluate` overload that takes an explicit `at:` parameter without `contextProvider` for a raw state array.
-        // For now, this test verifies the valid case and relies on `testEmptyTraceEvaluationThrowsError` and
-        // `testTraceIndexOutOfBoundsInNext` for related out-of-bounds scenarios with the current public API signature.
     }
+
+    private enum DeliberateTestError: Error, Equatable {
+        case ohNoAnError
+    }
+
+    private let p_throws = TestProposition(name: "p_throws", evaluation: { _ in throw DeliberateTestError.ohNoAnError })
+
+    @Test func testAndOperatorLeftHandErrorPropagation() throws {
+        let evaluator = LTLFormulaTraceEvaluator<TestProposition>()
+        let trace = createTestTrace(length: 1)
+        let contextProvider = { (context: TestEvaluationContext, _: Int) -> TestEvaluationContext in context }
+        let formula_throws_and_true: LTLFormula<TestProposition> = .and(.atomic(p_throws), .atomic(p_true))
+        #expect(throws: DeliberateTestError.ohNoAnError) {
+            _ = try evaluator.evaluate(formula: formula_throws_and_true, trace: trace, contextProvider: contextProvider)
+        }
+    }
+
+    @Test func testOrOperatorLeftHandErrorPropagation() throws {
+        let evaluator = LTLFormulaTraceEvaluator<TestProposition>()
+        let trace = createTestTrace(length: 1)
+        let contextProvider = { (context: TestEvaluationContext, _: Int) -> TestEvaluationContext in context }
+        let formula_throws_or_true: LTLFormula<TestProposition> = .or(.atomic(p_throws), .atomic(p_true))
+        #expect(throws: DeliberateTestError.ohNoAnError) {
+            _ = try evaluator.evaluate(formula: formula_throws_or_true, trace: trace, contextProvider: contextProvider)
+        }
+    }
+
+    @Test func testImpliesOperatorLeftHandErrorPropagation() throws {
+        let evaluator = LTLFormulaTraceEvaluator<TestProposition>()
+        let trace = createTestTrace(length: 1)
+        let contextProvider = { (context: TestEvaluationContext, _: Int) -> TestEvaluationContext in context }
+        let formula_throws_implies_true: LTLFormula<TestProposition> = .implies(.atomic(p_throws), .atomic(p_true))
+        #expect(throws: DeliberateTestError.ohNoAnError) {
+            _ = try evaluator.evaluate(formula: formula_throws_implies_true, trace: trace, contextProvider: contextProvider)
+        }
+    }
+
+    @Test func testNextOperatorSubformulaErrorPropagation() throws {
+        let evaluator = LTLFormulaTraceEvaluator<TestProposition>()
+        let trace = createTestTrace(length: 2)
+        let contextProvider = { (context: TestEvaluationContext, _: Int) -> TestEvaluationContext in context }
+        let formula_X_throws: LTLFormula<TestProposition> = .next(.atomic(p_throws))
+        #expect(throws: DeliberateTestError.ohNoAnError) {
+            _ = try evaluator.evaluate(formula: formula_X_throws, trace: trace, contextProvider: contextProvider)
+        }
+    }
+
+    @Test func testUntilOperatorRightHandErrorPropagation() throws {
+        let evaluator = LTLFormulaTraceEvaluator<TestProposition>()
+        let trace = createTestTrace(length: 2)
+        let contextProvider = { (context: TestEvaluationContext, _: Int) -> TestEvaluationContext in context }
+        let formula_true_U_throws: LTLFormula<TestProposition> = .until(.atomic(p_true), .atomic(p_throws))
+        #expect(throws: DeliberateTestError.ohNoAnError) {
+            _ = try evaluator.evaluate(formula: formula_true_U_throws, trace: trace, contextProvider: contextProvider)
+        }
+        let formula_false_U_throws: LTLFormula<TestProposition> = .until(.atomic(p_false), .atomic(p_throws))
+        #expect(throws: DeliberateTestError.ohNoAnError) {
+            _ = try evaluator.evaluate(formula: formula_false_U_throws, trace: trace, contextProvider: contextProvider)
+        }
+    }
+
+    @Test func testUntilOperatorLeftHandErrorPropagation() throws {
+        let evaluator = LTLFormulaTraceEvaluator<TestProposition>()
+        let trace = createTestTrace(length: 2) 
+        let contextProvider = { (context: TestEvaluationContext, _: Int) -> TestEvaluationContext in context }
+        let p_false_at_s0 = TestProposition(name: "p_false_at_s0") { ctx in ctx.traceIndex != 0 }
+        let formula_throws_U_false_at_s0: LTLFormula<TestProposition> = .until(.atomic(p_throws), .atomic(p_false_at_s0))
+        #expect(throws: DeliberateTestError.ohNoAnError) {
+            _ = try evaluator.evaluate(formula: formula_throws_U_false_at_s0, trace: trace, contextProvider: contextProvider)
+        }
+    }
+
+    @Test func testWeakUntilOperatorErrorPropagation() throws {
+        let evaluator = LTLFormulaTraceEvaluator<TestProposition>()
+        let trace = createTestTrace(length: 2)
+        let contextProvider = { (context: TestEvaluationContext, _: Int) -> TestEvaluationContext in context }
+        let formula_G_throws_W_true: LTLFormula<TestProposition> = .weakUntil(.atomic(p_throws), .atomic(p_true))
+        #expect(throws: DeliberateTestError.ohNoAnError) {
+            _ = try evaluator.evaluate(formula: formula_G_throws_W_true, trace: trace, contextProvider: contextProvider)
+        }
+        let formula_false_W_false_U_throws: LTLFormula<TestProposition> = .weakUntil(.atomic(p_false), .atomic(p_throws))
+        #expect(throws: DeliberateTestError.ohNoAnError) {
+            _ = try evaluator.evaluate(formula: formula_false_W_false_U_throws, trace: trace, contextProvider: contextProvider)
+        }
+        let p_false_at_s0 = TestProposition(name: "p_false_at_s0_for_W_U_left_err", evaluation: { $0.traceIndex != 0 })
+        let formula_false_W_throws_U_false_at_s0: LTLFormula<TestProposition> = .weakUntil(
+            .atomic(p_false), 
+            .until(.atomic(p_throws), .atomic(p_false_at_s0))
+        )
+        #expect(throws: DeliberateTestError.ohNoAnError) {
+            _ = try evaluator.evaluate(formula: formula_false_W_throws_U_false_at_s0, trace: trace, contextProvider: contextProvider)
+        }
+    }
+
+    @Test func testNotOperatorWithErroringSubformula() throws {
+        let evaluator = LTLFormulaTraceEvaluator<TestProposition>()
+        let trace = createTestTrace(length: 1)
+        let contextProvider = { (context: TestEvaluationContext, _: Int) -> TestEvaluationContext in context }
+
+        let formula_not_throws: LTLFormula<TestProposition> = .not(.atomic(p_throws))
+        #expect(throws: DeliberateTestError.ohNoAnError) {
+            _ = try evaluator.evaluate(formula: formula_not_throws, trace: trace, contextProvider: contextProvider)
+        }
+    }
+
+    @Test func testReleaseOperatorErrorPropagation_Case1_LeftThrows_CorrectedExpectation() throws {
+        let evaluator = LTLFormulaTraceEvaluator<TestProposition>()
+        let trace = createTestTrace(length: 2)
+        let contextProvider = { (context: TestEvaluationContext, _: Int) -> TestEvaluationContext in context }
+        // p_throws R p_true  => not ( (not p_throws) U (not p_true) )
+        // not p_true is false.
+        // (not p_throws) U false  --- this evaluates to false, as 'not p_throws' is never evaluated because 'false' (right operand) is never true.
+        // not (false) is true. No error should be thrown.
+        let formula_throws_R_true: LTLFormula<TestProposition> = .release(.atomic(p_throws), .atomic(p_true))
+        let result = try evaluator.evaluate(formula: formula_throws_R_true, trace: trace, contextProvider: contextProvider)
+        #expect(result == true)
+    }
+
+    @Test func testReleaseOperatorErrorPropagation_Case2_RightThrows() throws {
+        let evaluator = LTLFormulaTraceEvaluator<TestProposition>()
+        let trace = createTestTrace(length: 2)
+        let contextProvider = { (context: TestEvaluationContext, _: Int) -> TestEvaluationContext in context }
+        // p_true R p_throws => not ( (not p_true) U (not p_throws) )
+        // (not p_true) is false. (not p_throws) will be evaluated for the U's right operand.
+        // Evaluation of (not p_throws) at s0 for the U should throw.
+        let formula_true_R_throws: LTLFormula<TestProposition> = .release(.atomic(p_true), .atomic(p_throws))
+        #expect(throws: DeliberateTestError.ohNoAnError) {
+            _ = try evaluator.evaluate(formula: formula_true_R_throws, trace: trace, contextProvider: contextProvider)
+        }
+    }
+
+    @Test func testReleaseOperatorErrorPropagation_Case3_FalseRThrows() throws {
+        let evaluator = LTLFormulaTraceEvaluator<TestProposition>()
+        let trace = createTestTrace(length: 2)
+        let contextProvider = { (context: TestEvaluationContext, _: Int) -> TestEvaluationContext in context }
+        // (p_false R p_throws) -> not ( (not p_false) U (not p_throws) ) 
+        // -> not ( true U (not p_throws) )
+        //   true U (not p_throws) at s0:
+        //     (not p_throws) at s0 -> should throw.
+        let formula_false_R_throws: LTLFormula<TestProposition> = .release(.atomic(p_false), .atomic(p_throws))
+        #expect(throws: DeliberateTestError.ohNoAnError) {
+            _ = try evaluator.evaluate(formula: formula_false_R_throws, trace: trace, contextProvider: contextProvider)
+        }
+    }
+
 }
