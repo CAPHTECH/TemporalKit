@@ -55,13 +55,6 @@ final class PerformanceTests: XCTestCase {
             id: name,
             name: name,
             evaluate: { (stateString: String) -> Bool in
-                // This evaluation logic is primarily for trace evaluation if needed.
-                // For model checking benchmarks, the truth comes from KripkeStructure.
-                // We need a way to access the structure here, which is tricky.
-                // Simplest approach: assume true if the proposition is being evaluated.
-                // A more robust approach would require passing state details differently.
-                // For now, return true as a placeholder, acknowledging it's not fully accurate
-                // for standalone proposition evaluation but okay for model checking context.
                 return true 
             }
         )

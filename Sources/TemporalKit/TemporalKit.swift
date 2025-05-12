@@ -1,4 +1,4 @@
-// TemporalKit - Swift時相論理ライブラリ
+// TemporalKit - Linear Temporal Logic Library for Swift
 
-// このファイルはライブラリのエントリーポイントです
-// モジュール内のすべてのファイルは同じ名前空間に存在します
+// This file serves as the library's entry point
+// All files within the module share the same namespace

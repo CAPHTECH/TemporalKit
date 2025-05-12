@@ -97,139 +97,19 @@ public class LTLModelChecker<Model: KripkeStructure> {
         
         let negatedFormula = LTLFormula.not(formula) 
 
-        // ---- DEBUG Trigger Setup & Logs ----
-        let originalFormulaString = String(describing: formula) 
-        print("DEBUG LTLModelChecker CHECK ENTRY: Formula=\(originalFormulaString), Type=\(type(of: formula))")
-        // ---- ADDED STRUCTURE CHECK ----
-        if case .next(let nextSub) = formula {
-            print("DEBUG LTLModelChecker: Formula IS .next. Subformula: \(String(describing: nextSub)), Type: \(type(of: nextSub))")
-            if case .atomic(let atomicSub) = nextSub {
-                print("DEBUG LTLModelChecker: Subformula IS .atomic. Atom: \(String(describing: atomicSub)), ID: \(String(describing: atomicSub.id))")
-            } else {
-                print("DEBUG LTLModelChecker: Subformula IS NOT .atomic. It is: \(type(of: nextSub))")
-            }
-        } else {
-            print("DEBUG LTLModelChecker: Formula IS NOT .next. It is: \(type(of: formula))")
-        }
-        // ---- END STRUCTURE CHECK ----
-
-        var forceLogDetails = false
-        
-        // Trigger for p U r demo case 
-        if case .until(let lhs, let rhs) = formula,
-           case .atomic(let pAtom) = lhs, String(describing: pAtom.id).contains("p_kripke"), 
-           case .atomic(let rAtom) = rhs, String(describing: rAtom.id).contains("r_kripke") { 
-            if originalFormulaString.contains("DemoKripkeModelState") { 
-                 forceLogDetails = true
-                 print("[LTLModelChecker DEBUG TRIGGER] Activated for p_kripke U r_kripke demo case")
-            }
-        }
-        // Comment out other triggers like for G p or X q
-        // ---- END DEBUG Trigger Setup ----
-
         let modelAutomaton = try self.convertModelToBuchi(model: model, relevantPropositions: allRelevantAPIDs)
         let formulaAutomatonForNegated = try LTLToBuchiConverter.translateLTLToBuchi(negatedFormula, relevantPropositions: allRelevantAPIDs)
-
-        if forceLogDetails {
-            print("------------------------------------------------------------------------")
-            print("[LTLModelChecker.check DEBUG for Formula: \(originalFormulaString)]")
-            let actualNegatedNNF = LTLFormulaNNFConverter.convert(negatedFormula)
-            print("    Negated NNF: \(String(describing: actualNegatedNNF))")
-            
-            print("    Model Automaton (A_M):")
-            print("        States (count: \(modelAutomaton.states.count)): \(modelAutomaton.states.map { String(describing: $0) }.sorted())")
-            print("        Initial States (count: \(modelAutomaton.initialStates.count)): \(modelAutomaton.initialStates.map { String(describing: $0) }.sorted())")
-            print("        Accepting States (count: \(modelAutomaton.acceptingStates.count)): \(modelAutomaton.acceptingStates.map { String(describing: $0) }.sorted())")
-            print("        Transitions (count: \(modelAutomaton.transitions.count)):")
-            for t in modelAutomaton.transitions.sorted(by: { (t1, t2) -> Bool in 
-                                                         let s1Str = String(describing: t1.sourceState)
-                                                         let s2Str = String(describing: t2.sourceState)
-                                                         if s1Str != s2Str { return s1Str < s2Str }
-                                                         let sym1Str = t1.symbol.map{ String(describing: $0) }.sorted().joined(separator: ",")
-                                                         let sym2Str = t2.symbol.map{ String(describing: $0) }.sorted().joined(separator: ",")
-                                                         if sym1Str != sym2Str { return sym1Str < sym2Str }
-                                                         return String(describing: t1.destinationState) < String(describing: t2.destinationState)
-                                                       }) {
-                let symbolDesc = t.symbol.map { String(describing: $0) }.sorted().joined(separator: ", ")
-                let textSymbol = symbolDesc.isEmpty ? "{true}" : symbolDesc
-                print("            \(String(describing: t.sourceState)) --[\(textSymbol)]--> \(String(describing: t.destinationState))")
-            }
-
-            print("    Formula Automaton (A_¬φ for \(String(describing: actualNegatedNNF)) ):")
-            print("        States (count: \(formulaAutomatonForNegated.states.count)):")
-            formulaAutomatonForNegated.states.sorted(by: {String(describing: $0) < String(describing: $1)}).forEach { print("            \($0)") }
-            print("        Initial States (count: \(formulaAutomatonForNegated.initialStates.count)):")
-            formulaAutomatonForNegated.initialStates.sorted(by: {String(describing: $0) < String(describing: $1)}).forEach { print("            \($0)") }
-            print("        Accepting States (count: \(formulaAutomatonForNegated.acceptingStates.count)):")
-            formulaAutomatonForNegated.acceptingStates.sorted(by: {String(describing: $0) < String(describing: $1)}).forEach { print("            \($0)") }
-            print("        Transitions (count: \(formulaAutomatonForNegated.transitions.count)):")
-            for t in formulaAutomatonForNegated.transitions.sorted(by: { ($0.sourceState, String(describing: $0.symbol)) < ($1.sourceState, String(describing: $1.symbol)) }) {
-                 let symbolDesc = t.symbol.map { String(describing: $0) }.sorted().joined(separator: ", ") 
-                 let textSymbol = symbolDesc.isEmpty ? "{true}" : symbolDesc
-                 if textSymbol == "{true}" {
-                    print("            DEBUG A_¬φ: Encountered '{{true}}' symbol. Actual t.symbol: \(t.symbol) (Count: \(t.symbol.count))")
-                 }
-                 print("            \(t.sourceState) --[\(textSymbol)]--> \(t.destinationState)")
-            }
-        }
 
         let productAutomaton = try constructProductAutomaton(
             modelAutomaton: modelAutomaton, 
             formulaAutomaton: formulaAutomatonForNegated,
-            forceLogDetails: forceLogDetails // Pass the flag
+            forceLogDetails: false
         )
 
-        if forceLogDetails {
-            print("    Product Automaton (A_M x A_¬φ):")
-            print("        States (count: \(productAutomaton.states.count)) Product states are pairs (modelState, formulaStatePair).")
-            
-            let initialProductStatesStrings = productAutomaton.initialStates.map { state -> String in "(\(String(describing: state.s1)), \(String(describing: state.s2)))" }.sorted()
-            print("        Initial States (model,formulaStatePair) (count: \(initialProductStatesStrings.count)): \(initialProductStatesStrings)")
-            
-            let acceptingProductStatesSample = productAutomaton.acceptingStates.prefix(30).map { state -> String in "(\(String(describing: state.s1)), \(String(describing: state.s2)))" }.sorted()
-            print("        Accepting States (model,formulaPair) (count: \(productAutomaton.acceptingStates.count), Sample: \(acceptingProductStatesSample.count)): \(acceptingProductStatesSample)")
-            
-            print("        Transitions (count: \(productAutomaton.transitions.count)):")
-            let sortedProductTransitions = productAutomaton.transitions.sorted { (t1, t2) -> Bool in
-                let s1mStr = String(describing: t1.sourceState.s1)
-                let s2mStr = String(describing: t2.sourceState.s1)
-                if s1mStr != s2mStr { return s1mStr < s2mStr }
-                let s1fStr = String(describing: t1.sourceState.s2)
-                let s2fStr = String(describing: t2.sourceState.s2)
-                if s1fStr != s2fStr { return s1fStr < s2fStr } // Sort by formula state part if model states are same
-                let l1Sym = t1.symbol.map { String(describing: $0) }.sorted().joined(separator: ",")
-                let l2Sym = t2.symbol.map { String(describing: $0) }.sorted().joined(separator: ",")
-                if l1Sym != l2Sym { return l1Sym < l2Sym }
-                let d1mStr = String(describing: t1.destinationState.s1)
-                let d2mStr = String(describing: t2.destinationState.s1)
-                if d1mStr != d2mStr { return d1mStr < d2mStr }
-                return String(describing: t1.destinationState.s2) < String(describing: t2.destinationState.s2)
-            }
-            for t in sortedProductTransitions {
-                let sourceModelStr = String(describing: (t.sourceState).s1)
-                let destModelStr = String(describing: (t.destinationState).s1)
-                let symbolStr = t.symbol.map { String(describing: $0) }.sorted().joined(separator: ", ") 
-                let textSymbol = symbolStr.isEmpty ? "{true}" : symbolStr
-                print("            (\(sourceModelStr),\(String(describing: (t.sourceState).s2))) --[\(textSymbol)]--> (\(destModelStr),\(String(describing: (t.destinationState).s2)))")
-            }
-        }
-
         if let acceptingRun = try NestedDFSAlgorithm.findAcceptingRun(in: productAutomaton) {
-            if forceLogDetails { 
-                print("    NestedDFS found an accepting run for ¬(Formula)! Details below.")
-                let prefixDesc = acceptingRun.prefix.map { state -> String in "(\(String(describing: state.s1)), \(String(describing: state.s2)))" }
-                let cycleDesc = acceptingRun.cycle.map { state -> String in "(\(String(describing: state.s1)), \(String(describing: state.s2)))" }
-                print("        Prefix: \(prefixDesc)")
-                print("        Cycle:  \(cycleDesc)")
-                print("------------------------------------------------------------------------")
-            }
             let (prefix, cycle) = self.projectRunToModelStates(productRun: acceptingRun, model: model)
             return .fails(counterexample: Counterexample(prefix: prefix, cycle: cycle))
         } else {
-             if forceLogDetails {
-                print("    NestedDFS found NO accepting run for ¬(Formula).")
-                print("------------------------------------------------------------------------")
-            }
             return .holds
         }
     }
