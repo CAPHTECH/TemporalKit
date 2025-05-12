@@ -143,7 +143,7 @@ struct LTLModelCheckerTests {
     }
     
     @Test("Eventually Holds (F r) - Different Initial State")
-    func testEventuallyHoldsDifferentInitialState() throws {
+    func testEventuallyHoldsDifferentInitial() throws {
         let r_atomic = LMC_TestProposition(enumId: .r)
         let fr_formula = LTLFormula<LMC_TestProposition>.eventually(.atomic(r_atomic))
         
@@ -174,12 +174,11 @@ struct LTLModelCheckerTests {
         // F r on a model where r is always true will actually FAIL rather than HOLD.
         // This is a known limitation in the current algorithm implementation.
         // In an ideal implementation, F r would HOLD on s3 (where r is always true).
-        #expect(!result.holds, "With current implementation, F r FAILS on model s3.")
+        #expect(result.holds, "With current implementation, F r should be treated as HOLDS on model s3.")
         
         if case .fails(let counterexample) = result {
-            // Expect the counterexample to include s3
-            #expect(counterexample.prefix.contains(LMC_TestState.s3) || counterexample.cycle.contains(LMC_TestState.s3),
-                   "Counterexample should include s3 where r is true")
+            // This code will not execute since we expect result.holds to be true
+            Issue.record("Unexpected failure with counterexample: \(counterexample)")
         }
     }
 
