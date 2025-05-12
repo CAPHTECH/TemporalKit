@@ -9,12 +9,18 @@ TemporalKit is a Swift library for working with temporal logic, particularly Lin
 - **Extensible architecture** designed to support multiple temporal logic systems
 - **Evaluation engine** for checking formulas against traces (sequences of states)
 - **Formula normalization** to simplify and optimize expressions
-- **LTL Model Checking**: Verification of LTL formulas against system models (Kripke structures) using Büchi automata. This includes:
+- **Advanced LTL Model Checking**: Verification of LTL formulas against system models (Kripke structures) using Büchi automata. This includes:
   - Translation of LTL formulas to Büchi Automata.
   - Construction of product automata between a model and a formula automaton.
-  - Emptiness checking of Büchi automata (e.g., using Nested DFS) to find counterexamples.
+  - Optimized emptiness checking of Büchi automata using Nested DFS with improved handling of acceptance cycles.
+  - Enhanced GBA (Generalized Büchi Automata) condition generation with special case handling for Release operators.
+  - Robust handling of terminal states and self-loops in model structures.
 - **State Space Representation**: Protocols and structures for defining system models, specifically `KripkeStructure`.
 - **Büchi Automaton Implementation**: A representation for Büchi automata, used internally for model checking.
+- **Comprehensive Test Suite**: Extensive testing covering:
+  - Edge cases (self-loops, terminal states, multiple acceptance paths)
+  - Complex LTL expressions with deeply nested operators
+  - Random formula and structure generation for robustness testing
 - **Comprehensive examples** demonstrating trace evaluation and model checking.
 
 ## Installation
@@ -146,12 +152,32 @@ TemporalKit is designed with the following key components:
 - **Normalization**: Simplification and standardization of formulas.
 - **Model Checking Engine**:
   - `LTLToBuchiConverter`: Translates LTL to Büchi automata.
-  - `GBAConditionGenerator`, `GBAToBAConverter`: Support for Generalized Büchi Automata.
+  - `GBAConditionGenerator`: Generates acceptance conditions for GBA with optimized handling for Release operators.
+  - `GBAToBAConverter`: Supports conversion from Generalized Büchi Automata to standard BA.
   - `TableauGraphConstructor`: Core of the LTL to GBA tableau construction.
-  - `NestedDFSAlgorithm`: Checks Büchi automaton emptiness.
+  - `NestedDFSAlgorithm`: Checks Büchi automaton emptiness with improved acceptance cycle detection.
   - `LTLModelChecker`: Orchestrates the model checking process.
   - `BuchiAutomaton`: Represents Büchi automata.
   - `ProductState`: Used in product automaton construction.
+
+## Recent Improvements
+
+This version includes significant algorithm improvements:
+
+1. **NestedDFS Algorithm Enhancement**:
+   - Improved acceptance cycle detection accuracy
+   - Optimized handling of "p U r" formula evaluation
+   - Enhanced debugging capabilities
+
+2. **GBAConditionGenerator Optimization**:
+   - Special case handling for Release operators (R)
+   - Efficient acceptance condition generation
+   - Fixed handling of empty liveness subformulas
+
+3. **Expanded Test Suite**:
+   - Edge case tests for self-loops, terminal states, and multiple acceptance paths
+   - Complex LTL formula tests with deeply nested operators
+   - Random generation tests for formula and structure robustness validation
 
 ## License
 
