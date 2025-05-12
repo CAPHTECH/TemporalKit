@@ -79,12 +79,27 @@ internal struct GBAConditionGenerator<P: TemporalProposition> where P.Value == B
                                      !tableauNode.currentFormulas.contains(livenessFormula) 
                     
                     case .release(let lhsR, let rhsR):
-                        let currentContainsRhsR = tableauNode.currentFormulas.contains(rhsR)
-                        if lhsR.isBooleanLiteralFalse() { // G form
-                            conditionMet = !tableauNode.currentFormulas.contains(LTLFormula.not(rhsR))
-                        } else { // Standard A R B
-                            conditionMet = currentContainsRhsR || !tableauNode.currentFormulas.contains(livenessFormula)
-                        }
+                        // GBA Acceptance Condition for A R B:
+                        // Based on standard tableau methods (e.g., Clarke et al.), the acceptance
+                        // set F_i associated with A R B requires states in an accepting run
+                        // to infinitely often satisfy A (lhsR) or ¬B (not(rhsR)).
+                        // A tableau node contributes to this condition if it contains lhsR or not(rhsR).
+                        
+                        // This applies to both the standard A R B case and the G form (false R B),
+                        // as substituting A=false yields contains(false) || contains(not(rhsR)),
+                        // which simplifies to contains(not(rhsR)).
+                        
+                        let not_rhsR = LTLFormula.not(rhsR)
+                        conditionMet = tableauNode.currentFormulas.contains(lhsR) || tableauNode.currentFormulas.contains(not_rhsR)
+
+                        // --- DEBUG ---
+                        // if debug {
+                        //     print("        - GBA Check for Release: \(formula)")
+                        //     print("            lhsR (\(lhsR)) in current: \(tableauNode.currentFormulas.contains(lhsR))")
+                        //     print("            ¬rhsR (\(not_rhsR)) in current: \(tableauNode.currentFormulas.contains(not_rhsR))")
+                        //     print("            => Condition Met: \(conditionMet)")
+                        // }
+                        // --- END DEBUG ---
 
                     case .globally(let subG):
                         conditionMet = !tableauNode.currentFormulas.contains(LTLFormula.not(subG))

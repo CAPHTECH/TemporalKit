@@ -72,7 +72,7 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
     internal func buildGraph() {
         let initialTableauNode = Self.decomposeFormulaForInitialTableauNode(self.nnfLTLFormula)
         self.worklist = [initialTableauNode]
-        let initialGBAStateID = getOrCreateGBAStateID(for: initialTableauNode) 
+        _ = getOrCreateGBAStateID(for: initialTableauNode)
 
         while let currentNodeToExpand = worklist.popLast() {
             if processedNodesLookup.contains(currentNodeToExpand) { continue }
@@ -87,9 +87,36 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
                 let expansionResults = expandFormulasInNode(
                     nodeFormulas: currentNodeToExpand.currentFormulas, 
                     nextObligationsFromPrevious: currentNodeToExpand.nextFormulas, 
-                    forSymbol: symbol, 
+                    forSymbol: symbol,
                     heuristicOriginalLTLFormula: self.originalPreNNFLTLFormula
                 )
+
+                // ---- DEBUG for X(¬q) specific expansion ----
+                var isXNotQContext = false
+                if case .next(let sub) = self.originalPreNNFLTLFormula, 
+                   case .not(let nSub) = sub, 
+                   case .atomic(let a) = nSub, 
+                   String(describing: a.id) == "q" {
+                    isXNotQContext = true
+                }
+                
+                var currentNodeContainsNotQ = false
+                for f in currentNodeToExpand.currentFormulas {
+                    if case .not(let subF) = f, case .atomic(let atomF) = subF, String(describing: atomF.id) == "q" {
+                        currentNodeContainsNotQ = true
+                        break
+                    }
+                }
+                let symbolContainsQ = symbol.contains(where: { String(describing: $0).contains("q") })
+
+                if isXNotQContext && currentNodeContainsNotQ && symbolContainsQ {
+                    print("[TGC BUILDGRAPH DEBUG XNOTQ] For node (current: \(currentNodeToExpand.currentFormulas.map{String(describing:$0).prefix(20)}), next: \(currentNodeToExpand.nextFormulas.map{String(describing:$0).prefix(20)})) with symbol \(symbol):")
+                    print("    expandFormulasInNode produced \(expansionResults.count) outcomes:")
+                    for (idx, outcome) in expansionResults.enumerated() {
+                        print("      Outcome \(idx): consistent=\(outcome.isConsistent), currO=\(outcome.nextSetOfCurrentObligations.map{String(describing:$0).prefix(20)}), nextO=\(outcome.nextSetOfNextObligations.map{String(describing:$0).prefix(20)}) ")
+                    }
+                }
+                // ---- END DEBUG ----
 
                 for expansionResult in expansionResults {
                     if !expansionResult.isConsistent { continue } 
@@ -165,6 +192,33 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
         heuristicOriginalLTLFormula: LTLFormula<P>, // The original LTL formula before NNF, for context
         allPossibleOutcomes: inout [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)]
     ) {
+        // ---- RE-ENABLING DEBUG FOR solve() entry ----
+        let formulaStrForDebug = String(describing: heuristicOriginalLTLFormula)
+        // More specific trigger for the NNF of the demo's ¬(p U r) which is (¬r)R(¬p)
+        var isTargetFormulaContextForSolve = false
+        if case .release(let r_lhs, let r_rhs) = heuristicOriginalLTLFormula, 
+           case .not(let not_lhs) = r_lhs, case .atomic(let atom_lhs) = not_lhs, String(describing: atom_lhs.id).contains("r_kripke"),
+           case .not(let not_rhs) = r_rhs, case .atomic(let atom_rhs) = not_rhs, String(describing: atom_rhs.id).contains("p_kripke") {
+            if formulaStrForDebug.contains("DemoKripkeModelState") { // Ensure it's the demo's proposition type
+                isTargetFormulaContextForSolve = true
+            }
+        }
+
+        if isTargetFormulaContextForSolve {
+            let currentWorklistDesc = currentWorklist.map { String(describing:$0).prefix(40) }
+            let processedDesc = processedOnPath.map { String(describing:$0).prefix(40) }
+            let vSetDesc = V.map { String(describing:$0).prefix(40) }
+            let pAtomicDesc = P_atomic.map { String(describing: $0.id) }
+            let nAtomicDesc = N_atomic.map { String(describing: $0.id) }
+            let forSymbolDesc = forSymbol.map { String(describing: $0) }.sorted()
+            print("[TGC SOLVE ENTRY for (¬r)R(¬p)] heuristicOriginal: \(String(describing: heuristicOriginalLTLFormula).prefix(80))")
+            print("    currentFormula (if any): \(currentWorklist.first != nil ? String(describing: currentWorklist.first!).prefix(80) : "EMPTY")")
+            print("    currentWorklist (count \(currentWorklistDesc.count)): \(currentWorklistDesc)")
+            print("    processedOnPath (count \(processedDesc.count)): \(processedDesc)")
+            print("    V (count \(vSetDesc.count)): \(vSetDesc), P_atomic: \(pAtomicDesc), N_atomic: \(nAtomicDesc), forSymbol: \(forSymbolDesc)")
+        }
+        // ---- END DEBUG ----
+
         var worklist = currentWorklist
         var processed = processedOnPath
         let V = V
@@ -234,6 +288,14 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
             }
             
             let finalV = V 
+
+            // ---- RE-ENABLING DEBUG FOR solve() base case outcome ----
+            if isTargetFormulaContextForSolve { // Use the same flag from solve entry
+                print("[TGC SOLVE BASE for (¬r)R(¬p)] forSymbol: \(forSymbol.map { String(describing: $0) }.sorted()), Consistent: \(consistentPath)")
+                print("    P_atomic: \(P_atomic.map { String(describing: $0.id) }), N_atomic: \(N_atomic.map { String(describing: $0.id) })")
+                print("    Outcome: currentBasic=\(currentBasicFormulas.map{String(describing:$0).prefix(40)}), nextV=\(V.map{String(describing:$0).prefix(40)})")
+            }
+            // ---- END DEBUG ----
             allPossibleOutcomes.append((currentBasicFormulas, finalV, consistentPath))
             return
         }
@@ -279,17 +341,11 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
         case .globally(let subFormula): 
             expandGlobally(subFormula, currentFormula: currentFormula, currentWorklist: worklist, processedOnPath: processed, vSet: V, pAtomicSet: P_atomic, nAtomicSet: N_atomic, forSymbol: forSymbol, initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula, allPossibleOutcomes: &allPossibleOutcomes)
 
-        case .weakUntil(let phi, let psi): 
-            // NNF conversion of W should ideally result in G or U forms based on definition.
-            // If W itself needs direct tableau expansion: phi W psi  ≡  (phi U psi) ∨ G phi
-            // Or, equivalent to psi R (phi ∨ psi)
-            // For now, assuming NNF handles it. If it reaches here, treat as error or unhandled.
+        case .weakUntil(let _phi, let _psi):
             print("[TGC SOLVE ERROR] WeakUntil (W) should be converted by NNF. Encountered: \(currentFormula)")
             allPossibleOutcomes.append((Set(), Set(), false))
 
-        case .implies(let lhs, let rhs):
-            // NNF conversion of -> should result in ¬lhs ∨ rhs.
-            // If it reaches here, treat as error or unhandled.
+        case .implies(let _lhs, let _rhs):
             print("[TGC SOLVE ERROR] Implies (->) should be converted by NNF. Encountered: \(currentFormula)")
             allPossibleOutcomes.append((Set(), Set(), false))
             
@@ -476,7 +532,7 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
         solve(currentWorklist: worklistSubFormulaBranch, processedOnPath: processedOnPath, vSet: V, pAtomicSet: P_atomic, nAtomicSet: N_atomic, forSymbol: forSymbol, initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula, allPossibleOutcomes: &allPossibleOutcomes)
         
         // Branch 2: X (F subFormula) holds next (phi (true) is implicitly satisfied in 'true U subFormula')
-        var worklistNextBranch = currentWorklist // No 'phi' to add for 'true'
+        let worklistNextBranch = currentWorklist // Ensure this is let
         var vForNextBranch = V; vForNextBranch.insert(currentFormula) // currentFormula is F subFormula
         solve(currentWorklist: worklistNextBranch, processedOnPath: processedOnPath, vSet: vForNextBranch, pAtomicSet: P_atomic, nAtomicSet: N_atomic, forSymbol: forSymbol, initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula, allPossibleOutcomes: &allPossibleOutcomes)
     }
