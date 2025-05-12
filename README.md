@@ -40,7 +40,7 @@ Add TemporalKit to your `Package.swift` file:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/yourusername/TemporalKit.git", from: "1.0.0") // Replace with actual URL and version
+    .package(url: "https://github.com/yourusername/TemporalKit.git", from: "0.1.0") // Replace with actual URL and version
 ]
 ```
 
