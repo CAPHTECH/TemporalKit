@@ -186,3 +186,133 @@ public struct DemoKripkeStructure: KripkeStructure {
         return trueProps
     }
 }
+
+// MARK: - Reactive System Model for Verification
+
+/// State type for a simplified UI component reactive system
+public enum UIComponentState: Hashable, CustomStringConvertible {
+    case idle
+    case loading
+    case success
+    case error
+    case retrying
+    
+    public var description: String {
+        switch self {
+        case .idle: return "idle"
+        case .loading: return "loading"
+        case .success: return "success"
+        case .error: return "error"
+        case .retrying: return "retrying"
+        }
+    }
+}
+
+/// Propositions for the reactive UI component system
+public typealias ReactiveUIProposition = TemporalKit.ClosureTemporalProposition<UIComponentState, Bool>
+
+// Define propositions that will label the states in our reactive system
+public let isIdle = TemporalKit.makeProposition(
+    id: "isIdle",
+    name: "Component is idle",
+    evaluate: { (state: UIComponentState) -> Bool in state == .idle }
+)
+
+public let isLoading = TemporalKit.makeProposition(
+    id: "isLoading",
+    name: "Component is loading",
+    evaluate: { (state: UIComponentState) -> Bool in state == .loading }
+)
+
+public let isSuccess = TemporalKit.makeProposition(
+    id: "isSuccess",
+    name: "Component shows success",
+    evaluate: { (state: UIComponentState) -> Bool in state == .success }
+)
+
+public let isError = TemporalKit.makeProposition(
+    id: "isError",
+    name: "Component shows error",
+    evaluate: { (state: UIComponentState) -> Bool in state == .error }
+)
+
+public let isRetrying = TemporalKit.makeProposition(
+    id: "isRetrying",
+    name: "Component is retrying",
+    evaluate: { (state: UIComponentState) -> Bool in state == .retrying }
+)
+
+public let isResponding = TemporalKit.makeProposition(
+    id: "isResponding",
+    name: "Component is responding (loading, retrying)",
+    evaluate: { (state: UIComponentState) -> Bool in 
+        state == .loading || state == .retrying 
+    }
+)
+
+public let isDone = TemporalKit.makeProposition(
+    id: "isDone",
+    name: "Component has completed processing (success or error)",
+    evaluate: { (state: UIComponentState) -> Bool in 
+        state == .success || state == .error 
+    }
+)
+
+/// A Kripke Structure modeling a reactive UI component system
+/// States represent different UI states, and transitions represent how the component
+/// reacts to user input or system events.
+public struct ReactiveUISystem: KripkeStructure {
+    public typealias State = UIComponentState
+    public typealias AtomicPropositionIdentifier = PropositionID
+    
+    public let initialStates: Set<State> = [.idle]
+    public let allStates: Set<State> = [.idle, .loading, .success, .error, .retrying]
+    
+    public func successors(of state: State) -> Set<State> {
+        switch state {
+        case .idle:
+            // From idle, we can only transition to loading (when user initiates action)
+            return [.loading]
+            
+        case .loading:
+            // From loading, we can go to success or error
+            return [.success, .error]
+            
+        case .success:
+            // From success, we can go back to idle (e.g., when user resets)
+            return [.idle]
+            
+        case .error:
+            // From error, we can retry or go back to idle
+            return [.retrying, .idle]
+            
+        case .retrying:
+            // From retrying, same transitions as loading
+            return [.success, .error]
+        }
+    }
+    
+    public func atomicPropositionsTrue(in state: State) -> Set<AtomicPropositionIdentifier> {
+        var trueProps = Set<AtomicPropositionIdentifier>()
+        
+        // Add the proposition for the current state
+        switch state {
+        case .idle: trueProps.insert(isIdle.id)
+        case .loading: trueProps.insert(isLoading.id)
+        case .success: trueProps.insert(isSuccess.id)
+        case .error: trueProps.insert(isError.id)
+        case .retrying: trueProps.insert(isRetrying.id)
+        }
+        
+        // Add derived propositions
+        if state == .loading || state == .retrying {
+            trueProps.insert(isResponding.id)
+        }
+        
+        if state == .success || state == .error {
+            trueProps.insert(isDone.id)
+        }
+        
+        return trueProps
+    }
+}

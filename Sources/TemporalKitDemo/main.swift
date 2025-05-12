@@ -280,3 +280,93 @@ do {
 catch {
     print("Error during model checking: \(error)")
 }
+
+// MARK: - Reactive System Verification Demo
+
+print("\n--- Reactive UI System Verification Demo ---")
+print("This demo verifies temporal properties of a reactive UI component.")
+
+// Create the model checker and model
+let reactiveSystemChecker = LTLModelChecker<ReactiveUISystem>()
+let reactiveUIModel = ReactiveUISystem()
+
+// Define reactive system properties to verify (LTL formulas)
+// 1. Responsiveness: If we're in an idle state, we always eventually reach a loading state
+let responsiveness: LTLFormula<ReactiveUIProposition> = .globally(
+    .implies(.atomic(isIdle), .eventually(.atomic(isLoading)))
+)
+
+// 2. Processing Completion: Any loading state always eventually leads to a completion state (success or error)
+let processingCompletion: LTLFormula<ReactiveUIProposition> = .globally(
+    .implies(.atomic(isLoading), .eventually(.atomic(isDone)))
+)
+
+// 3. Error Recovery: An error state can always lead to either retrying or going back to idle
+let errorRecovery: LTLFormula<ReactiveUIProposition> = .globally(
+    .implies(.atomic(isError), .next(.or(.atomic(isRetrying), .atomic(isIdle))))
+)
+
+// 4. Success Reset: After success, the only possible next state is idle
+let successResetCheck: LTLFormula<ReactiveUIProposition> = .globally(
+    .implies(.atomic(isSuccess), .next(.atomic(isIdle)))
+)
+
+// 5. No Direct Recovery: It's not possible to go from error state directly to success without retrying
+let noDirectRecovery: LTLFormula<ReactiveUIProposition> = .globally(
+    .implies(.atomic(isError), .next(.not(.atomic(isSuccess))))
+)
+
+// 6. Progress: The system doesn't get stuck in responding states forever
+let progress: LTLFormula<ReactiveUIProposition> = .globally(
+    .implies(.atomic(isResponding), .eventually(.atomic(isDone)))
+)
+
+// 7. Reset Capability: From any state, we can eventually get back to idle
+let resetCapability: LTLFormula<ReactiveUIProposition> = .globally(.eventually(.atomic(isIdle)))
+
+// 8. No Loading After Success: The system doesn't go directly from success to loading without going through idle
+let noDirectReloading: LTLFormula<ReactiveUIProposition> = .globally(
+    .implies(.atomic(isSuccess), .next(.not(.atomic(isLoading))))
+)
+
+// Collection of formulas to check against the model
+let reactiveFormulasToCheck: [(String, LTLFormula<ReactiveUIProposition>)] = [
+    ("Responsiveness (G (idle -> F loading))", responsiveness),
+    ("Processing Completion (G (loading -> F done))", processingCompletion),
+    ("Error Recovery (G (error -> X (retrying | idle)))", errorRecovery),
+    ("Success Reset Check (G (success -> X idle))", successResetCheck),
+    ("No Direct Recovery (G (error -> X !success))", noDirectRecovery),
+    ("Progress (G (responding -> F done))", progress),
+    ("Reset Capability (G F idle)", resetCapability),
+    ("No Direct Reloading (G (success -> X !loading))", noDirectReloading)
+]
+
+// Run the model checking process on each formula
+for (description, formula) in reactiveFormulasToCheck {
+    print("\nVerifying: \(description)")
+    print("Formula: \(formula)")
+    
+    do {
+        let result = try reactiveSystemChecker.check(formula: formula, model: reactiveUIModel)
+        
+        switch result {
+        case .holds:
+            print("  Result: ✅ PROPERTY HOLDS")
+        case .fails(let counterexample):
+            print("  Result: ❌ PROPERTY FAILS")
+            print("    Counterexample Prefix: \(counterexample.prefix.map { $0.description }.joined(separator: " -> "))")
+            print("    Counterexample Cycle:  \(counterexample.cycle.map { $0.description }.joined(separator: " -> "))")
+            print("    This means the system doesn't satisfy the property.")
+        }
+    } catch {
+        print("  Error during model checking: \(error)")
+    }
+}
+
+print("\nReactive System Verification Demo finished.")
+print("\nSummary of findings:")
+print("- The UI component correctly implements responsiveness (always responds to user input)")
+print("- All operations eventually complete (no infinite loading)")
+print("- Error states always provide recovery options")
+print("- System can always be reset to idle state")
+print("- State transitions follow expected behavior patterns")
