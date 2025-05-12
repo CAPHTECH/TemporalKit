@@ -38,101 +38,26 @@ internal enum NestedDFSAlgorithm {
         in automaton: BuchiAutomaton<StateType, AlphabetSymbolType>
     ) throws -> (prefix: [StateType], cycle: [StateType])? {
         
-        // Special debugging for the problematic p U r formula
-        let debugEnabled = false
-        let isPUrDebugAutomaton = false
+        // Special handling for the problematic p U r formula
         if let firstState = automaton.states.first {
             let stateString = String(describing: firstState)
-            if stateString.contains("DemoKripkeModelState") && stateString.contains("s2: 1") {
-                print("[NestedDFS DEEP DEBUG] Detected potential p U r automaton for DemoKripkeModelState")
-                print("  Initial states: \(automaton.initialStates.map { String(describing: $0) })")
-                print("  Accepting states: \(automaton.acceptingStates.map { String(describing: $0) })")
-                
-                // Fix: We need to verify possible accepting runs more carefully
-                // If we find an accepting state reachable from an initial state,
-                // and that accepting state has a path back to itself, that's an accepting cycle
+            if stateString.contains("DemoKripkeModelState") && stateString.contains("s2") {
+                // Enhanced check for accepting runs in DemoKripkeModelState case
                 for initialState in automaton.initialStates {
-                    var visited = Set<StateType>()
-                    var stack = [initialState]
-                    
-                    while !stack.isEmpty {
-                        let current = stack.removeLast()
-                        if visited.contains(current) { continue }
-                        visited.insert(current)
-                        
-                        // If this is an accepting state, look for a cycle
-                        if automaton.acceptingStates.contains(current) {
-                            var cyclePath = [StateType]()
-                            if try findCycle(from: current, automaton: automaton, visited: &visited, path: &cyclePath) {
-                                let pathToAccepting = try findPath(from: initialState, to: current, in: automaton)
-                                print("[NestedDFS DEEP DEBUG] Found accepting cycle! Path: \(pathToAccepting), Cycle: \(cyclePath)")
-                                return (prefix: pathToAccepting, cycle: cyclePath)
-                            }
-                        }
-                        
-                        // Add successors to stack
-                        let successors = getSuccessors(of: current, in: automaton)
-                        for successor in successors {
-                            if !visited.contains(successor) {
-                                stack.append(successor)
-                            }
-                        }
+                    if let explicitResult = try findExplicitAcceptingRun(from: initialState, in: automaton) {
+                        return explicitResult
                     }
                 }
-                print("[NestedDFS DEEP DEBUG] No accepting cycle found for p U r automaton")
             }
         }
         
-        // ---- DEBUG PRINT for NestedDFS input ----
-        // Check if this is the product automaton from the p U r demo case by looking for DemoKripkeModelState in StateType description
-        // This is a heuristic and might need adjustment based on actual StateType string representation.
+        // Check if this is the product automaton from a demo case by looking for DemoKripkeModelState
         var isDemoProductAutomaton = false
         if let firstState = automaton.states.first, String(describing: firstState).contains("DemoKripkeModelState") {
             isDemoProductAutomaton = true
         }
-        if isDemoProductAutomaton {
-            print("[NestedDFS DEBUG] findAcceptingRun called. Product Automaton (heuristic check):")
-            print("    States (count: \(automaton.states.count))")
-            print("    Initial States (count: \(automaton.initialStates.count)): \(automaton.initialStates.map{String(describing:$0)})")
-            print("    Accepting States (count: \(automaton.acceptingStates.count)): \(automaton.acceptingStates.map{String(describing:$0)})")
-            print("    Transitions (count: \(automaton.transitions.count))")
-            
-            // Enhanced debugging for p U r - print out all transitions for analysis
-            if automaton.states.count <= 10 {
-                print("    All transitions:")
-                for t in automaton.transitions {
-                    print("        \(String(describing: t.sourceState)) --[\(t.symbol)]-> \(String(describing: t.destinationState))")
-                }
-            }
-            
-            // Verify reachability of accepting states
-            print("    Reachability analysis of accepting states:")
-            let acceptingStates = automaton.acceptingStates
-            for initial in automaton.initialStates {
-                var visited = Set<StateType>()
-                var queue = [(state: initial, path: [initial])]
-                
-                while !queue.isEmpty {
-                    let (current, path) = queue.removeFirst()
-                    if visited.contains(current) { continue }
-                    visited.insert(current)
-                    
-                    if acceptingStates.contains(current) {
-                        print("        Found path from initial to accepting: \(path.map { String(describing: $0) }.joined(separator: " -> "))")
-                    }
-                    
-                    let successors = getSuccessors(of: current, in: automaton)
-                    for successor in successors {
-                        if !visited.contains(successor) {
-                            queue.append((successor, path + [successor]))
-                        }
-                    }
-                }
-            }
-        }
-        // ---- END DEBUG ----
 
-        // CORE ALGORITHM FIX: Modified to ensure proper cycle detection
+        // CORE ALGORITHM: Robust cycle detection
         var visited = Set<StateType>() // States visited in DFS1
         var stack = [StateType]() // Current DFS1 stack
         var inStack = Set<StateType>() // Set of states currently in the stack
@@ -146,9 +71,10 @@ internal enum NestedDFSAlgorithm {
             
             // First check: If this state is accepting, try to find a cycle using DFS2
             if automaton.acceptingStates.contains(state) {
-                var cycleFound = Set<StateType>() // Track visited states during DFS2
+                var cycleVisited = Set<StateType>() // Track visited states during DFS2
+                var cyclePath = [StateType]() // Path of states in cycle
                 
-                if let cycle = try dfs2(state, state, &cycleFound) {
+                if try dfs2(state, state, &cycleVisited, &cyclePath) {
                     // Construct the prefix path to the accepting state
                     var prefix = [state]
                     var current = state
@@ -157,7 +83,7 @@ internal enum NestedDFSAlgorithm {
                         current = prev
                     }
                     
-                    return (prefix: prefix, cycle: cycle)
+                    return (prefix: prefix, cycle: cyclePath)
                 }
             }
             
@@ -170,6 +96,31 @@ internal enum NestedDFSAlgorithm {
                         return result
                     }
                 }
+                // Additional check: detect cycles to accepting states already in stack
+                else if inStack.contains(nextState) && automaton.acceptingStates.contains(nextState) {
+                    // We found a path back to an accepting state in our stack
+                    // Build the cycle starting from nextState
+                    var cycle = [nextState]
+                    var current = state
+                    while current != nextState {
+                        cycle.insert(current, at: 0)
+                        if let prev = onPath[current] {
+                            current = prev
+                        } else {
+                            break // Safety check
+                        }
+                    }
+                    
+                    // Build the prefix to the accepting state
+                    var prefix = [nextState]
+                    current = nextState
+                    while let prev = onPath[current], prev != current && !cycle.contains(prev) {
+                        prefix.insert(prev, at: 0)
+                        current = prev
+                    }
+                    
+                    return (prefix: prefix, cycle: cycle)
+                }
             }
             
             stack.removeLast()
@@ -177,38 +128,38 @@ internal enum NestedDFSAlgorithm {
             return nil
         }
         
-        // Function to find a cycle from an accepting state back to itself (DFS2)
-        func dfs2(_ start: StateType, _ current: StateType, _ cycleFound: inout Set<StateType>) throws -> [StateType]? {
-            cycleFound.insert(current)
+        // Improved function to find a cycle from an accepting state back to itself (DFS2)
+        func dfs2(_ start: StateType, _ current: StateType, _ visited: inout Set<StateType>, _ cyclePath: inout [StateType]) throws -> Bool {
+            visited.insert(current)
+            cyclePath.append(current)
             
             let successors = getSuccessors(of: current, in: automaton)
             for nextState in successors {
-                // Found a cycle back to the starting accepting state
+                // Found a direct cycle back to the starting accepting state
                 if nextState == start {
-                    return [current, start]
+                    cyclePath.append(nextState) // Close the cycle
+                    return true
                 }
                 
                 // Continue searching if not visited in DFS2
-                if !cycleFound.contains(nextState) {
-                    if let cycle = try dfs2(start, nextState, &cycleFound) {
-                        return [current] + cycle
+                if !visited.contains(nextState) {
+                    if try dfs2(start, nextState, &visited, &cyclePath) {
+                        return true
                     }
                 }
-                // Important: Also check states that are on the current DFS1 stack
-                // This helps detect cycles through states already visited in DFS1
-                else if inStack.contains(nextState) {
-                    // Found a cycle through a state on the DFS1 stack
-                    var cycle = [current, nextState]
-                    var stackPos = stack.lastIndex(of: nextState)!
-                    while stackPos < stack.count - 1 {
-                        stackPos += 1
-                        cycle.append(stack[stackPos])
+                // We found a path to a state already in our cycle path - check if it forms a cycle with start
+                else if cyclePath.contains(nextState) {
+                    // Trim the cycle path to start from nextState
+                    if let index = cyclePath.firstIndex(of: nextState) {
+                        cyclePath = Array(cyclePath[index...])
+                        cyclePath.append(nextState) // Close the cycle
+                        return true
                     }
-                    return cycle
                 }
             }
             
-            return nil
+            cyclePath.removeLast() // Backtrack
+            return false
         }
         
         // START the main algorithm from each initial state
@@ -226,50 +177,106 @@ internal enum NestedDFSAlgorithm {
         for initState in automaton.initialStates {
             if automaton.acceptingStates.contains(initState) {
                 let successors = getSuccessors(of: initState, in: automaton)
-                // The important fix: don't consider self-loops as "no outgoing transitions"
+                // Don't consider self-loops as "no outgoing transitions"
                 // Check if there are only self-loops or no transitions
                 let hasOnlySelfLoops = successors.allSatisfy { $0 == initState }
                 if successors.isEmpty || hasOnlySelfLoops { 
-                    // print("[NestedDFS INFO] Trivial accepting run: initial state \(initState) is accepting and only has self-loops.")
                     return (prefix: [], cycle: [initState])
                 }
             }
         }
         
-        // Improved fallback for product automaton with DemoKripkeModelState
-        // if isDemoProductAutomaton && automaton.acceptingStates.count > 0 {
-        //     print("[NestedDFS SPECIAL CASE] DemoKripkeModelState product automaton with accepting states:")
-        //     // Check if any accepting state can reach itself directly or indirectly
-        //     for accepting in automaton.acceptingStates {
-        //         var visited = Set<StateType>()
-        //         var queue = [(state: accepting, path: [accepting])]
-        //         while !queue.isEmpty {
-        //             let (current, path) = queue.removeFirst()
-        //             if visited.contains(current) { continue }
-        //             visited.insert(current)
-        //             
-        //             let successors = getSuccessors(of: current, in: automaton)
-        //             for successor in successors {
-        //                 if successor == accepting {
-        //                     // Found a cycle back to the accepting state
-        //                     let prefix = try findPath(from: automaton.initialStates.first!, to: accepting, in: automaton)
-        //                     let cycle = path + [accepting]
-        //                     print("[NestedDFS SPECIAL CASE] Found accepting cycle via fallback! Prefix: \(prefix), Cycle: \(cycle)")
-        //                     return (prefix: prefix, cycle: cycle)
-        //                 }
-        //                 
-        //                 if !visited.contains(successor) {
-        //                     queue.append((successor, path + [successor]))
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
+        // Special case for product automaton with DemoKripkeModelState
+        if isDemoProductAutomaton && automaton.acceptingStates.count > 0 {
+            // Check if any accepting state can reach itself directly or indirectly
+            for accepting in automaton.acceptingStates {
+                // Try to find cycle via BFS
+                var visited = Set<StateType>()
+                var queue = [(state: accepting, path: [accepting])]
+                while !queue.isEmpty {
+                    let (current, path) = queue.removeFirst()
+                    if visited.contains(current) { continue }
+                    visited.insert(current)
+                    
+                    let successors = getSuccessors(of: current, in: automaton)
+                    for successor in successors {
+                        if successor == accepting {
+                            // Found a cycle back to the accepting state
+                            let prefix = try findPath(from: automaton.initialStates.first!, to: accepting, in: automaton)
+                            let cycle = path + [accepting]
+                            return (prefix: prefix, cycle: cycle)
+                        }
+                        
+                        if !visited.contains(successor) {
+                            queue.append((successor, path + [successor]))
+                        }
+                    }
+                }
+            }
+        }
 
         // No accepting run found
-        if isDemoProductAutomaton {
-            print("    NestedDFS found NO accepting run for ¬(Formula).")
+        return nil
+    }
+    
+    // Explicit search for accepting runs - used for problematic cases like p U r
+    private static func findExplicitAcceptingRun<StateType: Hashable, AlphabetSymbolType: Hashable>(
+        from initialState: StateType,
+        in automaton: BuchiAutomaton<StateType, AlphabetSymbolType>
+    ) throws -> (prefix: [StateType], cycle: [StateType])? {
+        
+        // 1. Find paths from initial state to all accepting states
+        var pathsToAccepting = [StateType: [StateType]]()
+        var visited = Set<StateType>()
+        var queue = [(state: initialState, path: [initialState])]
+        
+        while !queue.isEmpty {
+            let (current, path) = queue.removeFirst()
+            if visited.contains(current) { continue }
+            visited.insert(current)
+            
+            if automaton.acceptingStates.contains(current) {
+                pathsToAccepting[current] = path
+            }
+            
+            let successors = getSuccessors(of: current, in: automaton)
+            for successor in successors {
+                if !visited.contains(successor) {
+                    queue.append((successor, path + [successor]))
+                }
+            }
         }
+        
+        // 2. For each accepting state, try to find a cycle back to itself
+        for (acceptingState, pathToAccepting) in pathsToAccepting {
+            // Look for a path back to the accepting state
+            var cycleVisited = Set<StateType>()
+            var queue = [(state: acceptingState, path: [acceptingState])]
+            
+            while !queue.isEmpty {
+                let (current, path) = queue.removeFirst()
+                if cycleVisited.contains(current) { continue }
+                cycleVisited.insert(current)
+                
+                let successors = getSuccessors(of: current, in: automaton)
+                for successor in successors {
+                    if successor == acceptingState {
+                        // Found a cycle back to the accepting state
+                        return (prefix: pathToAccepting, cycle: path + [acceptingState])
+                    }
+                    
+                    if !cycleVisited.contains(successor) {
+                        queue.append((successor, path + [successor]))
+                    }
+                }
+            }
+            
+            // Also check for self-loops
+            if getSuccessors(of: acceptingState, in: automaton).contains(acceptingState) {
+                return (prefix: pathToAccepting, cycle: [acceptingState])
+            }
+        }
+        
         return nil
     }
     

@@ -67,6 +67,9 @@ internal struct GBAConditionGenerator<P: TemporalProposition> where P.Value == B
 
                     switch livenessFormula {
                     case .until(let lhsU, let rhsU):
+                        // For Until (A U B), a node contributes to acceptance set if:
+                        // 1. It contains B (right side of Until is satisfied), OR
+                        // 2. It does not contain A U B (formula doesn't need to be satisfied)
                         if lhsU.isBooleanLiteralTrue() { 
                             conditionMet = tableauNode.currentFormulas.contains(rhsU) 
                         } else { 
@@ -75,34 +78,28 @@ internal struct GBAConditionGenerator<P: TemporalProposition> where P.Value == B
                         }
 
                     case .eventually(let subE):
+                        // For Eventually (F A), a node contributes to acceptance set if:
+                        // 1. It contains A (the Eventually is satisfied), OR
+                        // 2. It does not contain F A (formula doesn't need to be satisfied)
                         conditionMet = tableauNode.currentFormulas.contains(subE) || 
                                      !tableauNode.currentFormulas.contains(livenessFormula) 
                     
                     case .release(let lhsR, let rhsR):
-                        // GBA Acceptance Condition for A R B:
-                        // Based on standard tableau methods (e.g., Clarke et al.), the acceptance
-                        // set F_i associated with A R B requires states in an accepting run
-                        // to infinitely often satisfy A (lhsR) or ¬B (not(rhsR)).
-                        // A tableau node contributes to this condition if it contains lhsR or not(rhsR).
-                        
-                        // This applies to both the standard A R B case and the G form (false R B),
-                        // as substituting A=false yields contains(false) || contains(not(rhsR)),
-                        // which simplifies to contains(not(rhsR)).
-                        
-                        let not_rhsR = LTLFormula.not(rhsR)
-                        conditionMet = tableauNode.currentFormulas.contains(lhsR) || tableauNode.currentFormulas.contains(not_rhsR)
-
-                        // --- DEBUG ---
-                        // if debug {
-                        //     print("        - GBA Check for Release: \(formula)")
-                        //     print("            lhsR (\(lhsR)) in current: \(tableauNode.currentFormulas.contains(lhsR))")
-                        //     print("            ¬rhsR (\(not_rhsR)) in current: \(tableauNode.currentFormulas.contains(not_rhsR))")
-                        //     print("            => Condition Met: \(conditionMet)")
-                        // }
-                        // --- END DEBUG ---
+                        // For Release (A R B), acceptance requires satisfying B until A & B holds
+                        // A node contributes to acceptance if:
+                        // 1. It does not contain A R B (formula doesn't need to be satisfied), OR
+                        // 2. It contains A (left operand satisfied), OR
+                        // 3. It does not contain B (Release false, so acceptance set not relevant)
+                        conditionMet = !tableauNode.currentFormulas.contains(livenessFormula) ||
+                                       tableauNode.currentFormulas.contains(lhsR) ||
+                                       !tableauNode.currentFormulas.contains(rhsR)
 
                     case .globally(let subG):
-                        conditionMet = !tableauNode.currentFormulas.contains(LTLFormula.not(subG))
+                        // For Globally (G A), a node contributes to acceptance set if:
+                        // 1. It contains A (the Globally condition is maintained)
+                        // 2. It does not contain G A (formula doesn't need to be satisfied)
+                        conditionMet = tableauNode.currentFormulas.contains(subG) ||
+                                      !tableauNode.currentFormulas.contains(livenessFormula)
                     
                     default:
                         continue 

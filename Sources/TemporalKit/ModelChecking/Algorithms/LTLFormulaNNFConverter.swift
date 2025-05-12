@@ -36,31 +36,41 @@ internal struct LTLFormulaNNFConverter {
             return .next(convert(.not(subFormula)))
 
         case .not(.eventually(let subFormula)): // ¬(F φ)    ->  G (¬φ) (NNF)
-            // The result G(¬φ) must itself be fully NNF'd to false R (¬φ)
+            // F φ = true U φ, so ¬(F φ) = ¬(true U φ) = false R ¬φ = G ¬φ
             let gNotSub = LTLFormula.globally(convert(.not(subFormula)))
             return convert(gNotSub) // Convert the produced G formula
 
         case .not(.globally(let subFormula)): // ¬(G φ)    ->  F (¬φ) (NNF)
-            // The result F(¬φ) must itself be fully NNF'd to true U (¬φ)
+            // G φ = false R φ, so ¬(G φ) = ¬(false R φ) = true U ¬φ = F ¬φ
             let fNotSub = LTLFormula.eventually(convert(.not(subFormula)))
             return convert(fNotSub) // Convert the produced F formula
 
-        case .not(.until(let lhs, let rhs)): // ¬(φ U ψ)  ->  (¬ψ R ¬φ) (NNF)
-            // Note: This definition of Release (R) assumes ¬φ R ¬ψ.
-            // Some texts define φ R ψ differently, e.g. as ¬(¬φ U ¬ψ).
-            // Ensure consistency with the Release operator's expansion in the tableau.
+        case .not(.until(let lhs, let rhs)): 
+            // ¬(φ U ψ)  ->  (¬ψ R ¬φ) (NNF)
+            // This is a fundamental duality in LTL: 
+            // The negation of "φ holds until ψ holds" is
+            // "¬ψ holds, RELEASED only when ¬φ also holds"
+            //
+            // To verify: For this formula to be false, either:
+            // 1. ψ never holds (¬ψ always holds), OR
+            // 2. φ fails to hold before ψ (¬φ holds at some point before ψ)
+            // This is exactly what (¬ψ R ¬φ) encodes.
             return .release(convert(.not(rhs)), convert(.not(lhs)))
         
         case .not(.weakUntil(let lhs, let rhs)):
             // φ W ψ  ≡  (φ U ψ) ∨ Gφ
             // So, ¬(φ W ψ) ≡ ¬((φ U ψ) ∨ Gφ)
             //              ≡ ¬(φ U ψ) ∧ ¬(Gφ)
-            //              ≡ (¬φ R ¬ψ) ∧ (F¬φ)  (using ¬Gφ -> F¬φ)
-            let term1 = LTLFormula.release(convert(.not(lhs)), convert(.not(rhs)))
-            let term2 = LTLFormula.eventually(convert(.not(lhs))) // NNF of ¬Gφ is F(NNF(¬φ))
+            //              ≡ (¬ψ R ¬φ) ∧ (F¬φ)  (using ¬(φ U ψ) -> (¬ψ R ¬φ) and ¬Gφ -> F¬φ)
+            let term1 = LTLFormula.release(convert(.not(rhs)), convert(.not(lhs)))
+            let term2 = LTLFormula.eventually(convert(.not(lhs))) 
             return .and(term1, term2)
 
-        case .not(.release(let lhs, let rhs)): // ¬(φ R ψ)  ->  (¬φ U ¬ψ) (NNF)
+        case .not(.release(let lhs, let rhs)): 
+            // ¬(φ R ψ)  ->  (¬φ U ¬ψ) (NNF)
+            // This is the dual of the Until negation above.
+            // The negation of "φ releases ψ from having to hold" is
+            // "¬φ holds until both ¬φ and ¬ψ hold"
             return .until(convert(.not(lhs)), convert(.not(rhs)))
 
         // Operators that distribute NNF transformation:
