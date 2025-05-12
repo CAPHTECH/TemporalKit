@@ -21,7 +21,16 @@ TemporalKit is a Swift library for working with temporal logic, particularly Lin
   - Edge cases (self-loops, terminal states, multiple acceptance paths)
   - Complex LTL expressions with deeply nested operators
   - Random formula and structure generation for robustness testing
+  - Performance benchmarks for key algorithms
 - **Comprehensive examples** demonstrating trace evaluation and model checking.
+
+## Documentation
+
+For detailed information about TemporalKit, see the following documentation:
+
+- [**Edge Case Handling**](Docs/EdgeCaseHandling.md): Explains how TemporalKit handles challenging scenarios such as self-loops, terminal states, and special cases for Release operators.
+- [**Testing Guide**](Docs/TestingGuide.md): Describes the testing framework, test categories, and how to run and interpret tests.
+- [**Performance Guide**](Docs/PerformanceGuide.md): Details performance characteristics, optimization strategies, and known limitations.
 
 ## Installation
 
@@ -141,6 +150,16 @@ case .fails(let counterexample):
 
 See the `Sources/TemporalKitDemo` directory for complete examples of using the library, including both trace evaluation and LTL model checking.
 
+## Performance Characteristics
+
+TemporalKit is designed for good performance on practical model checking problems. Based on benchmarks:
+
+- **NestedDFS Algorithm**: Handles 100-state structures in ~73ms
+- **GBAConditionGenerator**: Processes complex nested formulas in sub-millisecond time (~0.2ms)
+- **Scaling**: Performance scales roughly linearly with state space size for practical models
+
+See the [Performance Guide](Docs/PerformanceGuide.md) for detailed benchmark results and optimization strategies.
+
 ## Architecture
 
 TemporalKit is designed with the following key components:
@@ -178,6 +197,7 @@ This version includes significant algorithm improvements:
    - Edge case tests for self-loops, terminal states, and multiple acceptance paths
    - Complex LTL formula tests with deeply nested operators
    - Random generation tests for formula and structure robustness validation
+   - Performance benchmarks for key algorithms
 
 ## License
 
