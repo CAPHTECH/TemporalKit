@@ -59,10 +59,12 @@ struct LTLFormulaTraceExtensionTests {
         #expect(try Self.ltl_false.evaluate(over: trace) == false)
     }
     
-    @Test("evaluate over trace - atomic true with detailed output")
-    func testEvaluateOverAtomicTrueWithDetailedOutput() throws {
+    @Test("evaluate over trace - atomic true with debug handler")
+    func testEvaluateOverAtomicTrueWithDebugHandler() throws {
         let trace = Self.createTrace(length: 3)
-        #expect(try Self.ltl_true.evaluate(over: trace, produceDetailedOutput: true) == true)
+        var debugMessages: [String] = []
+        #expect(try Self.ltl_true.evaluate(over: trace, debugHandler: { debugMessages.append($0) }) == true)
+        #expect(!debugMessages.isEmpty)
     }
 
     @Test("evaluate over trace - atomic throws propagates")
@@ -80,11 +82,13 @@ struct LTLFormulaTraceExtensionTests {
         #expect(try formula.evaluate(over: trace) == true)
     }
 
-    @Test("evaluate over trace - G p_true with detailed output")
-    func testEvaluateOverGloballyTrueWithDetailedOutput() throws {
+    @Test("evaluate over trace - G p_true with debug handler")
+    func testEvaluateOverGloballyTrueWithDebugHandler() throws {
         let trace = Self.createTrace(length: 3)
         let formula: TestFormula = .globally(Self.ltl_true)
-        #expect(try formula.evaluate(over: trace, produceDetailedOutput: true) == true)
+        var debugMessages: [String] = []
+        #expect(try formula.evaluate(over: trace, debugHandler: { debugMessages.append($0) }) == true)
+        #expect(!debugMessages.isEmpty)
     }
 
     @Test("evaluate over trace - G p_false")
@@ -104,14 +108,16 @@ struct LTLFormulaTraceExtensionTests {
         #expect(try formula.evaluate(over: trace) == false)
     }
 
-    @Test("evaluate over trace - G (p eventually becomes false) with detailed output")
-    func testEvaluateOverGloballyEventuallyFalseWithDetailedOutput() throws {
+    @Test("evaluate over trace - G (p eventually becomes false) with debug handler")
+    func testEvaluateOverGloballyEventuallyFalseWithDebugHandler() throws {
         let p_idx_eq_0 = ClosureTemporalProposition<TestState, Bool>(id: "p_idx_0", name: "idx==0") { state in
             return state.index == 0
         }
         let formula: TestFormula = .globally(.atomic(p_idx_eq_0))
         let trace = Self.createTrace(length: 3) // p_idx_eq_0 is true at s0, false at s1, s2
-        #expect(try formula.evaluate(over: trace, produceDetailedOutput: true) == false) // Covers G violation print
+        var debugMessages: [String] = []
+        #expect(try formula.evaluate(over: trace, debugHandler: { debugMessages.append($0) }) == false)
+        #expect(!debugMessages.isEmpty)
     }
 
     @Test("evaluate over trace - F p_false")
@@ -138,14 +144,16 @@ struct LTLFormulaTraceExtensionTests {
         #expect(try formula.evaluate(over: trace) == true)
     }
 
-    @Test("evaluate over trace - F (p eventually becomes true) with detailed output")
-    func testEvaluateOverEventuallyBecomesTrueWithDetailedOutput() throws {
+    @Test("evaluate over trace - F (p eventually becomes true) with debug handler")
+    func testEvaluateOverEventuallyBecomesTrueWithDebugHandler() throws {
         let p_idx_eq_2 = ClosureTemporalProposition<TestState, Bool>(id: "p_idx_2", name: "idx==2") { state in
             return state.index == 2
         }
         let formula: TestFormula = .eventually(.atomic(p_idx_eq_2))
         let trace = Self.createTrace(length: 3) // p_idx_eq_2 is false at s0,s1, true at s2
-        #expect(try formula.evaluate(over: trace, produceDetailedOutput: true) == true) // Covers F satisfaction print
+        var debugMessages: [String] = []
+        #expect(try formula.evaluate(over: trace, debugHandler: { debugMessages.append($0) }) == true)
+        #expect(!debugMessages.isEmpty)
     }
 
     @Test("evaluate over trace - X p succeeds")
@@ -162,14 +170,16 @@ struct LTLFormulaTraceExtensionTests {
     func testEvaluateOverBooleanLiteralNextReturnsEarly() throws {
         let trace = Self.createTrace(length: 5)
         let formula: TestFormula = .not(Self.ltl_true) // This becomes .booleanLiteral(false)
-        #expect(try formula.evaluate(over: trace, produceDetailedOutput: false) == false)
+        #expect(try formula.evaluate(over: trace) == false)
     }
 
-    @Test("evaluate over trace - boolean literal next formula returns early with detailed output")
-    func testEvaluateOverBooleanLiteralNextReturnsEarlyWithDetailedOutput() throws {
+    @Test("evaluate over trace - boolean literal next formula returns early with debug handler")
+    func testEvaluateOverBooleanLiteralNextReturnsEarlyWithDebugHandler() throws {
         let trace = Self.createTrace(length: 5)
         let formula: TestFormula = .not(Self.ltl_true) // This becomes .booleanLiteral(false) after first step
-        #expect(try formula.evaluate(over: trace, produceDetailedOutput: true) == false) // Covers early exit print
+        var debugMessages: [String] = []
+        #expect(try formula.evaluate(over: trace, debugHandler: { debugMessages.append($0) }) == false)
+        #expect(!debugMessages.isEmpty)
     }
 
     @Test("evaluate over trace - X (X p) with too short trace throws inconclusive")
@@ -222,10 +232,12 @@ struct LTLFormulaTraceExtensionTests {
         }
     }
 
-    @Test("evaluate over trace - F p_false with detailed output (never satisfied)")
-    func testEvaluateOverEventuallyFalseWithDetailedOutput() throws {
+    @Test("evaluate over trace - F p_false with debug handler (never satisfied)")
+    func testEvaluateOverEventuallyFalseWithDebugHandler() throws {
         let trace = Self.createTrace(length: 3)
         let formula: TestFormula = .eventually(Self.ltl_false)
-        #expect(try formula.evaluate(over: trace, produceDetailedOutput: true) == false) // Covers F end-of-trace logic
+        var debugMessages: [String] = []
+        #expect(try formula.evaluate(over: trace, debugHandler: { debugMessages.append($0) }) == false)
+        #expect(!debugMessages.isEmpty)
     }
 } 
