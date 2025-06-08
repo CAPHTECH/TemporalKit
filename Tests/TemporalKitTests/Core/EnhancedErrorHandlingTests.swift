@@ -139,6 +139,8 @@ struct EnhancedErrorHandlingTests {
             // With the updated implementation, default contexts return stateNotAvailable
             // when they can't distinguish between type mismatch and no state
             break
+        case .configurationError, .invalidArgument, .unsupportedOperation:
+            Issue.record("Unexpected error type")
         }
         
         // Test with basic context (uses default implementation) - should throw stateNotAvailable
@@ -171,6 +173,8 @@ struct EnhancedErrorHandlingTests {
             #expect(propName == "Test Proposition")
         case .stateTypeMismatch:
             Issue.record("Basic context should return stateNotAvailable, not stateTypeMismatch")
+        case .configurationError, .invalidArgument, .unsupportedOperation:
+            Issue.record("Unexpected error type")
         }
         
         // Test with nil state - should throw stateNotAvailable
@@ -195,6 +199,8 @@ struct EnhancedErrorHandlingTests {
             #expect(propName == "Test Proposition")
         case .stateTypeMismatch:
             Issue.record("Expected stateNotAvailable, got stateTypeMismatch")
+        case .configurationError, .invalidArgument, .unsupportedOperation:
+            Issue.record("Unexpected error type")
         }
     }
     

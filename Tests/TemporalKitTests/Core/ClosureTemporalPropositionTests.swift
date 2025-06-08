@@ -83,6 +83,8 @@ private enum CTP_TestEvaluationError: Error, Equatable { // Renamed
             case .stateTypeMismatch:
                 // This would happen with a custom EvaluationContext that implements retrieveState
                 break
+            case .configurationError, .invalidArgument, .unsupportedOperation:
+                Issue.record("Unexpected error type")
             }
         } catch {
             Issue.record("Expected TemporalKitError but got a different error type: \(error)")
