@@ -625,17 +625,17 @@ let ltl_false: LTLFormula<TestProposition> = .atomic(p_false)
         // This is already covered by testTraceIndexOutOfBoundsInNext, but good to confirm here as well.
         do {
             let _ = try simpleEvaluator.evaluate(formula: .next(p_true_atomic), trace: trace_len1, contextProvider: contextProvider)
-            Issue.record("Expected LTLEvaluationError.traceIndexOutOfBounds but no error was thrown.")
-        } catch let error as LTLEvaluationError {
+            Issue.record("Expected LTLTraceEvaluationError.traceIndexOutOfBounds but no error was thrown.")
+        } catch let error as LTLTraceEvaluationError {
             switch error {
             case .traceIndexOutOfBounds(let index, let length):
                 #expect(index == 1, "Error index should be 1 for Next on trace of length 1")
                 #expect(length == 1, "Error traceLength should be 1 for Next on trace of length 1")
             default:
-                Issue.record("Expected LTLEvaluationError.traceIndexOutOfBounds but got \(error)")
+                Issue.record("Expected LTLTraceEvaluationError.traceIndexOutOfBounds but got \(error)")
             }
         } catch {
-            Issue.record("Expected LTLEvaluationError but got a different error type: \(error)")
+            Issue.record("Expected LTLTraceEvaluationError but got a different error type: \(error)")
         }
         
         // Test 8: X (index == 0) when current state is s1 of [s0, s1, s2] (i.e. evaluate on subtrace from s1)
@@ -910,8 +910,8 @@ let ltl_false: LTLFormula<TestProposition> = .atomic(p_false)
         #expect {
             try evaluator.evaluate(formula: formula, trace: trace, contextProvider: contextProvider)
         } throws: { error in
-            guard let evalError = error as? LTLEvaluationError else {
-                Issue.record("Error was not of type LTLEvaluationError: \\(error)")
+            guard let evalError = error as? LTLTraceEvaluationError else {
+                Issue.record("Error was not of type LTLTraceEvaluationError: \\(error)")
                 return false
             }
             if case .traceIndexOutOfBounds = evalError {
@@ -932,8 +932,8 @@ let ltl_false: LTLFormula<TestProposition> = .atomic(p_false)
         #expect {
             try evaluator.evaluate(formula: formula, trace: trace, contextProvider: contextProvider)
         } throws: { error in
-            guard let evalError = error as? LTLEvaluationError else {
-                Issue.record("Error was not of type LTLEvaluationError: \\(error)")
+            guard let evalError = error as? LTLTraceEvaluationError else {
+                Issue.record("Error was not of type LTLTraceEvaluationError: \\(error)")
                 return false
             }
             if case .traceIndexOutOfBounds(let index, let traceLength) = evalError {
