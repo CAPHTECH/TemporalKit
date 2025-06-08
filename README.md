@@ -59,6 +59,34 @@ Key LTL operators:
 - `p W q` / `.weakUntil(.atomic(p), .atomic(q))`: Weak Until - p holds until q holds, or p holds forever
 - `p R q` / `.release(.atomic(p), .atomic(q))`: Release - q holds until and including when p holds
 
+### DSL (Domain-Specific Language)
+
+TemporalKit provides a powerful and expressive DSL for working with LTL formulas:
+
+#### Standard LTL Operators
+The DSL supports all standard LTL operators with intuitive syntax:
+- **Until (U)**: `p.until(q)` - p holds until q becomes true
+- **Weak Until (W)**: `p.weakUntil(q)` - p holds until q becomes true, or p holds forever
+- **Release (R)**: `p.release(q)` - q holds until and including when p becomes true
+
+#### Formula Validation
+Built-in validation ensures formulas are well-formed:
+```swift
+let validFormula = try formula.validate()
+```
+
+#### Pretty Printing for Debugging
+Human-readable formula representations help with debugging:
+```swift
+let formula = p.until(q.and(r))
+print(formula.prettyPrint()) // Outputs: "(p U (q ∧ r))"
+```
+
+#### Type-Safe Construction
+The DSL leverages Swift's type system to prevent invalid formula construction at compile time.
+
+For a comprehensive guide on using the DSL, including advanced patterns and best practices, see the [DSL Guide](Docs/DSLGuide.md).
+
 ### Using TemporalKit
 
 #### 1. Define Propositions
