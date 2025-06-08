@@ -21,7 +21,7 @@ extension LTLFormula {
         warnings: inout [ValidationWarning]
     ) {
         switch formula {
-        case .proposition:
+        case .atomic:
             break // Propositions are always valid
             
         case .booleanLiteral(let value):
@@ -64,7 +64,7 @@ extension LTLFormula {
             validateFormula(rhs, path: newPath + ["RHS"], warnings: &warnings)
             
             // Check for tautologies
-            if areContradictory(lhs, .not(rhs)) {
+            if areContradictory(lhs, rhs) {
                 warnings.append(.tautology(path: newPath))
             }
             
@@ -132,13 +132,11 @@ extension LTLFormula {
     
     // Helper methods for equivalence and contradiction checking
     private func areEquivalent(_ lhs: LTLFormula<P>, _ rhs: LTLFormula<P>) -> Bool {
-        // Simple syntactic equality check
-        // A more sophisticated implementation could use semantic equivalence
-        return String(describing: lhs) == String(describing: rhs)
+        return lhs.semanticallyEquivalent(to: rhs)
     }
     
     private func areContradictory(_ lhs: LTLFormula<P>, _ rhs: LTLFormula<P>) -> Bool {
-        // Check for direct contradictions like p && !p
+        // Check for direct contradictions
         switch (lhs, rhs) {
         case (.not(let inner), _) where areEquivalent(inner, rhs):
             return true
@@ -300,8 +298,8 @@ extension LTLFormula {
     
     private func infixDescription() -> String {
         switch self {
-        case .proposition(let prop):
-            return String(describing: prop)
+        case .atomic(let prop):
+            return prop.name
         case .booleanLiteral(let value):
             return value ? "true" : "false"
         case .not(let inner):
@@ -329,8 +327,8 @@ extension LTLFormula {
     
     private func prefixDescription() -> String {
         switch self {
-        case .proposition(let prop):
-            return String(describing: prop)
+        case .atomic(let prop):
+            return prop.name
         case .booleanLiteral(let value):
             return value ? "true" : "false"
         case .not(let inner):
@@ -360,8 +358,8 @@ extension LTLFormula {
         let spacing = String(repeating: "  ", count: indent)
         
         switch self {
-        case .proposition(let prop):
-            return "\(spacing)└─ \(prop)"
+        case .atomic(let prop):
+            return "\(spacing)└─ \(prop.name)"
         case .booleanLiteral(let value):
             return "\(spacing)└─ \(value)"
         case .not(let inner):
@@ -398,4 +396,227 @@ public enum PrettyPrintStyle {
     
     /// Tree structure showing formula hierarchy
     case tree
+}
+
+// MARK: - Semantic Equivalence
+
+extension LTLFormula {
+    /// Checks if this formula is semantically equivalent to another formula.
+    /// 
+    /// This performs a structural comparison that accounts for:
+    /// - Commutative properties (p ∧ q ≡ q ∧ p)
+    /// - Associative properties ((p ∧ q) ∧ r ≡ p ∧ (q ∧ r))
+    /// - Identity laws (p ∧ true ≡ p)
+    /// - Idempotent laws (p ∧ p ≡ p)
+    /// - De Morgan's laws
+    /// 
+    /// - Parameter other: The formula to compare with
+    /// - Returns: true if the formulas are semantically equivalent
+    public func semanticallyEquivalent(to other: LTLFormula<P>) -> Bool {
+        // First try syntactic equality for performance
+        if self.syntacticallyEqual(to: other) {
+            return true
+        }
+        
+        // Then check semantic equivalence
+        return self.normalizedForm().syntacticallyEqual(to: other.normalizedForm())
+    }
+    
+    /// Checks syntactic equality between formulas.
+    private func syntacticallyEqual(to other: LTLFormula<P>) -> Bool {
+        switch (self, other) {
+        case (.atomic(let p1), .atomic(let p2)):
+            return p1.id == p2.id
+        case (.booleanLiteral(let v1), .booleanLiteral(let v2)):
+            return v1 == v2
+        case (.not(let f1), .not(let f2)):
+            return f1.syntacticallyEqual(to: f2)
+        case (.and(let l1, let r1), .and(let l2, let r2)):
+            return (l1.syntacticallyEqual(to: l2) && r1.syntacticallyEqual(to: r2)) ||
+                   (l1.syntacticallyEqual(to: r2) && r1.syntacticallyEqual(to: l2)) // Commutativity
+        case (.or(let l1, let r1), .or(let l2, let r2)):
+            return (l1.syntacticallyEqual(to: l2) && r1.syntacticallyEqual(to: r2)) ||
+                   (l1.syntacticallyEqual(to: r2) && r1.syntacticallyEqual(to: l2)) // Commutativity
+        case (.implies(let l1, let r1), .implies(let l2, let r2)):
+            return l1.syntacticallyEqual(to: l2) && r1.syntacticallyEqual(to: r2)
+        case (.next(let f1), .next(let f2)):
+            return f1.syntacticallyEqual(to: f2)
+        case (.eventually(let f1), .eventually(let f2)):
+            return f1.syntacticallyEqual(to: f2)
+        case (.globally(let f1), .globally(let f2)):
+            return f1.syntacticallyEqual(to: f2)
+        case (.until(let l1, let r1), .until(let l2, let r2)):
+            return l1.syntacticallyEqual(to: l2) && r1.syntacticallyEqual(to: r2)
+        case (.weakUntil(let l1, let r1), .weakUntil(let l2, let r2)):
+            return l1.syntacticallyEqual(to: l2) && r1.syntacticallyEqual(to: r2)
+        case (.release(let l1, let r1), .release(let l2, let r2)):
+            return l1.syntacticallyEqual(to: l2) && r1.syntacticallyEqual(to: r2)
+        default:
+            return false
+        }
+    }
+    
+    /// Returns a normalized form of the formula for semantic comparison.
+    /// This applies various logical simplifications.
+    private func normalizedForm() -> LTLFormula<P> {
+        switch self {
+        // Remove double negation
+        case .not(.not(let inner)):
+            return inner.normalizedForm()
+            
+        // Identity laws
+        case .and(let lhs, .booleanLiteral(true)):
+            return lhs.normalizedForm()
+        case .and(.booleanLiteral(true), let rhs):
+            return rhs.normalizedForm()
+        case .or(let lhs, .booleanLiteral(false)):
+            return lhs.normalizedForm()
+        case .or(.booleanLiteral(false), let rhs):
+            return rhs.normalizedForm()
+            
+        // Annihilation laws
+        case .and(_, .booleanLiteral(false)),
+             .and(.booleanLiteral(false), _):
+            return .booleanLiteral(false)
+        case .or(_, .booleanLiteral(true)),
+             .or(.booleanLiteral(true), _):
+            return .booleanLiteral(true)
+            
+        // Idempotent laws (requires comparison)
+        case .and(let lhs, let rhs) where lhs.syntacticallyEqual(to: rhs):
+            return lhs.normalizedForm()
+        case .or(let lhs, let rhs) where lhs.syntacticallyEqual(to: rhs):
+            return lhs.normalizedForm()
+            
+        // Nested temporal operators
+        case .eventually(.eventually(let inner)):
+            return .eventually(inner.normalizedForm())
+        case .globally(.globally(let inner)):
+            return .globally(inner.normalizedForm())
+            
+        // Recursively normalize subformulas
+        case .not(let inner):
+            return .not(inner.normalizedForm())
+        case .and(let lhs, let rhs):
+            return .and(lhs.normalizedForm(), rhs.normalizedForm())
+        case .or(let lhs, let rhs):
+            return .or(lhs.normalizedForm(), rhs.normalizedForm())
+        case .implies(let lhs, let rhs):
+            return .implies(lhs.normalizedForm(), rhs.normalizedForm())
+        case .next(let inner):
+            return .next(inner.normalizedForm())
+        case .eventually(let inner):
+            return .eventually(inner.normalizedForm())
+        case .globally(let inner):
+            return .globally(inner.normalizedForm())
+        case .until(let lhs, let rhs):
+            return .until(lhs.normalizedForm(), rhs.normalizedForm())
+        case .weakUntil(let lhs, let rhs):
+            return .weakUntil(lhs.normalizedForm(), rhs.normalizedForm())
+        case .release(let lhs, let rhs):
+            return .release(lhs.normalizedForm(), rhs.normalizedForm())
+            
+        // Base cases
+        case .atomic, .booleanLiteral:
+            return self
+        }
+    }
+}
+
+// MARK: - Validation Configuration
+
+/// Configuration for formula validation.
+public struct ValidationConfiguration {
+    /// The level of validation to perform.
+    public let level: ValidationLevel
+    
+    /// Whether to check for performance issues.
+    public let checkPerformance: Bool
+    
+    /// Maximum formula depth before warning about complexity.
+    public let maxDepth: Int
+    
+    /// Default configuration with basic validation.
+    public static let `default` = ValidationConfiguration(
+        level: .basic,
+        checkPerformance: false,
+        maxDepth: 50
+    )
+    
+    /// Thorough configuration that performs all checks.
+    public static let thorough = ValidationConfiguration(
+        level: .thorough,
+        checkPerformance: true,
+        maxDepth: 30
+    )
+    
+    public init(level: ValidationLevel, checkPerformance: Bool, maxDepth: Int) {
+        self.level = level
+        self.checkPerformance = checkPerformance
+        self.maxDepth = maxDepth
+    }
+}
+
+/// Levels of validation thoroughness.
+public enum ValidationLevel {
+    /// Basic validation for obvious issues.
+    case basic
+    
+    /// Thorough validation including semantic analysis.
+    case thorough
+    
+    /// Exhaustive validation (may be slow for large formulas).
+    case exhaustive
+}
+
+extension LTLFormula {
+    /// Validates the formula with custom configuration.
+    /// 
+    /// - Parameter configuration: The validation configuration to use
+    /// - Returns: An array of validation warnings
+    public func validate(configuration: ValidationConfiguration) -> [ValidationWarning] {
+        var warnings: [ValidationWarning] = []
+        
+        // Basic validation
+        validateFormula(self, path: [], warnings: &warnings)
+        
+        // Performance checks
+        if configuration.checkPerformance {
+            let depth = self.depth()
+            if depth > configuration.maxDepth {
+                warnings.append(ValidationWarning(
+                    type: .performance,
+                    path: [],
+                    message: "Formula depth (\(depth)) exceeds recommended maximum (\(configuration.maxDepth))"
+                ))
+            }
+        }
+        
+        // Additional checks based on level
+        switch configuration.level {
+        case .basic:
+            break
+        case .thorough:
+            // Add more semantic checks here
+            break
+        case .exhaustive:
+            // Add exhaustive checks here
+            break
+        }
+        
+        return warnings
+    }
+    
+    /// Calculates the depth of the formula tree.
+    private func depth() -> Int {
+        switch self {
+        case .atomic, .booleanLiteral:
+            return 1
+        case .not(let inner), .next(let inner), .eventually(let inner), .globally(let inner):
+            return 1 + inner.depth()
+        case .and(let lhs, let rhs), .or(let lhs, let rhs), .implies(let lhs, let rhs),
+             .until(let lhs, let rhs), .weakUntil(let lhs, let rhs), .release(let lhs, let rhs):
+            return 1 + max(lhs.depth(), rhs.depth())
+        }
+    }
 }

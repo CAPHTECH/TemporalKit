@@ -129,10 +129,6 @@ extension LTLFormula {
         return .next(formula)
     }
     
-    /// Alias for NEXT operator using standard LTL notation.
-    public static func next(_ formula: LTLFormula<P>) -> LTLFormula<P> {
-        return .next(formula)
-    }
 
     /// Creates an EVENTUALLY (Finally) temporal formula (F φ).
     /// 
@@ -157,10 +153,6 @@ extension LTLFormula {
         return .eventually(formula)
     }
     
-    /// Alias for EVENTUALLY operator using descriptive name.
-    public static func eventually(_ formula: LTLFormula<P>) -> LTLFormula<P> {
-        return .eventually(formula)
-    }
 
     /// Creates a GLOBALLY temporal formula (G φ).
     /// 
@@ -185,10 +177,6 @@ extension LTLFormula {
         return .globally(formula)
     }
     
-    /// Alias for GLOBALLY operator using descriptive name.
-    public static func globally(_ formula: LTLFormula<P>) -> LTLFormula<P> {
-        return .globally(formula)
-    }
 }
 
 // MARK: - Custom Infix Temporal Operators (Until, Weak Until, Release)
@@ -196,8 +184,8 @@ extension LTLFormula {
 // Define a precedence group for temporal operators like Until, Weak Until, Release.
 precedencegroup TemporalOperatorPrecedence {
     associativity: right // Right-associative for chained expressions
-    higherThan: ImplicationPrecedence
-    lowerThan: LogicalConjunctionPrecedence
+    higherThan: LogicalConjunctionPrecedence
+    lowerThan: ComparisonPrecedence
 }
 
 /// Temporal UNTIL operator (strong until): φ U ψ
@@ -216,6 +204,7 @@ precedencegroup TemporalOperatorPrecedence {
 /// let done = LTLFormula<StringProposition>.proposition("done")
 /// let busyUntilDone = busy ~>> done  // "Stay busy until done"
 /// // Alternative: busy.until(done)
+/// // Standard notation: LTL.U(busy, done)
 /// ```
 /// 
 /// ## Semantics
@@ -225,13 +214,8 @@ precedencegroup TemporalOperatorPrecedence {
 /// ## Note
 /// Strong until requires that ψ eventually becomes true.
 infix operator ~>>: TemporalOperatorPrecedence
-infix operator U: TemporalOperatorPrecedence  // Standard LTL notation
 
 public func ~>> <P: TemporalProposition>(lhs: LTLFormula<P>, rhs: LTLFormula<P>) -> LTLFormula<P> {
-    return .until(lhs, rhs)
-}
-
-public func U <P: TemporalProposition>(lhs: LTLFormula<P>, rhs: LTLFormula<P>) -> LTLFormula<P> {
     return .until(lhs, rhs)
 }
 
@@ -251,6 +235,7 @@ public func U <P: TemporalProposition>(lhs: LTLFormula<P>, rhs: LTLFormula<P>) -
 /// let upgrade = LTLFormula<StringProposition>.proposition("upgrade")
 /// let maintainWeakUntilUpgrade = maintain ~~> upgrade  // "Maintain until upgrade (if ever)"
 /// // Alternative: maintain.weakUntil(upgrade)
+/// // Standard notation: LTL.W(maintain, upgrade)
 /// ```
 /// 
 /// ## Semantics
@@ -260,13 +245,8 @@ public func U <P: TemporalProposition>(lhs: LTLFormula<P>, rhs: LTLFormula<P>) -
 /// ## Equivalence
 /// `φ W ψ` is equivalent to `(φ U ψ) ∨ G φ`
 infix operator ~~>: TemporalOperatorPrecedence
-infix operator W: TemporalOperatorPrecedence  // Standard LTL notation
 
 public func ~~> <P: TemporalProposition>(lhs: LTLFormula<P>, rhs: LTLFormula<P>) -> LTLFormula<P> {
-    return .weakUntil(lhs, rhs)
-}
-
-public func W <P: TemporalProposition>(lhs: LTLFormula<P>, rhs: LTLFormula<P>) -> LTLFormula<P> {
     return .weakUntil(lhs, rhs)
 }
 
@@ -287,6 +267,7 @@ public func W <P: TemporalProposition>(lhs: LTLFormula<P>, rhs: LTLFormula<P>) -
 /// let locked = LTLFormula<StringProposition>.proposition("locked")
 /// let lockedUntilReset = reset ~< locked  // "Stay locked until reset"
 /// // Alternative: reset.release(locked)
+/// // Standard notation: LTL.R(reset, locked)
 /// ```
 /// 
 /// ## Semantics
@@ -296,13 +277,8 @@ public func W <P: TemporalProposition>(lhs: LTLFormula<P>, rhs: LTLFormula<P>) -
 /// ## Equivalence
 /// `φ R ψ` is equivalent to `¬(¬φ U ¬ψ)`
 infix operator ~<: TemporalOperatorPrecedence
-infix operator R: TemporalOperatorPrecedence  // Standard LTL notation
 
 public func ~< <P: TemporalProposition>(lhs: LTLFormula<P>, rhs: LTLFormula<P>) -> LTLFormula<P> {
-    return .release(lhs, rhs)
-}
-
-public func R <P: TemporalProposition>(lhs: LTLFormula<P>, rhs: LTLFormula<P>) -> LTLFormula<P> {
     return .release(lhs, rhs)
 }
 
@@ -377,5 +353,54 @@ extension LTLFormula {
     /// ```
     public func implies(_ other: LTLFormula<P>) -> LTLFormula<P> {
         return .implies(self, other)
+    }
+}
+
+// MARK: - Namespaced Standard LTL Operators
+
+/// Namespace for standard LTL operators to avoid global namespace pollution.
+/// 
+/// Use these operators when you prefer standard LTL notation:
+/// ```swift
+/// let formula = LTL.U(p, q)  // Instead of: p U q
+/// ```
+public enum LTL {
+    /// Standard UNTIL operator.
+    /// 
+    /// ## Example
+    /// ```swift
+    /// let formula = LTL.U(busy, done)
+    /// ```
+    public static func U<P: TemporalProposition>(
+        _ lhs: LTLFormula<P>,
+        _ rhs: LTLFormula<P>
+    ) -> LTLFormula<P> {
+        return .until(lhs, rhs)
+    }
+    
+    /// Standard WEAK UNTIL operator.
+    /// 
+    /// ## Example
+    /// ```swift
+    /// let formula = LTL.W(maintain, upgrade)
+    /// ```
+    public static func W<P: TemporalProposition>(
+        _ lhs: LTLFormula<P>,
+        _ rhs: LTLFormula<P>
+    ) -> LTLFormula<P> {
+        return .weakUntil(lhs, rhs)
+    }
+    
+    /// Standard RELEASE operator.
+    /// 
+    /// ## Example
+    /// ```swift
+    /// let formula = LTL.R(reset, locked)
+    /// ```
+    public static func R<P: TemporalProposition>(
+        _ lhs: LTLFormula<P>,
+        _ rhs: LTLFormula<P>
+    ) -> LTLFormula<P> {
+        return .release(lhs, rhs)
     }
 }
