@@ -1,264 +1,297 @@
 import Foundation
 
 extension LTLFormula {
-    /// Returns a normalized version of the LTL formula.
+    /// Returns a normalized version of the LTL formula using standard LTL normalization.
     ///
-    /// Normalization applies a series of simplification rules to the formula:
-    /// - Double negation elimination: !!A → A
-    /// - De Morgan's laws: !(A && B) → !A || !B, !(A || B) → !A && !B
-    /// - Constant propagation: true && A → A, false && A → false, etc.
-    /// - Boolean simplification: A || !A → true, A && !A → false
-    /// - Temporal operator simplifications where appropriate
+    /// Normalization converts the formula to Negation Normal Form (NNF) and applies simplifications:
+    /// - Eliminates implications: A → B becomes ¬A ∨ B
+    /// - Pushes negations inward using De Morgan's laws
+    /// - Eliminates double negations: ¬¬A → A
+    /// - Applies boolean simplifications with constants
+    /// - Simplifies temporal operators where possible
     ///
-    /// - Returns: A normalized LTL formula that is semantically equivalent to the original.
+    /// - Returns: A normalized LTL formula in NNF that is semantically equivalent.
     public func normalized() -> LTLFormula<P> {
+        var current = self
+        var previous: LTLFormula<P>
+        var iterations = 0
+        let maxIterations = 15 // Increased to handle newly created formulas
+        
+        // Fixed-point iteration to ensure complete normalization
+        // This handles newly created formulas from simplifyConstants phase
+        repeat {
+            previous = current
+            current = current.eliminateImplications()
+                           .pushNegationsInward()
+                           .simplifyConstants()
+            iterations += 1
+        } while current != previous && iterations < maxIterations
+        
+        // Additional safety check for convergence
+        if iterations >= maxIterations {
+            // Log warning but return the last valid result rather than crash
+            // In practice, well-formed LTL formulas should converge within 10 iterations
+            #if DEBUG
+            print("Warning: LTL normalization reached maximum iterations. Formula may be complex.")
+            #endif
+        }
+        
+        return current
+    }
+    
+    /// Eliminates all implication operators by converting A → B to ¬A ∨ B
+    private func eliminateImplications() -> LTLFormula<P> {
         switch self {
         case .atomic, .booleanLiteral:
-            // Atomic propositions and boolean literals are already in normal form
             return self
             
         case .not(let subFormula):
-            // Apply normalization to the subformula first
-            let normalizedSub = subFormula.normalized()
+            return .not(subFormula.eliminateImplications())
             
-            // Apply negation simplification rules
-            switch normalizedSub {
-            case .not(let doubleNegatedFormula):
-                // Double negation elimination: !!A → A
-                return doubleNegatedFormula
+        case .and(let lhs, let rhs):
+            return .and(lhs.eliminateImplications(), rhs.eliminateImplications())
+            
+        case .or(let lhs, let rhs):
+            return .or(lhs.eliminateImplications(), rhs.eliminateImplications())
+            
+        case .implies(let lhs, let rhs):
+            // A → B becomes ¬A ∨ B
+            return .or(.not(lhs.eliminateImplications()), rhs.eliminateImplications())
+            
+        case .next(let subFormula):
+            return .next(subFormula.eliminateImplications())
+            
+        case .eventually(let subFormula):
+            return .eventually(subFormula.eliminateImplications())
+            
+        case .globally(let subFormula):
+            return .globally(subFormula.eliminateImplications())
+            
+        case .until(let lhs, let rhs):
+            return .until(lhs.eliminateImplications(), rhs.eliminateImplications())
+            
+        case .weakUntil(let lhs, let rhs):
+            return .weakUntil(lhs.eliminateImplications(), rhs.eliminateImplications())
+            
+        case .release(let lhs, let rhs):
+            return .release(lhs.eliminateImplications(), rhs.eliminateImplications())
+        }
+    }
+    
+    /// Pushes negations inward using De Morgan's laws and double negation elimination
+    private func pushNegationsInward() -> LTLFormula<P> {
+        switch self {
+        case .atomic, .booleanLiteral:
+            return self
+            
+        case .not(let subFormula):
+            switch subFormula {
+            case .not(let doubleNegated):
+                // Double negation: ¬¬A → A
+                return doubleNegated.pushNegationsInward()
                 
             case .and(let lhs, let rhs):
-                // De Morgan's law: !(A && B) → !A || !B
-                return .or(.not(lhs.normalized()), .not(rhs.normalized())).normalized()
+                // De Morgan: ¬(A ∧ B) → ¬A ∨ ¬B
+                return .or(.not(lhs).pushNegationsInward(), .not(rhs).pushNegationsInward())
                 
             case .or(let lhs, let rhs):
-                // De Morgan's law: !(A || B) → !A && !B
-                return .and(.not(lhs.normalized()), .not(rhs.normalized())).normalized()
+                // De Morgan: ¬(A ∨ B) → ¬A ∧ ¬B
+                return .and(.not(lhs).pushNegationsInward(), .not(rhs).pushNegationsInward())
                 
             case .booleanLiteral(let value):
-                // Negation of a boolean literal: !true → false, !false → true
                 return .booleanLiteral(!value)
                 
-            case .implies(let lhs, let rhs):
-                // !(A → B) is equivalent to A && !B
-                return .and(lhs.normalized(), .not(rhs.normalized())).normalized()
+            case .eventually(let inner):
+                // ¬F(A) → G(¬A)
+                return .globally(.not(inner).pushNegationsInward())
                 
-            default:
-                // For other cases, just wrap the normalized subformula with not
-                return .not(normalizedSub)
+            case .globally(let inner):
+                // ¬G(A) → F(¬A)
+                return .eventually(.not(inner).pushNegationsInward())
+                
+            case .until(let lhs, let rhs):
+                // ¬(A U B) → (¬A ∧ ¬B) R ¬B (correct duality)
+                // Optimize: avoid creating intermediate formulas if possible
+                let negatedLhs = LTLFormula<P>.not(lhs).pushNegationsInward()
+                let negatedRhs = LTLFormula<P>.not(rhs).pushNegationsInward()
+                return .release(.and(negatedLhs, negatedRhs), negatedRhs)
+                
+            case .weakUntil(let lhs, let rhs):
+                // ¬(A W B) → ¬B U (¬A ∧ ¬B)
+                // Optimize: reuse negated formulas
+                let negatedLhs = LTLFormula<P>.not(lhs).pushNegationsInward()
+                let negatedRhs = LTLFormula<P>.not(rhs).pushNegationsInward()
+                return .until(negatedRhs, .and(negatedLhs, negatedRhs))
+                
+            case .release(let lhs, let rhs):
+                // ¬(A R B) → ¬B U (¬A ∧ ¬B)
+                // Optimize: reuse negated formulas
+                let negatedLhs = LTLFormula<P>.not(lhs).pushNegationsInward()
+                let negatedRhs = LTLFormula<P>.not(rhs).pushNegationsInward()
+                return .until(negatedRhs, .and(negatedLhs, negatedRhs))
+                
+            case .next(let inner):
+                // ¬X(A) → X(¬A)
+                return .next(LTLFormula<P>.not(inner).pushNegationsInward())
+                
+            case .atomic:
+                // Atomic propositions stay negated
+                return .not(subFormula)
+                
+            case .implies:
+                // This should not occur after eliminateImplications phase
+                fatalError("Implication found in pushNegationsInward phase - normalization error")
             }
             
         case .and(let lhs, let rhs):
-            // Normalize both subformulas
-            let normalizedLhs = lhs.normalized()
-            let normalizedRhs = rhs.normalized()
-            
-            // Apply AND simplification rules
-            if normalizedLhs == .booleanLiteral(true) {
-                // true && A → A
-                return normalizedRhs
-            }
-            if normalizedRhs == .booleanLiteral(true) {
-                // A && true → A
-                return normalizedLhs
-            }
-            if normalizedLhs == .booleanLiteral(false) || normalizedRhs == .booleanLiteral(false) {
-                // false && A → false, A && false → false
-                return .booleanLiteral(false)
-            }
-            if normalizedLhs == normalizedRhs {
-                // A && A → A
-                return normalizedLhs
-            }
-            
-            // Check for contradictions: A && !A → false
-            if case .not(let notFormula) = normalizedRhs, notFormula == normalizedLhs {
-                return .booleanLiteral(false)
-            }
-            if case .not(let notFormula) = normalizedLhs, notFormula == normalizedRhs {
-                return .booleanLiteral(false)
-            }
-            
-            // If no simplification, build the AND with normalized subformulas
-            return .and(normalizedLhs, normalizedRhs)
+            return .and(lhs.pushNegationsInward(), rhs.pushNegationsInward())
             
         case .or(let lhs, let rhs):
-            // Normalize both subformulas
-            let normalizedLhs = lhs.normalized()
-            let normalizedRhs = rhs.normalized()
-            
-            // Apply OR simplification rules
-            if normalizedLhs == .booleanLiteral(false) {
-                // false || A → A
-                return normalizedRhs
-            }
-            if normalizedRhs == .booleanLiteral(false) {
-                // A || false → A
-                return normalizedLhs
-            }
-            if normalizedLhs == .booleanLiteral(true) || normalizedRhs == .booleanLiteral(true) {
-                // true || A → true, A || true → true
-                return .booleanLiteral(true)
-            }
-            if normalizedLhs == normalizedRhs {
-                // A || A → A
-                return normalizedLhs
-            }
-            
-            // Check for tautologies: A || !A → true
-            if case .not(let notFormula) = normalizedRhs, notFormula == normalizedLhs {
-                return .booleanLiteral(true)
-            }
-            if case .not(let notFormula) = normalizedLhs, notFormula == normalizedRhs {
-                return .booleanLiteral(true)
-            }
-            
-            // If no simplification, build the OR with normalized subformulas
-            return .or(normalizedLhs, normalizedRhs)
-            
-        case .implies(let lhs, let rhs):
-            // A → B is equivalent to !A || B
-            return .or(.not(lhs), rhs).normalized()
+            return .or(lhs.pushNegationsInward(), rhs.pushNegationsInward())
             
         case .next(let subFormula):
-            // Normalize the subformula
-            let normalizedSub = subFormula.normalized()
-            
-            // Simple simplification rules for next
-            if case .booleanLiteral(let value) = normalizedSub {
-                // X(true) → true, X(false) → false
-                // Note: This assumes a model where the trace is infinite or at least one step remains.
-                // For finite traces where we're at the last state, X(anything) might be undefined or false.
-                return .booleanLiteral(value)
-            }
-            
-            // No other simplification for next, just wrap the normalized subformula
-            return .next(normalizedSub)
+            return .next(subFormula.pushNegationsInward())
             
         case .eventually(let subFormula):
-            // Normalize the subformula
-            let normalizedSub = subFormula.normalized()
-            
-            // F(true) → true
-            if case .booleanLiteral(true) = normalizedSub {
-                return .booleanLiteral(true)
-            }
-            
-            // F(false) → false
-            if case .booleanLiteral(false) = normalizedSub {
-                return .booleanLiteral(false)
-            }
-            
-            // F(F(A)) → F(A) - nested eventually can be simplified
-            if case .eventually(let innerFormula) = normalizedSub {
-                return .eventually(innerFormula)
-            }
-            
-            // No other simplification for eventually, just wrap the normalized subformula
-            return .eventually(normalizedSub)
+            return .eventually(subFormula.pushNegationsInward())
             
         case .globally(let subFormula):
-            // Normalize the subformula
-            let normalizedSub = subFormula.normalized()
-
-            // Simplification rules for GLOBALLY
-            if case .booleanLiteral(true) = normalizedSub {
-                // G(true) → true
-                return .booleanLiteral(true)
-            }
-            if case .booleanLiteral(false) = normalizedSub {
-                // G(false) → false
-                return .booleanLiteral(false)
-            }
-            // G(G(A)) → G(A) - nested globally can be simplified
-            if case .globally(let innerFormula) = normalizedSub {
-                return .globally(innerFormula)
-            }
-            
-            // No other simplification for globally, just wrap the normalized subformula
-            return .globally(normalizedSub)
+            return .globally(subFormula.pushNegationsInward())
             
         case .until(let lhs, let rhs):
-            // Normalize lhs and rhs
-            let normalizedLhs = lhs.normalized()
-            let normalizedRhs = rhs.normalized()
-
-            // Apply until simplification rules
-            if case .booleanLiteral(true) = normalizedRhs {
-                // A U true → true (because true will hold immediately)
-                return .booleanLiteral(true)
-            }
-            
-            if case .booleanLiteral(false) = normalizedRhs {
-                // A U false → false (because false will never hold)
-                return .booleanLiteral(false)
-            }
-            
-            if case .booleanLiteral(false) = normalizedLhs {
-                // false U B → B (because B must hold immediately for the formula to be true)
-                return normalizedRhs
-            }
-            
-            // No other simplification for until, build it with normalized subformulas
-            return .until(normalizedLhs, normalizedRhs)
+            return .until(lhs.pushNegationsInward(), rhs.pushNegationsInward())
             
         case .weakUntil(let lhs, let rhs):
-            // Normalize lhs and rhs
-            let normalizedLhs = lhs.normalized()
-            let normalizedRhs = rhs.normalized()
-
-            // Apply weak until simplification rules
-            if case .booleanLiteral(true) = normalizedRhs {
-                // A W true → true (because true holds immediately)
-                return .booleanLiteral(true)
-            }
-            
-            if case .booleanLiteral(false) = normalizedRhs {
-                // A W false → G(A) (because B will never hold, A must hold forever)
-                return .globally(normalizedLhs).normalized()
-            }
-            
-            if case .booleanLiteral(true) = normalizedLhs {
-                // true W B → true W B (no simplification, as both branches are possible)
-                return .weakUntil(normalizedLhs, normalizedRhs)
-            }
-            
-            if case .booleanLiteral(false) = normalizedLhs {
-                // false W B → B (because false can't hold forever, B must hold immediately)
-                return normalizedRhs
-            }
-            
-            // No other simplification for weak until, build it with normalized subformulas
-            return .weakUntil(normalizedLhs, normalizedRhs)
+            return .weakUntil(lhs.pushNegationsInward(), rhs.pushNegationsInward())
             
         case .release(let lhs, let rhs):
-            // Normalize lhs and rhs
-            let normalizedLhs = lhs.normalized()
-            let normalizedRhs = rhs.normalized()
-
-            // Apply release simplification rules
-            if case .booleanLiteral(false) = normalizedLhs {
-                // false R B → G(B) (because A will never hold, B must hold forever)
-                return .globally(normalizedRhs).normalized()
+            return .release(lhs.pushNegationsInward(), rhs.pushNegationsInward())
+            
+        case .implies:
+            // This should not occur after eliminateImplications phase
+            fatalError("Implication found in pushNegationsInward phase - normalization error")
+        }
+    }
+    
+    /// Applies constant simplifications and other reductions
+    /// Note: Newly created formulas are marked for re-normalization via fixed-point iteration
+    private func simplifyConstants() -> LTLFormula<P> {
+        switch self {
+        case .atomic, .booleanLiteral:
+            return self
+            
+        case .not(let subFormula):
+            let simplified = subFormula.simplifyConstants()
+            if case .booleanLiteral(let value) = simplified {
+                return .booleanLiteral(!value)
+            }
+            return .not(simplified)
+            
+        case .and(let lhs, let rhs):
+            let simplifiedLhs = lhs.simplifyConstants()
+            let simplifiedRhs = rhs.simplifyConstants()
+            
+            // Constant propagation
+            if case .booleanLiteral(false) = simplifiedLhs { return .booleanLiteral(false) }
+            if case .booleanLiteral(false) = simplifiedRhs { return .booleanLiteral(false) }
+            if case .booleanLiteral(true) = simplifiedLhs { return simplifiedRhs }
+            if case .booleanLiteral(true) = simplifiedRhs { return simplifiedLhs }
+            
+            // Idempotency and contradiction
+            if simplifiedLhs == simplifiedRhs { return simplifiedLhs }
+            if case .not(let inner) = simplifiedRhs, inner == simplifiedLhs { return .booleanLiteral(false) }
+            if case .not(let inner) = simplifiedLhs, inner == simplifiedRhs { return .booleanLiteral(false) }
+            
+            return .and(simplifiedLhs, simplifiedRhs)
+            
+        case .or(let lhs, let rhs):
+            let simplifiedLhs = lhs.simplifyConstants()
+            let simplifiedRhs = rhs.simplifyConstants()
+            
+            // Constant propagation
+            if case .booleanLiteral(true) = simplifiedLhs { return .booleanLiteral(true) }
+            if case .booleanLiteral(true) = simplifiedRhs { return .booleanLiteral(true) }
+            if case .booleanLiteral(false) = simplifiedLhs { return simplifiedRhs }
+            if case .booleanLiteral(false) = simplifiedRhs { return simplifiedLhs }
+            
+            // Idempotency and tautology
+            if simplifiedLhs == simplifiedRhs { return simplifiedLhs }
+            if case .not(let inner) = simplifiedRhs, inner == simplifiedLhs { return .booleanLiteral(true) }
+            if case .not(let inner) = simplifiedLhs, inner == simplifiedRhs { return .booleanLiteral(true) }
+            
+            return .or(simplifiedLhs, simplifiedRhs)
+            
+        case .next(let subFormula):
+            return .next(subFormula.simplifyConstants())
+            
+        case .eventually(let subFormula):
+            let simplified = subFormula.simplifyConstants()
+            if case .booleanLiteral(true) = simplified { return .booleanLiteral(true) }
+            if case .booleanLiteral(false) = simplified { return .booleanLiteral(false) }
+            
+            // F(F(A)) → F(A) - idempotency
+            if case .eventually(let inner) = simplified { 
+                // Inner formula is already simplified, no further normalization needed
+                return .eventually(inner) 
             }
             
-            if case .booleanLiteral(true) = normalizedLhs {
-                // true R B → B (because A holds immediately, B only needs to hold now)
-                return normalizedRhs
+            return .eventually(simplified)
+            
+        case .globally(let subFormula):
+            let simplified = subFormula.simplifyConstants()
+            if case .booleanLiteral(true) = simplified { return .booleanLiteral(true) }
+            if case .booleanLiteral(false) = simplified { return .booleanLiteral(false) }
+            
+            // G(G(A)) → G(A) - idempotency
+            if case .globally(let inner) = simplified { 
+                // Inner formula is already simplified, no further normalization needed
+                return .globally(inner) 
             }
             
-            if case .booleanLiteral(false) = normalizedRhs {
-                // A R false → false (because B must hold until A holds, but false never holds)
-                return .booleanLiteral(false)
-            }
+            return .globally(simplified)
             
-            if case .booleanLiteral(true) = normalizedRhs {
-                // A R true → true (because true always holds regardless of A)
-                return .booleanLiteral(true)
-            }
+        case .until(let lhs, let rhs):
+            let simplifiedLhs = lhs.simplifyConstants()
+            let simplifiedRhs = rhs.simplifyConstants()
             
-            // No other simplification for release, build it with normalized subformulas
-            return .release(normalizedLhs, normalizedRhs)
+            if case .booleanLiteral(true) = simplifiedRhs { return .booleanLiteral(true) }
+            if case .booleanLiteral(false) = simplifiedRhs { return .booleanLiteral(false) }
+            if case .booleanLiteral(false) = simplifiedLhs { return simplifiedRhs }
+            
+            return .until(simplifiedLhs, simplifiedRhs)
+            
+        case .weakUntil(let lhs, let rhs):
+            let simplifiedLhs = lhs.simplifyConstants()
+            let simplifiedRhs = rhs.simplifyConstants()
+            
+            if case .booleanLiteral(true) = simplifiedRhs { return .booleanLiteral(true) }
+            if case .booleanLiteral(false) = simplifiedRhs { 
+                // A W false → G(A)
+                // The globally operator will be normalized in the next iteration
+                return .globally(simplifiedLhs)
+            }
+            if case .booleanLiteral(false) = simplifiedLhs { return simplifiedRhs }
+            
+            return .weakUntil(simplifiedLhs, simplifiedRhs)
+            
+        case .release(let lhs, let rhs):
+            let simplifiedLhs = lhs.simplifyConstants()
+            let simplifiedRhs = rhs.simplifyConstants()
+            
+            if case .booleanLiteral(false) = simplifiedLhs { 
+                // false R B → G(B)
+                // The globally operator will be normalized in the next iteration
+                return .globally(simplifiedRhs)
+            }
+            if case .booleanLiteral(true) = simplifiedLhs { return simplifiedRhs }
+            if case .booleanLiteral(false) = simplifiedRhs { return .booleanLiteral(false) }
+            if case .booleanLiteral(true) = simplifiedRhs { return .booleanLiteral(true) }
+            
+            return .release(simplifiedLhs, simplifiedRhs)
+            
+        case .implies:
+            // This should not occur after eliminateImplications phase
+            fatalError("Implication found in simplifyConstants phase - normalization error")
         }
     }
     
