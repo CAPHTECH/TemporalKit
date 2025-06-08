@@ -21,7 +21,8 @@ open class ClosureTemporalProposition<StateType, PropositionResultType: Hashable
     ///   - evaluate: A closure that takes an object of `StateType` and returns the `PropositionResultType`.
     ///               This closure can throw errors.
     public init(id: String, name: String, evaluate: @escaping (StateType) throws -> PropositionResultType) {
-        self.id = PropositionID(rawValue: id)
+        // Use failable initializer and provide fallback for invalid IDs
+        self.id = PropositionID(rawValue: id) ?? PropositionID(rawValue: "invalid_id")!
         self.name = name
         self.evaluationLogic = evaluate
     }
@@ -30,18 +31,27 @@ open class ClosureTemporalProposition<StateType, PropositionResultType: Hashable
     ///
     /// - Parameter context: The `EvaluationContext` which should provide the `StateType`.
     /// - Returns: The result of the evaluation closure.
-    /// - Throws: `TemporalKitError.stateTypeMismatch` if the context cannot provide the expected `StateType`.
+    /// - Throws: `TemporalKitError.stateNotAvailable` if the context does not provide any state.
+    ///           `TemporalKitError.stateTypeMismatch` if the context provides a state of the wrong type.
     ///           Also rethrows any errors thrown by the evaluation closure itself.
     public func evaluate(in context: EvaluationContext) throws -> PropositionResultType {
-        guard let state = context.currentStateAs(StateType.self) else {
+        switch context.retrieveState(StateType.self) {
+        case .success(let state):
+            return try evaluationLogic(state)
+        case .notAvailable:
+            throw TemporalKitError.stateNotAvailable(
+                expected: String(describing: StateType.self),
+                propositionID: self.id,
+                propositionName: self.name
+            )
+        case .typeMismatch(let actualType):
             throw TemporalKitError.stateTypeMismatch(
                 expected: String(describing: StateType.self),
-                actual: String(describing: type(of: context)),
+                actual: String(describing: actualType),
                 propositionID: self.id,
                 propositionName: self.name
             )
         }
-        return try evaluationLogic(state)
     }
 
     /// Creates a new proposition with a non-throwing evaluation closure.

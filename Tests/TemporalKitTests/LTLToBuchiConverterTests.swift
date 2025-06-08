@@ -37,7 +37,7 @@ struct LTLToBuchiConverterTests {
     // --- Test Cases ---
     @Test func atomicProposition_p() throws {
         let pIdString = "p"
-        let pId = PropositionID(rawValue: pIdString)
+        let pId = PropositionID(rawValue: pIdString)!
         let pFormula: Formula = Formula.prop(pIdString)
         let relevantPropositions: Set<PropositionID> = [pId]
 
@@ -67,7 +67,7 @@ struct LTLToBuchiConverterTests {
     
     @Test func eventually_p() throws {
         let pIdString = "p"
-        let pId = PropositionID(rawValue: pIdString)
+        let pId = PropositionID(rawValue: pIdString)!
         let f_pFormula: Formula = .eventually(Formula.prop(pIdString))
         let relevantPropositions: Set<PropositionID> = [pId]
 
@@ -92,7 +92,7 @@ struct LTLToBuchiConverterTests {
 
     @Test func testGlobally_p() throws {
         let pIdString = "p"
-        let pId = PropositionID(rawValue: pIdString)
+        let pId = PropositionID(rawValue: pIdString)!
         let g_pFormula: Formula = .globally(Formula.prop(pIdString))
         let relevantPropositions: Set<PropositionID> = [pId]
 
@@ -108,7 +108,7 @@ struct LTLToBuchiConverterTests {
 
     @Test func testX_p() throws {
         let pIdString = "p"
-        let pId = PropositionID(rawValue: pIdString)
+        let pId = PropositionID(rawValue: pIdString)!
         let x_pFormula: Formula = .next(Formula.prop(pIdString))
         let relevantPropositions: Set<PropositionID> = [pId]
 

@@ -14,7 +14,7 @@ private enum LMC_TestState: String, Hashable, CaseIterable, CustomStringConverti
 private enum LMC_TestPropEnumID: String, Hashable, CustomStringConvertible {
     case p, q, r
     var description: String { rawValue }
-    var officialID: TemporalKit.PropositionID { TemporalKit.PropositionID(rawValue: self.rawValue) }
+    var officialID: TemporalKit.PropositionID { TemporalKit.PropositionID(rawValue: self.rawValue)! }
 }
 
 private final class LMC_TestProposition: TemporalProposition {
@@ -156,10 +156,10 @@ struct LTLModelCheckerTests {
         ]
         
         let s3LabelingDict: [LMC_TestState: Set<PropositionID>] = [
-            .s0: [PropositionID(rawValue: "p")],
-            .s1: [PropositionID(rawValue: "q")],
+            .s0: [PropositionID(rawValue: "p")!],
+            .s1: [PropositionID(rawValue: "q")!],
             .s2: [],
-            .s3: [PropositionID(rawValue: "r")] // r is true in s3
+            .s3: [PropositionID(rawValue: "r")!] // r is true in s3
         ]
         
         let modelInit_s3_only = LMC_SimpleKripkeModel(

@@ -53,7 +53,7 @@ public class AppProposition: TemporalProposition {
     public let name: String
     
     public init(id: String, name: String) {
-        self.id = PropositionID(rawValue: id)
+        self.id = PropositionID(rawValue: id) ?? PropositionID(rawValue: "demo_fallback_id")!
         self.name = name
     }
     

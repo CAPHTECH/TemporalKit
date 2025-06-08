@@ -12,7 +12,7 @@ final class PropertyTestMockProposition: TemporalProposition {
     let name: String
 
     init(id: String = UUID().uuidString, name: String) {
-        self.id = PropositionID(rawValue: id)
+        self.id = PropositionID(rawValue: id)!
         self.name = name
     }
 

@@ -40,7 +40,7 @@ class TestProposition: TemporalProposition {
     let evaluationResult: (_ context: EvaluationContext) throws -> Bool
 
     init(id: String = UUID().uuidString, name: String, evaluation: @escaping (_ context: EvaluationContext) throws -> Bool) {
-        self.id = PropositionID(rawValue: id)
+        self.id = PropositionID(rawValue: id)!
         self.name = name
         self.evaluationResult = evaluation
     }
@@ -58,7 +58,7 @@ class IndexEqualsProposition: TemporalProposition {
     let targetIndex: Int
 
     init(id: String = UUID().uuidString, name: String = "IndexEquals", targetIndex: Int) {
-        self.id = PropositionID(rawValue: id)
+        self.id = PropositionID(rawValue: id)!
         self.name = name
         self.targetIndex = targetIndex
     }

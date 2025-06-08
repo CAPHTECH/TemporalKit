@@ -16,49 +16,66 @@ public indirect enum LTLFormula<P: TemporalProposition>: Hashable where P.Value 
     case weakUntil(LTLFormula<P>, LTLFormula<P>)
     case release(LTLFormula<P>, LTLFormula<P>)
 
+    // Discriminator values for hash computation
+    private enum FormulaDiscriminator: Int, CaseIterable {
+        case booleanLiteral = 0
+        case atomic = 1
+        case not = 2
+        case and = 3
+        case or = 4
+        case implies = 5
+        case next = 6
+        case eventually = 7
+        case globally = 8
+        case until = 9
+        case weakUntil = 10
+        case release = 11
+    }
+    
     // Recursive Hashable conformance
     public func hash(into hasher: inout Hasher) {
+        // Use discriminator values for better performance
         switch self {
         case .booleanLiteral(let value):
-            hasher.combine("booleanLiteral")
+            hasher.combine(FormulaDiscriminator.booleanLiteral.rawValue)
             hasher.combine(value)
         case .atomic(let prop):
-            hasher.combine("atomic")
+            hasher.combine(FormulaDiscriminator.atomic.rawValue)
             hasher.combine(prop)
         case .not(let formula):
-            hasher.combine("not")
+            hasher.combine(FormulaDiscriminator.not.rawValue)
             hasher.combine(formula)
         case .and(let lhs, let rhs):
-            hasher.combine("and")
+            hasher.combine(FormulaDiscriminator.and.rawValue)
             hasher.combine(lhs)
             hasher.combine(rhs)
         case .or(let lhs, let rhs):
-            hasher.combine("or")
+            hasher.combine(FormulaDiscriminator.or.rawValue)
             hasher.combine(lhs)
             hasher.combine(rhs)
         case .implies(let lhs, let rhs):
-            hasher.combine("implies")
+            hasher.combine(FormulaDiscriminator.implies.rawValue)
             hasher.combine(lhs)
             hasher.combine(rhs)
         case .next(let formula):
-            hasher.combine("next")
+            hasher.combine(FormulaDiscriminator.next.rawValue)
             hasher.combine(formula)
         case .eventually(let formula):
-            hasher.combine("eventually")
+            hasher.combine(FormulaDiscriminator.eventually.rawValue)
             hasher.combine(formula)
         case .globally(let formula):
-            hasher.combine("globally")
+            hasher.combine(FormulaDiscriminator.globally.rawValue)
             hasher.combine(formula)
         case .until(let lhs, let rhs):
-            hasher.combine("until")
+            hasher.combine(FormulaDiscriminator.until.rawValue)
             hasher.combine(lhs)
             hasher.combine(rhs)
         case .weakUntil(let lhs, let rhs):
-            hasher.combine("weakUntil")
+            hasher.combine(FormulaDiscriminator.weakUntil.rawValue)
             hasher.combine(lhs)
             hasher.combine(rhs)
         case .release(let lhs, let rhs):
-            hasher.combine("release")
+            hasher.combine(FormulaDiscriminator.release.rawValue)
             hasher.combine(lhs)
             hasher.combine(rhs)
         }

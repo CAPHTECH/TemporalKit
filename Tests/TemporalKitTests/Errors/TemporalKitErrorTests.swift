@@ -7,7 +7,7 @@ struct TemporalKitErrorTests {
 
     @Test("stateTypeMismatch errorDescription is correct")
     func testStateTypeMismatchErrorDescription() {
-        let propID = PropositionID(rawValue: "test-prop-id")
+        let propID = PropositionID(rawValue: "test-prop-id")!
         let propName = "TestProp"
         let expectedType = "ExpectedTestState"
         let actualType = "ActualTestState"

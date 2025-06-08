@@ -29,7 +29,7 @@ struct LTLFormulaSimpleTraceEvaluationTests {
         let key: String
         
         init(id: String = UUID().uuidString, key: String, name: String = "") {
-            self.id = PropositionID(rawValue: id)
+            self.id = PropositionID(rawValue: id)!
             self.key = key
             self.name = name
         }

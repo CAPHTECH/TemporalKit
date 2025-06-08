@@ -15,7 +15,7 @@ final class GBAConditionGeneratorTests: XCTestCase {
         var name: String { id.rawValue }
         
         init(id: String) {
-            self.id = PropositionID(rawValue: id)
+            self.id = PropositionID(rawValue: id)!
         }
         
         func evaluate(in context: EvaluationContext) throws -> Bool {

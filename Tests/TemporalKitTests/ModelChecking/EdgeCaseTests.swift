@@ -42,7 +42,7 @@ final class EdgeCaseTests: XCTestCase {
             guard let kripkeState = states.first(where: { $0.id == state }) else {
                 return []
             }
-            return Set(kripkeState.propositions.map { PropositionID(rawValue: $0) })
+            return Set(kripkeState.propositions.map { PropositionID(rawValue: $0)! })
         }
     }
     

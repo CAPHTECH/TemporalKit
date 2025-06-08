@@ -42,7 +42,7 @@ final class PerformanceTests: XCTestCase {
             guard let kState = states.first(where: { $0.id == state }) else {
                 return []
             }
-            return Set(kState.propositions.map { PropositionID(rawValue: $0) })
+            return Set(kState.propositions.map { PropositionID(rawValue: $0)! })
         }
     }
     

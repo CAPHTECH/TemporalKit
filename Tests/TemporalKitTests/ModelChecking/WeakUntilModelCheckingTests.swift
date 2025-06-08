@@ -19,7 +19,7 @@ struct WeakUntilModelCheckingTests {
         let name: String
         
         init(id: String, name: String) {
-            self.id = PropositionID(rawValue: id)
+            self.id = PropositionID(rawValue: id)!
             self.name = name
         }
         
@@ -49,8 +49,8 @@ struct WeakUntilModelCheckingTests {
         
         let initialStates: Set<MockState> = [MockState(id: 0)]
         
-        let pID = PropositionID(rawValue: "p")
-        let qID = PropositionID(rawValue: "q")
+        let pID = PropositionID(rawValue: "p")!
+        let qID = PropositionID(rawValue: "q")!
         
         func successors(of state: MockState) -> Set<MockState> {
             switch state.id {
