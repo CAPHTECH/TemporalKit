@@ -201,15 +201,49 @@ final class EdgeCaseTests: XCTestCase {
     // MARK: - Helper methods
 
     private func makeProposition(_ id: String) -> TestProposition {
-        TemporalKit.makeProposition(
+        // Pre-compute the state mapping to avoid capturing self
+        let statePropositionsMap = createStatePropositionsMap()
+        
+        return TemporalKit.makeProposition(
             id: id,
             name: id,
             evaluate: { (state: String) -> Bool in
                 // For testing, the proposition holds if the state contains the proposition ID
-                guard let kripkeState = self.getState(id: state) else { return false }
-                return kripkeState.propositions.contains(id)
+                guard let propositions = statePropositionsMap[state] else { return false }
+                return propositions.contains(id)
             }
         )
+    }
+    
+    private func createStatePropositionsMap() -> [String: [String]] {
+        var map: [String: [String]] = [:]
+        
+        // Collect states from all test structures
+        let allStructures = [
+            createMultiAcceptanceKripke()
+            // Note: Other structures not available in this test class
+        ]
+        
+        for structure in allStructures {
+            for state in structure.states {
+                map[state.id] = state.propositions
+            }
+        }
+        
+        // Add states from other structures used in tests
+        let otherStructures = [
+            createSelfLoopKripke(withoutProposition: false),
+            createSelfLoopKripke(withoutProposition: true)
+            // Note: createEmptyKripke not available
+        ]
+        
+        for structure in otherStructures {
+            for state in structure.states {
+                map[state.id] = state.propositions
+            }
+        }
+        
+        return map
     }
 
     private func getState(id: String) -> KripkeState? {

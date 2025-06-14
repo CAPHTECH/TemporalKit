@@ -33,7 +33,7 @@ struct TestEvaluationContext: EvaluationContext {
 }
 
 /// テストで使用するシンプルな命題の実装
-class TestProposition: TemporalProposition {
+class TestProposition: TemporalProposition, @unchecked Sendable {
     typealias Value = Bool
     let id: PropositionID
     let name: String
@@ -51,7 +51,7 @@ class TestProposition: TemporalProposition {
 }
 
 /// 特定のインデックスでのみtrueを返す命題
-class IndexEqualsProposition: TemporalProposition {
+class IndexEqualsProposition: TemporalProposition, @unchecked Sendable {
     typealias Value = Bool
     let id: PropositionID
     let name: String
@@ -85,15 +85,15 @@ func createTestTrace(length: Int) -> [TestEvaluationContext] {
     }
 }
 
-// Predefined test propositions
-let p_true = TestProposition(name: "p_true", evaluation: { _ in true })
-let p_false = TestProposition(name: "p_false", evaluation: { _ in false })
-
-// Convenience TRUE/FALSE LTL formulas for testing (using p_true)
-let ltl_true: LTLFormula<TestProposition> = .atomic(p_true)
-// Using .not(.atomic(p_true)) for ltl_false, or .atomic(p_false) are both valid.
-// Let's use .atomic(p_false) for clarity if p_false is defined.
-let ltl_false: LTLFormula<TestProposition> = .atomic(p_false)
+// Predefined test propositions wrapped in a struct to avoid global mutable state
+struct TestPropositions {
+    static let p_true = TestProposition(name: "p_true", evaluation: { _ in true })
+    static let p_false = TestProposition(name: "p_false", evaluation: { _ in false })
+    
+    // Convenience TRUE/FALSE LTL formulas for testing
+    static let ltl_true: LTLFormula<TestProposition> = .atomic(p_true)
+    static let ltl_false: LTLFormula<TestProposition> = .atomic(p_false)
+}
 
 @Suite final class LTLFormulaTraceEvaluationTests {
     @Test("WeakUntil (W) 演算子の評価が正しく行われること")
@@ -170,8 +170,8 @@ let ltl_false: LTLFormula<TestProposition> = .atomic(p_false)
         let idxEvaluator = LTLFormulaTraceEvaluator<IndexEqualsProposition>()
         let contextProvider = { (context: TestEvaluationContext, _: Int) -> TestEvaluationContext in context }
 
-        let p_true: LTLFormula<TestProposition> = .atomic(TemporalKitTests.p_true) // Use fully qualified name if helpers are outside class
-        let p_false: LTLFormula<TestProposition> = .atomic(TemporalKitTests.p_false)
+        let p_true: LTLFormula<TestProposition> = .atomic(TestPropositions.p_true)
+        let p_false: LTLFormula<TestProposition> = .atomic(TestPropositions.p_false)
         let trueLit: LTLFormula<TestProposition> = .booleanLiteral(true)
         let falseLit: LTLFormula<TestProposition> = .booleanLiteral(false)
 
@@ -301,12 +301,12 @@ let ltl_false: LTLFormula<TestProposition> = .atomic(p_false)
 
         let simpleEvaluator = LTLFormulaTraceEvaluator<TestProposition>()
         // Test 3: Proposition always true
-        let formula_p_true: LTLFormula<TestProposition> = .atomic(p_true)
+        let formula_p_true: LTLFormula<TestProposition> = .atomic(TestPropositions.p_true)
         #expect(try simpleEvaluator.evaluate(formula: formula_p_true, trace: trace, contextProvider: contextProvider))
         #expect(try simpleEvaluator.evaluate(formula: formula_p_true, trace: subTrace1, contextProvider: contextProvider))
 
         // Test 4: Proposition always false
-        let formula_p_false: LTLFormula<TestProposition> = .atomic(p_false)
+        let formula_p_false: LTLFormula<TestProposition> = .atomic(TestPropositions.p_false)
         #expect(try !simpleEvaluator.evaluate(formula: formula_p_false, trace: trace, contextProvider: contextProvider))
         #expect(try !simpleEvaluator.evaluate(formula: formula_p_false, trace: subTrace1, contextProvider: contextProvider))
     }
@@ -344,7 +344,7 @@ let ltl_false: LTLFormula<TestProposition> = .atomic(p_false)
         #expect(try simpleEvaluator.evaluate(formula: not_false_literal, trace: trace, contextProvider: contextProvider))
 
         // Test 3: !p_true (where p_true is .atomic(TestProposition that is always true))
-        let not_p_true: LTLFormula<TestProposition> = .not(.atomic(p_true))
+        let not_p_true: LTLFormula<TestProposition> = .not(.atomic(TestPropositions.p_true))
         #expect(try !simpleEvaluator.evaluate(formula: not_p_true, trace: trace, contextProvider: contextProvider))
 
         // Test 4: !p_false (where p_false is .atomic(TestProposition that is always false))
