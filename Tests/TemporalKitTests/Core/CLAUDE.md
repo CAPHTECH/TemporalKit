@@ -6,11 +6,12 @@ PropositionIDFactoryTests.swift の実装とレビューを通じて得られた
 ## 設計上の決定事項
 
 ### 1. パフォーマンス測定の精度
-- `Date()` の代わりに `CFAbsoluteTimeGetCurrent()` を使用
-- より高精度なマイクロ秒レベルの測定が可能
+- クロスプラットフォーム対応のため `Date()` を使用
+- Linux環境では `CFAbsoluteTimeGetCurrent()` が利用不可
 - 将来的には `ContinuousClock` への移行を検討
   - 最小サポートバージョンが iOS 16/macOS 13 以上になった時点で移行
   - Package.swift の platforms 設定を確認して判断
+  - より高精度な測定が可能になる
 
 ### 2. バリデーションロジックの効率化
 - `isValidPropositionID` ヘルパーメソッドで再検証を避ける

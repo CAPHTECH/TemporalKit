@@ -155,10 +155,10 @@ struct PropositionIDFactoryTests {
     func testPerformanceWithLargeInput() throws {
         let largeInput = String(repeating: "a", count: 10000)
         
-        // Measure performance with high precision
-        let start = CFAbsoluteTimeGetCurrent()
+        // Measure performance in a cross-platform way
+        let start = Date()
         _ = try PropositionIDFactory.createUnique(seed: largeInput)
-        let elapsed = CFAbsoluteTimeGetCurrent() - start
+        let elapsed = Date().timeIntervalSince(start)
         
         // Performance should be reasonable even with large input
         #expect(elapsed < 0.1, "Performance degradation detected: \(elapsed) seconds")
