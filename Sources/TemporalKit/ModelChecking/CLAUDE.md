@@ -60,7 +60,7 @@ LTLModelCheckerはLTL（線形時相論理）のモデル検査を行うクラ�
 1. **extractPropositionsの最適化**
    ```swift
    // メモ化を使用した実装案
-   private var propositionCache: [ObjectIdentifier: Set<PropositionID>] = [:]
+   private var propositionCache = [ObjectIdentifier: Set<PropositionID>]()
    ```
 
 2. **積オートマトンの段階的構築**

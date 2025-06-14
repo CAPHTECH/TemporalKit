@@ -735,8 +735,9 @@ struct LTLModelCheckerHelperMethodTests {
         let result = try checker.check(formula: formula, model: TestModels.model1)
         
         // WeakUntil semantics: p W q means p holds until q, or p holds forever
-        // In model1, this formula should be evaluated successfully
-        #expect(result.holds || !result.holds, "WeakUntil formula should be evaluated without errors")
+        // In model1: s0(p) -> s1(q) -> s2(p,q) -> s0
+        // From s0: p holds, then q holds at s1, so p W q should hold
+        #expect(result.holds, "WeakUntil formula p W q should hold in model1 where p holds until q is reached")
     }
     
     @Test("extractPropositions - Collects propositions from Release operator")
@@ -750,8 +751,10 @@ struct LTLModelCheckerHelperMethodTests {
         let result = try checker.check(formula: formula, model: TestModels.model1)
         
         // Release semantics: p R q means q holds until p and q both hold, or q holds forever
-        // Verify that the formula evaluation completes successfully
-        #expect(result.holds || !result.holds, "Release formula should be evaluated without errors")
+        // The main purpose of this test is to ensure extractPropositions handles the Release operator
+        // The actual LTL semantics evaluation is complex and depends on the implementation
+        // We just verify that the formula can be evaluated without throwing an error
+        _ = result // Use the result to avoid compiler warning
     }
     
     // MARK: - convertModelToBuchi tests
@@ -1058,8 +1061,11 @@ struct LTLModelCheckerPerformanceTests {
         // Verify correctness
         #expect(result.holds, "Formula F p should hold since p is true in even states")
         
+        // Ensure baseline measurement is valid
+        #expect(baselineTime > 0, "Baseline measurement should take measurable time")
+        
         // Check relative performance - should scale reasonably with model size
-        let scalingFactor = actualTime / baselineTime
+        let scalingFactor = baselineTime > 0 ? actualTime / baselineTime : 1.0
         #expect(scalingFactor < 20, "Performance scaling is worse than expected: \(scalingFactor)x slower")
     }
     
@@ -1097,8 +1103,11 @@ struct LTLModelCheckerPerformanceTests {
         // Verify the formula evaluation completed
         #expect(result.holds || !result.holds, "Complex formula should be evaluated successfully")
         
+        // Ensure baseline measurement is valid
+        #expect(baselineTime > 0, "Baseline measurement should take measurable time")
+        
         // Check that complex formula doesn't take disproportionately long
-        let complexityFactor = complexTime / baselineTime
+        let complexityFactor = baselineTime > 0 ? complexTime / baselineTime : 1.0
         #expect(complexityFactor < 100, "Complex formula overhead is too high: \(complexityFactor)x slower than baseline")
     }
 }
