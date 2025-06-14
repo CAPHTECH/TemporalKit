@@ -29,11 +29,16 @@ open class ClosureTemporalProposition<StateType, PropositionResultType: Hashable
     ///         use `init(validatingId:name:evaluate:)` instead.
     public init(id: String, name: String, evaluate: @escaping @Sendable (StateType) throws -> PropositionResultType) {
         // Use the factory to create ID with safe fallback handling
-        self.id = PropositionIDFactory.createOrNil(from: id) ?? {
+        if let validID = PropositionIDFactory.createOrNil(from: id) {
+            self.id = validID
+        } else {
             // Ultimate fallback - this should rarely happen
             assertionFailure("Failed to create fallback ID for: \(id)")
-            return PropositionID(rawValue: "emergency_fallback_\(abs(id.hashValue))")!
-        }()
+            // Use a guaranteed valid ID as last resort - this is a programming error if it fails
+            self.id = PropositionID(rawValue: "invalid_proposition") ?? {
+                fatalError("Critical error: Unable to create any valid PropositionID. This indicates a fundamental system failure.")
+            }()
+        }
         self.name = name
         self.evaluationLogic = evaluate
     }

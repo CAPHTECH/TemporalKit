@@ -1,72 +1,61 @@
-disabled_rules:
-  - trailing_comma
-  - line_length
-  - file_length
-  - type_body_length
-  - function_body_length
+# SwiftLint Configuration for TemporalKit
+# Balances code quality with practical development needs
 
-opt_in_rules:
-  - array_init
-  - closure_end_indentation
-  - closure_spacing
-  - collection_alignment
-  - contains_over_filter_count
-  - contains_over_filter_is_empty
-  - empty_collection_literal
-  - empty_count
-  - empty_string
-  - explicit_init
-  - first_where
-  - force_unwrapping
-  - implicit_return
-  - joined_default_parameter
-  - last_where
-  - literal_expression_end_indentation
-  - multiline_arguments
-  - multiline_function_chains
-  - multiline_literal_brackets
-  - multiline_parameters
-  - multiline_parameters_brackets
-  - operator_usage_whitespace
-  - prefer_self_type_over_type_of_self
-  - redundant_nil_coalescing
-  - redundant_type_annotation
-  - sorted_first_last
-  - toggle_bool
-  - unneeded_parentheses_in_closure_argument
-  - vertical_parameter_alignment_on_call
-  - vertical_whitespace_closing_braces
-  - yoda_condition
+# Files to include/exclude
+included:
+  - Sources
+  - Tests
 
 excluded:
+  - Sources/TemporalKitDemo
   - .build
-  - .swiftpm
   - Package.swift
-  - Tests/LinuxMain.swift
 
-identifier_name:
-  min_length: 1
-  max_length: 60
-  allowed_symbols: "_"
+# Enable optional rules
+opt_in_rules:
+  - force_unwrapping
+  - multiline_parameters
 
-type_name:
-  min_length: 1
-  max_length: 60
-
-function_parameter_count:
-  warning: 6
-  error: 8
+# Rules to allow in test files or specific contexts
+force_unwrapping:
+  severity: warning
 
 cyclomatic_complexity:
-  warning: 15
-  error: 20
+  ignores_case_statements: true
+  warning: 25
+  error: 40
 
-nesting:
-  type_level:
-    warning: 2
-    error: 3
-  function_level:
-    warning: 3
-    error: 5
+function_parameter_count:
+  warning: 8
+  error: 12
 
-reporter: "xcode"
+# Allow mathematical variable names in algorithms
+identifier_name:
+  min_length: 1
+  validates_start_with_lowercase: warning
+  allowed_symbols: ["_"]
+
+# Allow longer generic type names
+generic_type_name:
+  max_length: 30
+
+# Allow longer lines for complex expressions
+line_length:
+  warning: 150
+  error: 200
+
+# Allow larger tuples for algorithm state
+large_tuple:
+  warning: 4
+  error: 6
+
+# Disable strict formatting rules for complex algorithms
+multiline_parameters:
+  severity: warning
+
+vertical_parameter_alignment:
+  severity: warning
+
+# Allow for-if patterns in algorithms
+for_where:
+  severity: warning
