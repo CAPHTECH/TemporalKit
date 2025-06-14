@@ -1,5 +1,8 @@
 import Foundation
 
+// swiftlint:disable file_length type_body_length function_body_length function_parameter_count
+// swiftlint:disable cyclomatic_complexity line_length
+
 // Assumes LTLFormula, TemporalProposition, TableauNode, BuchiAlphabetSymbol, 
 // FormulaAutomatonState, BuchiAutomaton.Transition are defined and accessible.
 // Also assumes LTLToBuchiConverter.generatePossibleAlphabetSymbols is available if not inlined.

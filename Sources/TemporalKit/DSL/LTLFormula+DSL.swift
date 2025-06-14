@@ -1,5 +1,8 @@
 import Foundation
 
+// swiftlint:disable identifier_name
+// Note: X, F, G, U, W, R are standard LTL operator names in the literature
+
 // MARK: - Logical Connective Operator Overloads
 
 /// Logical NOT operator for LTL formulas.

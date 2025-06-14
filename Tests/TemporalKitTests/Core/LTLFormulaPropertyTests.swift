@@ -2,6 +2,8 @@ import Testing
 import Foundation // For UUID in MockProposition if used directly here, or for general utilities
 @testable import TemporalKit
 
+// swiftlint:disable force_unwrapping file_length type_body_length
+
 // We can reuse MockProposition from LTLDSLTests.swift if it's accessible
 // For clarity, or if it's not directly accessible due to test target organization,
 // we can define it again or a similar one here.
