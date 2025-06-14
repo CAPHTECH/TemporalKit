@@ -1,0 +1,123 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  SWIFT_VERSION: '5.9'
+
+jobs:
+  test-linux:
+    name: Test on Linux
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        swift: ['5.9', '5.10']
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Swift
+      uses: swift-actions/setup-swift@v2
+      with:
+        swift-version: ${{ matrix.swift }}
+    
+    - name: Show Swift version
+      run: swift --version
+    
+    - name: Build
+      run: swift build -v
+    
+    - name: Run tests
+      run: swift test -v
+
+  test-macos:
+    name: Test on macOS
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        xcode: ['15.0', '15.2']
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Select Xcode
+      run: sudo xcode-select -s /Applications/Xcode_${{ matrix.xcode }}.app
+    
+    - name: Show Swift version
+      run: swift --version
+    
+    - name: Build
+      run: swift build -v
+    
+    - name: Run tests
+      run: swift test -v
+    
+    - name: Build for iOS
+      run: |
+        xcodebuild build \
+          -scheme TemporalKit \
+          -destination 'platform=iOS Simulator,name=iPhone 15' \
+          -skipPackagePluginValidation
+    
+    - name: Test on iOS
+      run: |
+        xcodebuild test \
+          -scheme TemporalKit \
+          -destination 'platform=iOS Simulator,name=iPhone 15' \
+          -skipPackagePluginValidation
+
+  lint:
+    name: SwiftLint
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: SwiftLint
+      uses: norio-nomura/action-swiftlint@3.2.1
+      with:
+        args: --strict
+
+  build-docs:
+    name: Build Documentation
+    runs-on: macos-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Select Xcode
+      run: sudo xcode-select -s /Applications/Xcode_15.0.app
+    
+    - name: Build documentation
+      run: |
+        swift package --allow-writing-to-directory ./docs \
+          generate-documentation --target TemporalKit \
+          --output-path ./docs \
+          --disable-indexing \
+          --transform-for-static-hosting
+    
+    - name: Upload documentation artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: documentation
+        path: ./docs
+
+  performance-test:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Swift
+      uses: swift-actions/setup-swift@v2
+      with:
+        swift-version: '5.9'
+    
+    - name: Run performance tests
+      run: |
+        swift test --filter TemporalKitTests.PerformanceTests
