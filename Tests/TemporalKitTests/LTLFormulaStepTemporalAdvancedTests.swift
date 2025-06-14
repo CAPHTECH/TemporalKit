@@ -4,7 +4,7 @@ import Foundation
 
 @Suite("LTLFormula step() Temporal Advanced Tests")
 struct LTLFormulaStepTemporalAdvancedTests {
-    
+
     // MARK: - Helper Structures (similar to LTLFormulaTraceExtensionTests)
     struct TestState { let index: Int; let value: Bool } // value for direct prop eval
     struct TestEvalContext: EvaluationContext {

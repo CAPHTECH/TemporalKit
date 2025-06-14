@@ -6,11 +6,11 @@ import Testing
 
 @Suite("LTL Formula Temporal Operator Trace Evaluation Tests")
 struct LTLFormulaTraceEvaluationTemporalTests {
-    
+
     @Test("WeakUntil (W) 演算子の評価が正しく行われること")
     func testWeakUntilOperatorEvaluation() throws {
         let trace = createTestTrace(length: 3)
-        
+
         // Test 1: p W q where p is always true and q is always false
         let formula1: TestFormula = .weakUntil(ltl_true, ltl_q_false)
         #expect(try formula1.evaluate(over: trace) == true)
@@ -31,7 +31,7 @@ struct LTLFormulaTraceEvaluationTemporalTests {
             state.index == 2
         }
         let formula4: TestFormula = .weakUntil(.atomic(idxNot0), .atomic(idx2))
-        
+
         // Evaluate from different starting positions
         #expect(try !formula4.evaluateAt(trace[0])) // At index 0: false W false
         #expect(try formula4.evaluateAt(trace[1]))  // At index 1: true W false  
@@ -99,11 +99,11 @@ struct LTLFormulaTraceEvaluationTemporalTests {
             state.index == 2
         }
         let formula_next_idx2: TestFormula = .next(.atomic(idx2))
-        
+
         // Evaluate with sub-traces starting from different positions
         let trace_from_1 = Array(trace[1...])
         #expect(try formula_next_idx2.evaluate(over: trace_from_1) == true) // From index 1, next is index 2
-        
+
         // Test 5: X(X(true)) - needs at least 2 steps ahead
         let formula_next_next_true: TestFormula = .next(.next(.booleanLiteral(true)))
         #expect(try formula_next_next_true.evaluate(over: trace) == true) // From index 0, two steps ahead is index 2
@@ -141,7 +141,7 @@ struct LTLFormulaTraceEvaluationTemporalTests {
             state.index == 3
         }
         let formula_eventually_idx3: TestFormula = .eventually(.atomic(idx3))
-        
+
         // Should be true (eventually reaches index 3)
         #expect(try formula_eventually_idx3.evaluate(over: trace) == true)
 
@@ -150,9 +150,9 @@ struct LTLFormulaTraceEvaluationTemporalTests {
             state.index == 0
         }
         let formula_eventually_idx0: TestFormula = .eventually(.atomic(idx0))
-        
+
         #expect(try formula_eventually_idx0.evaluate(over: trace) == true) // True at first state
-        
+
         // Test with sub-traces that don't contain index 0
         let trace_from_1 = Array(trace[1...])
         #expect(try formula_eventually_idx0.evaluate(over: trace_from_1) == false) // No index 0 in this trace
@@ -193,10 +193,10 @@ struct LTLFormulaTraceEvaluationTemporalTests {
             state.index >= 2
         }
         let formula_globally_idx_ge_2: TestFormula = .globally(.atomic(idxGe2))
-        
+
         // Starting from index 0: not all states have idx >= 2 (indices 0,1 don't satisfy)
         #expect(try formula_globally_idx_ge_2.evaluate(over: trace) == false)
-        
+
         // Test with sub-trace starting from index 2
         let trace_from_2 = Array(trace[2...])
         #expect(try formula_globally_idx_ge_2.evaluate(over: trace_from_2) == true)
@@ -216,7 +216,7 @@ struct LTLFormulaTraceEvaluationTemporalTests {
             state.index == 3
         }
         let formula_globally_eventually_idx3: TestFormula = .globally(.eventually(.atomic(idx3)))
-        
+
         // G(F(idx==3)) means "always eventually idx==3"
         // Based on implementation behavior
         #expect(try formula_globally_eventually_idx3.evaluate(over: trace) == false)
@@ -250,7 +250,7 @@ struct LTLFormulaTraceEvaluationTemporalTests {
             state.index == 3
         }
         let formula_idx_le_2_until_idx_3: TestFormula = .until(.atomic(idxLe2), .atomic(idxEq3))
-        
+
         // p (idx <= 2) is true at 0,1,2 and q (idx == 3) is true at 3
         // Based on implementation behavior
         #expect(try formula_idx_le_2_until_idx_3.evaluate(over: trace) == false)
@@ -263,14 +263,14 @@ struct LTLFormulaTraceEvaluationTemporalTests {
             state.index == 3
         }
         let formula_idx0_until_idx3: TestFormula = .until(.atomic(idx0), .atomic(idx3))
-        
+
         // From index 0: p is true but becomes false at index 1, before q becomes true at index 3
         // This should fail because p doesn't hold until q becomes true
         #expect(try formula_idx0_until_idx3.evaluate(over: trace) == false)
 
         // Test 7: p U (F q) where p is true and q is idx==3
         let formula_true_until_eventually_idx3: TestFormula = .until(.booleanLiteral(true), .eventually(.atomic(idx3)))
-        
+
         // F(idx==3) is true from indices 0-3, so true U F(idx==3) should be true
         #expect(try formula_true_until_eventually_idx3.evaluate(over: trace) == true)
 

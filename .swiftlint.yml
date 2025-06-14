@@ -59,3 +59,8 @@ vertical_parameter_alignment:
 # Allow for-if patterns in algorithms
 for_where:
   severity: warning
+
+# Allow longer files for comprehensive test suites
+file_length:
+  warning: 800
+  error: 1500
