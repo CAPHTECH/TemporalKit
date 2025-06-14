@@ -6,12 +6,17 @@ import Foundation
 /// making it convenient for simpler propositions without needing to create a separate subclass.
 /// It is generic over the `StateType` it expects from the `EvaluationContext` and the
 /// `PropositionResultType` that the evaluation yields.
-open class ClosureTemporalProposition<StateType, PropositionResultType: Hashable>: TemporalProposition {
+///
+/// - Important: Thread Safety: This class is immutable after initialization and thus thread-safe.
+///   Subclasses MUST NOT add mutable state to maintain Sendable conformance.
+///   The `@unchecked Sendable` conformance is safe because all stored properties are immutable
+///   and the evaluation logic closure is marked as `@Sendable`.
+open class ClosureTemporalProposition<StateType, PropositionResultType: Hashable>: TemporalProposition, @unchecked Sendable {
     public typealias Value = PropositionResultType
 
     public let id: PropositionID
     public let name: String
-    private let evaluationLogic: (StateType) throws -> PropositionResultType
+    private let evaluationLogic: @Sendable (StateType) throws -> PropositionResultType
 
     /// Initializes a new closure-based temporal proposition.
     ///
@@ -20,9 +25,38 @@ open class ClosureTemporalProposition<StateType, PropositionResultType: Hashable
     ///   - name: The human-readable name of the proposition.
     ///   - evaluate: A closure that takes an object of `StateType` and returns the `PropositionResultType`.
     ///               This closure can throw errors.
-    public init(id: String, name: String, evaluate: @escaping (StateType) throws -> PropositionResultType) {
-        // Use failable initializer and provide fallback for invalid IDs
-        self.id = PropositionID(rawValue: id) ?? PropositionID(rawValue: "invalid_id")!
+    /// - Note: If the provided ID is invalid, a fallback ID will be generated. For explicit error handling,
+    ///         use `init(validatingId:name:evaluate:)` instead.
+    public init(id: String, name: String, evaluate: @escaping @Sendable (StateType) throws -> PropositionResultType) {
+        // Use the factory to create ID with safe fallback handling
+        if let validID = PropositionIDFactory.createOrNil(from: id) {
+            self.id = validID
+        } else {
+            // Ultimate fallback - this should rarely happen
+            assertionFailure("Failed to create fallback ID for: \(id)")
+            // Use a guaranteed valid ID as last resort - this is a programming error if it fails
+            // Since PropositionID validation is extremely basic (non-empty string), this should never fail
+            // If it does, it indicates a fundamental system failure
+            guard let fallbackID = PropositionID(rawValue: "invalid_proposition") else {
+                fatalError("Critical error: Unable to create any valid PropositionID. This indicates a fundamental system failure.")
+            }
+            self.id = fallbackID
+        }
+        self.name = name
+        self.evaluationLogic = evaluate
+    }
+
+    /// Initializes a new closure-based temporal proposition with explicit ID validation.
+    ///
+    /// - Parameters:
+    ///   - id: The unique identifier for the proposition.
+    ///   - name: The human-readable name of the proposition.
+    ///   - evaluate: A closure that takes an object of `StateType` and returns the `PropositionResultType`.
+    ///               This closure can throw errors.
+    /// - Throws: `TemporalKitError` if the provided ID is invalid and no fallback ID can be created.
+    public init(validatingId id: String, name: String, evaluate: @escaping @Sendable (StateType) throws -> PropositionResultType) throws {
+        // Use the factory for strict validation with proper error handling
+        self.id = try PropositionIDFactory.create(from: id)
         self.name = name
         self.evaluationLogic = evaluate
     }
@@ -67,7 +101,7 @@ open class ClosureTemporalProposition<StateType, PropositionResultType: Hashable
     public static func nonThrowing(
         id: String,
         name: String,
-        evaluate: @escaping (StateType) -> PropositionResultType
+        evaluate: @escaping @Sendable (StateType) -> PropositionResultType
     ) -> ClosureTemporalProposition<StateType, PropositionResultType> {
         ClosureTemporalProposition(
             id: id,

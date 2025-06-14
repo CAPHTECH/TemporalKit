@@ -212,14 +212,27 @@ final class ComplexLTLTests: XCTestCase {
     // MARK: - Helper methods
 
     private func makeProposition(_ id: String) -> TestProposition {
-        TemporalKit.makeProposition(
-            id: id,
-            name: id,
-            evaluate: { (state: String) -> Bool in
-                guard let kripkeState = self.findState(id: state) else { return false }
-                return kripkeState.propositions.contains(id)
+        // Use the helper to create thread-safe propositions
+        let statePropositionsMap = createStatePropositionsMap()
+        return TestKripkeStructureHelper.makeProposition(id: id, stateMapping: statePropositionsMap)
+    }
+
+    private func createStatePropositionsMap() -> [String: [String]] {
+        var map: [String: [String]] = [:]
+
+        let allStructures = [
+            createAcceptingKripke(),
+            createRejectingKripke(),
+            createCyclicKripke()
+        ]
+
+        for structure in allStructures {
+            for state in structure.states {
+                map[state.id] = state.propositions
             }
-        )
+        }
+
+        return map
     }
 
     private func findState(id: String) -> KripkeState? {

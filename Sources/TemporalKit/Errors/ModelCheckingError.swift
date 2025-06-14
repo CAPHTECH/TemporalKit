@@ -1,7 +1,7 @@
 import Foundation
 
 /// モデルチェッキング処理中に発生するエラー
-public enum ModelCheckingError<State>: Error, LocalizedError {
+public enum ModelCheckingError<State: Sendable>: Error, LocalizedError {
     /// 無効なKripke構造
     case invalidKripkeStructure(reason: String)
 
@@ -60,7 +60,7 @@ public enum ModelCheckingError<State>: Error, LocalizedError {
 }
 
 /// モデルチェッキングの統計情報
-public struct ModelCheckingStatistics {
+public struct ModelCheckingStatistics: Sendable {
     public let statesExplored: Int
     public let transitionsExplored: Int
     public let timeElapsed: TimeInterval
@@ -78,3 +78,39 @@ public struct ModelCheckingStatistics {
         self.peakMemoryUsage = peakMemoryUsage
     }
 }
+
+// MARK: - Migration Support
+
+/// A wrapper for state types that conditionally conforms to Sendable.
+/// When T is Sendable, this wrapper is also Sendable.
+/// When T is not Sendable, you must use UnsafeSendableStateBox instead.
+public struct SendableStateBox<T> {
+    public let value: T
+
+    public init(_ value: T) {
+        self.value = value
+    }
+}
+
+// Conditional Sendable conformance - only when T is Sendable
+extension SendableStateBox: Sendable where T: Sendable {}
+
+/// An unsafe wrapper for non-sendable state types during migration.
+/// - Warning: This type bypasses Swift concurrency checks. You must ensure thread safety manually.
+@available(*, deprecated, message: "Only for migration. Ensure thread safety manually when using non-Sendable state types.")
+public struct UnsafeSendableStateBox<T>: @unchecked Sendable {
+    public let value: T
+
+    public init(_ value: T) {
+        self.value = value
+        #if DEBUG
+        print("⚠️ Warning: Using UnsafeSendableStateBox with \(type(of: value)). Ensure thread safety manually.")
+        #endif
+    }
+}
+
+/// Type alias for backward compatibility with non-Sendable state types.
+/// - Warning: This is deprecated and will be removed in a future version.
+///   Please ensure your state types conform to Sendable.
+@available(*, deprecated, message: "Use ModelCheckingError with Sendable state types. For non-Sendable types, explicitly use UnsafeSendableStateBox.")
+public typealias LegacyModelCheckingError<State> = ModelCheckingError<UnsafeSendableStateBox<State>>

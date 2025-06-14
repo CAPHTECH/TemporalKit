@@ -125,3 +125,6 @@ public indirect enum LTLFormula<P: TemporalProposition>: Hashable where P.Value 
         }
     }
 }
+
+// Conditional Sendable conformance when P is Sendable
+extension LTLFormula: Sendable where P: Sendable {}

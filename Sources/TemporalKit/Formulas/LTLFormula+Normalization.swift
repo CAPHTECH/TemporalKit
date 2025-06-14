@@ -222,7 +222,12 @@ extension LTLFormula {
             return .or(simplifiedLhs, simplifiedRhs)
 
         case .next(let subFormula):
-            return .next(subFormula.simplifyConstants())
+            let simplified = subFormula.simplifyConstants()
+            // X(true) → true, X(false) → false
+            if case .booleanLiteral(let value) = simplified {
+                return .booleanLiteral(value)
+            }
+            return .next(simplified)
 
         case .eventually(let subFormula):
             let simplified = subFormula.simplifyConstants()

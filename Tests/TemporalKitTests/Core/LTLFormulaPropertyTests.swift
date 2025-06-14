@@ -2,6 +2,8 @@ import Testing
 import Foundation // For UUID in MockProposition if used directly here, or for general utilities
 @testable import TemporalKit
 
+// swiftlint:disable force_unwrapping file_length type_body_length
+
 // We can reuse MockProposition from LTLDSLTests.swift if it's accessible
 // For clarity, or if it's not directly accessible due to test target organization,
 // we can define it again or a similar one here.
@@ -98,22 +100,22 @@ struct LTLFormulaPropertyTests {
         let falseLiteral: LTLFormula<PropertyTestMockProposition> = .booleanLiteral(false)
 
         // true && p
-        let trueAndP = LTLFormula.and(trueLiteral, pForm)
+        let trueAndP = LTLFormula<PropertyTestMockProposition>.and(trueLiteral, pForm)
         #expect(trueAndP.normalized() == pForm.normalized(), "Constant Propagation: true && p should normalize to p")
         #expect(trueAndP.normalized() == pForm, "Constant Propagation: true && p should normalize to p")
 
         // p && true 
-        let pAndTrue = LTLFormula.and(pForm, trueLiteral)
+        let pAndTrue = LTLFormula<PropertyTestMockProposition>.and(pForm, trueLiteral)
         #expect(pAndTrue.normalized() == pForm.normalized(), "Constant Propagation: p && true should normalize to p")
         #expect(pAndTrue.normalized() == pForm, "Constant Propagation: p && true should normalize to p")
 
         // false && p
-        let falseAndP = LTLFormula.and(falseLiteral, pForm)
+        let falseAndP = LTLFormula<PropertyTestMockProposition>.and(falseLiteral, pForm)
         #expect(falseAndP.normalized() == falseLiteral.normalized(), "Constant Propagation: false && p should normalize to false")
         #expect(falseAndP.normalized() == falseLiteral, "Constant Propagation: false && p should normalize to false")
 
         // p && false
-        let pAndFalse = LTLFormula.and(pForm, falseLiteral)
+        let pAndFalse = LTLFormula<PropertyTestMockProposition>.and(pForm, falseLiteral)
         #expect(pAndFalse.normalized() == falseLiteral.normalized(), "Constant Propagation: p && false should normalize to false")
         #expect(pAndFalse.normalized() == falseLiteral, "Constant Propagation: p && false should normalize to false")
     }
@@ -125,22 +127,22 @@ struct LTLFormulaPropertyTests {
         let falseLiteral: LTLFormula<PropertyTestMockProposition> = .booleanLiteral(false)
 
         // true || p
-        let trueOrP = LTLFormula.or(trueLiteral, pForm)
+        let trueOrP = LTLFormula<PropertyTestMockProposition>.or(trueLiteral, pForm)
         #expect(trueOrP.normalized() == trueLiteral.normalized(), "Constant Propagation: true || p should normalize to true")
         #expect(trueOrP.normalized() == trueLiteral, "Constant Propagation: true || p should normalize to true")
 
         // p || true 
-        let pOrTrue = LTLFormula.or(pForm, trueLiteral)
+        let pOrTrue = LTLFormula<PropertyTestMockProposition>.or(pForm, trueLiteral)
         #expect(pOrTrue.normalized() == trueLiteral.normalized(), "Constant Propagation: p || true should normalize to true")
         #expect(pOrTrue.normalized() == trueLiteral, "Constant Propagation: p || true should normalize to true")
 
         // false || p
-        let falseOrP = LTLFormula.or(falseLiteral, pForm)
+        let falseOrP = LTLFormula<PropertyTestMockProposition>.or(falseLiteral, pForm)
         #expect(falseOrP.normalized() == pForm.normalized(), "Constant Propagation: false || p should normalize to p")
         #expect(falseOrP.normalized() == pForm, "Constant Propagation: false || p should normalize to p")
 
         // p || false
-        let pOrFalse = LTLFormula.or(pForm, falseLiteral)
+        let pOrFalse = LTLFormula<PropertyTestMockProposition>.or(pForm, falseLiteral)
         #expect(pOrFalse.normalized() == pForm.normalized(), "Constant Propagation: p || false should normalize to p")
         #expect(pOrFalse.normalized() == pForm, "Constant Propagation: p || false should normalize to p")
     }
@@ -152,11 +154,11 @@ struct LTLFormulaPropertyTests {
         let trueLiteral: LTLFormula<PropertyTestMockProposition> = .booleanLiteral(true)
 
         // p || !p
-        let pOrNotP = LTLFormula.or(pForm, notPForm)
+        let pOrNotP = LTLFormula<PropertyTestMockProposition>.or(pForm, notPForm)
         #expect(pOrNotP.normalized() == trueLiteral, "Boolean Simplification: p || !p should normalize to true")
 
         // !p || p
-        let notPOrP = LTLFormula.or(notPForm, pForm)
+        let notPOrP = LTLFormula<PropertyTestMockProposition>.or(notPForm, pForm)
         #expect(notPOrP.normalized() == trueLiteral, "Boolean Simplification: !p || p should normalize to true")
     }
 
@@ -167,11 +169,11 @@ struct LTLFormulaPropertyTests {
         let falseLiteral: LTLFormula<PropertyTestMockProposition> = .booleanLiteral(false)
 
         // p && !p
-        let pAndNotP = LTLFormula.and(pForm, notPForm)
+        let pAndNotP = LTLFormula<PropertyTestMockProposition>.and(pForm, notPForm)
         #expect(pAndNotP.normalized() == falseLiteral, "Boolean Simplification: p && !p should normalize to false")
 
         // !p && p
-        let notPAndP = LTLFormula.and(notPForm, pForm)
+        let notPAndP = LTLFormula<PropertyTestMockProposition>.and(notPForm, pForm)
         #expect(notPAndP.normalized() == falseLiteral, "Boolean Simplification: !p && p should normalize to false")
     }
 
@@ -182,23 +184,23 @@ struct LTLFormulaPropertyTests {
         let falseLiteral: LTLFormula<PropertyTestMockProposition> = .booleanLiteral(false)
 
         // false R p -> G(p)
-        let falseRp = LTLFormula.release(falseLiteral, pForm)
-        let globallyP = LTLFormula.globally(pForm)
+        let falseRp = LTLFormula<PropertyTestMockProposition>.release(falseLiteral, pForm)
+        let globallyP = LTLFormula<PropertyTestMockProposition>.globally(pForm)
         // Note: G(p) might normalize further, so compare normalized forms
         #expect(falseRp.normalized() == globallyP.normalized(), "Release Norm: false R p should normalize to G(p)")
 
         // true R p -> p
-        let trueRp = LTLFormula.release(trueLiteral, pForm)
+        let trueRp = LTLFormula<PropertyTestMockProposition>.release(trueLiteral, pForm)
         #expect(trueRp.normalized() == pForm.normalized(), "Release Norm: true R p should normalize to p")
         #expect(trueRp.normalized() == pForm, "Release Norm: true R p should normalize to p")
 
         // p R false -> false
-        let pRfalse = LTLFormula.release(pForm, falseLiteral)
+        let pRfalse = LTLFormula<PropertyTestMockProposition>.release(pForm, falseLiteral)
         #expect(pRfalse.normalized() == falseLiteral.normalized(), "Release Norm: p R false should normalize to false")
         #expect(pRfalse.normalized() == falseLiteral, "Release Norm: p R false should normalize to false")
 
         // p R true -> true
-        let pRtrue = LTLFormula.release(pForm, trueLiteral)
+        let pRtrue = LTLFormula<PropertyTestMockProposition>.release(pForm, trueLiteral)
         #expect(pRtrue.normalized() == trueLiteral.normalized(), "Release Norm: p R true should normalize to true")
         #expect(pRtrue.normalized() == trueLiteral, "Release Norm: p R true should normalize to true")
     }
@@ -221,11 +223,11 @@ struct LTLFormulaPropertyTests {
         let falseLiteral: LTLFormula<PropertyTestMockProposition> = .booleanLiteral(false)
 
         // X(true) -> true
-        let xTrue = LTLFormula.next(trueLiteral)
+        let xTrue = LTLFormula<PropertyTestMockProposition>.next(trueLiteral)
         #expect(xTrue.normalized() == trueLiteral, "Next Norm: X(true) should normalize to true")
 
         // X(false) -> false
-        let xFalse = LTLFormula.next(falseLiteral)
+        let xFalse = LTLFormula<PropertyTestMockProposition>.next(falseLiteral)
         #expect(xFalse.normalized() == falseLiteral, "Next Norm: X(false) should normalize to false")
     }
 
@@ -236,16 +238,16 @@ struct LTLFormulaPropertyTests {
         let falseLiteral: LTLFormula<PropertyTestMockProposition> = .booleanLiteral(false)
 
         // F(true) -> true
-        let fTrue = LTLFormula.eventually(trueLiteral)
+        let fTrue = LTLFormula<PropertyTestMockProposition>.eventually(trueLiteral)
         #expect(fTrue.normalized() == trueLiteral, "Eventually Norm: F(true) should normalize to true")
 
         // F(false) -> false
-        let fFalse = LTLFormula.eventually(falseLiteral)
+        let fFalse = LTLFormula<PropertyTestMockProposition>.eventually(falseLiteral)
         #expect(fFalse.normalized() == falseLiteral, "Eventually Norm: F(false) should normalize to false")
 
         // F(F(p)) -> F(p)
-        let fp = LTLFormula.eventually(pForm)
-        let ffp = LTLFormula.eventually(fp)
+        let fp = LTLFormula<PropertyTestMockProposition>.eventually(pForm)
+        let ffp = LTLFormula<PropertyTestMockProposition>.eventually(fp)
         #expect(ffp.normalized() == fp.normalized(), "Eventually Norm: F(F(p)) should normalize to F(p)")
     }
 
@@ -256,16 +258,16 @@ struct LTLFormulaPropertyTests {
         let falseLiteral: LTLFormula<PropertyTestMockProposition> = .booleanLiteral(false)
 
         // G(true) -> true
-        let gTrue = LTLFormula.globally(trueLiteral)
+        let gTrue = LTLFormula<PropertyTestMockProposition>.globally(trueLiteral)
         #expect(gTrue.normalized() == trueLiteral, "Globally Norm: G(true) should normalize to true")
 
         // G(false) -> false
-        let gFalse = LTLFormula.globally(falseLiteral)
+        let gFalse = LTLFormula<PropertyTestMockProposition>.globally(falseLiteral)
         #expect(gFalse.normalized() == falseLiteral, "Globally Norm: G(false) should normalize to false")
 
         // G(G(p)) -> G(p)
-        let gp = LTLFormula.globally(pForm)
-        let ggp = LTLFormula.globally(gp)
+        let gp = LTLFormula<PropertyTestMockProposition>.globally(pForm)
+        let ggp = LTLFormula<PropertyTestMockProposition>.globally(gp)
         #expect(ggp.normalized() == gp.normalized(), "Globally Norm: G(G(p)) should normalize to G(p)")
     }
 
@@ -276,15 +278,15 @@ struct LTLFormulaPropertyTests {
         let falseLiteral: LTLFormula<PropertyTestMockProposition> = .booleanLiteral(false)
 
         // p U true -> true
-        let pUtrue = LTLFormula.until(pForm, trueLiteral)
+        let pUtrue = LTLFormula<PropertyTestMockProposition>.until(pForm, trueLiteral)
         #expect(pUtrue.normalized() == trueLiteral, "Until Norm: p U true should normalize to true")
 
         // p U false -> false
-        let pUfalse = LTLFormula.until(pForm, falseLiteral)
+        let pUfalse = LTLFormula<PropertyTestMockProposition>.until(pForm, falseLiteral)
         #expect(pUfalse.normalized() == falseLiteral, "Until Norm: p U false should normalize to false")
 
         // false U p -> p 
-        let falseUp = LTLFormula.until(falseLiteral, pForm)
+        let falseUp = LTLFormula<PropertyTestMockProposition>.until(falseLiteral, pForm)
         #expect(falseUp.normalized() == pForm.normalized(), "Until Norm: false U p should normalize to p")
         #expect(falseUp.normalized() == pForm, "Until Norm: false U p should normalize to p")
     }
@@ -294,18 +296,18 @@ struct LTLFormulaPropertyTests {
         let pForm: LTLFormula<PropertyTestMockProposition> = .atomic(p)
         let trueLiteral: LTLFormula<PropertyTestMockProposition> = .booleanLiteral(true)
         let falseLiteral: LTLFormula<PropertyTestMockProposition> = .booleanLiteral(false)
-        let globallyP = LTLFormula.globally(pForm)
+        let globallyP = LTLFormula<PropertyTestMockProposition>.globally(pForm)
 
         // p W true -> true
-        let pWtrue = LTLFormula.weakUntil(pForm, trueLiteral)
+        let pWtrue = LTLFormula<PropertyTestMockProposition>.weakUntil(pForm, trueLiteral)
         #expect(pWtrue.normalized() == trueLiteral, "WeakUntil Norm: p W true should normalize to true")
 
         // p W false -> G(p)
-        let pWfalse = LTLFormula.weakUntil(pForm, falseLiteral)
+        let pWfalse = LTLFormula<PropertyTestMockProposition>.weakUntil(pForm, falseLiteral)
         #expect(pWfalse.normalized() == globallyP.normalized(), "WeakUntil Norm: p W false should normalize to G(p)")
 
         // false W p -> p 
-        let falseWp = LTLFormula.weakUntil(falseLiteral, pForm)
+        let falseWp = LTLFormula<PropertyTestMockProposition>.weakUntil(falseLiteral, pForm)
         #expect(falseWp.normalized() == pForm.normalized(), "WeakUntil Norm: false W p should normalize to p")
         #expect(falseWp.normalized() == pForm, "WeakUntil Norm: false W p should normalize to p")
     }
@@ -319,12 +321,12 @@ struct LTLFormulaPropertyTests {
         var hasher = Hasher()
 
         // Cases previously with 0 coverage based on coverage_report.txt
-        let andFormula = LTLFormula.and(pAtom, qAtom)
-        let orFormula = LTLFormula.or(pAtom, qAtom)
-        let impliesFormula = LTLFormula.implies(pAtom, qAtom)
-        let eventuallyFormula = LTLFormula.eventually(pAtom)
-        let globallyFormula = LTLFormula.globally(pAtom)
-        let weakUntilFormula = LTLFormula.weakUntil(pAtom, qAtom)
+        let andFormula = LTLFormula<PropertyTestMockProposition>.and(pAtom, qAtom)
+        let orFormula = LTLFormula<PropertyTestMockProposition>.or(pAtom, qAtom)
+        let impliesFormula = LTLFormula<PropertyTestMockProposition>.implies(pAtom, qAtom)
+        let eventuallyFormula = LTLFormula<PropertyTestMockProposition>.eventually(pAtom)
+        let globallyFormula = LTLFormula<PropertyTestMockProposition>.globally(pAtom)
+        let weakUntilFormula = LTLFormula<PropertyTestMockProposition>.weakUntil(pAtom, qAtom)
 
         // Invoking hash(into:) for each. The specific hash value isn't the focus here, just coverage.
         andFormula.hash(into: &hasher)
@@ -355,28 +357,28 @@ struct LTLFormulaPropertyTests {
         let rAtom: LTLFormula<PropertyTestMockProposition> = .atomic(PropertyTestMockProposition(name: "r")) // Different proposition
 
         // Case: .implies(let lLhs, let lRhs), .implies(let rLhs, let rRhs)
-        let implies_p_q = LTLFormula.implies(pAtom, qAtom)
-        let implies_p_q_copy = LTLFormula.implies(pAtom, qAtom)
-        let implies_q_p = LTLFormula.implies(qAtom, pAtom)
-        let implies_p_r = LTLFormula.implies(pAtom, rAtom)
+        let implies_p_q = LTLFormula<PropertyTestMockProposition>.implies(pAtom, qAtom)
+        let implies_p_q_copy = LTLFormula<PropertyTestMockProposition>.implies(pAtom, qAtom)
+        let implies_q_p = LTLFormula<PropertyTestMockProposition>.implies(qAtom, pAtom)
+        let implies_p_r = LTLFormula<PropertyTestMockProposition>.implies(pAtom, rAtom)
         #expect(implies_p_q == implies_p_q_copy)
         #expect(implies_p_q != implies_q_p)
         #expect(implies_p_q != implies_p_r)
         #expect(implies_p_q != pAtom) // Different type
 
         // Case: .next(let lForm), .next(let rForm)
-        let next_p = LTLFormula.next(pAtom)
-        let next_p_copy = LTLFormula.next(pAtom)
-        let next_q = LTLFormula.next(qAtom)
+        let next_p = LTLFormula<PropertyTestMockProposition>.next(pAtom)
+        let next_p_copy = LTLFormula<PropertyTestMockProposition>.next(pAtom)
+        let next_q = LTLFormula<PropertyTestMockProposition>.next(qAtom)
         #expect(next_p == next_p_copy)
         #expect(next_p != next_q)
         #expect(next_p != pAtom) // Different type
 
         // Case: .weakUntil(let lLhs, let lRhs), .weakUntil(let rLhs, let rRhs)
-        let wu_p_q = LTLFormula.weakUntil(pAtom, qAtom)
-        let wu_p_q_copy = LTLFormula.weakUntil(pAtom, qAtom)
-        let wu_q_p = LTLFormula.weakUntil(qAtom, pAtom)
-        let wu_p_r = LTLFormula.weakUntil(pAtom, rAtom)
+        let wu_p_q = LTLFormula<PropertyTestMockProposition>.weakUntil(pAtom, qAtom)
+        let wu_p_q_copy = LTLFormula<PropertyTestMockProposition>.weakUntil(pAtom, qAtom)
+        let wu_q_p = LTLFormula<PropertyTestMockProposition>.weakUntil(qAtom, pAtom)
+        let wu_p_r = LTLFormula<PropertyTestMockProposition>.weakUntil(pAtom, rAtom)
         #expect(wu_p_q == wu_p_q_copy)
         #expect(wu_p_q != wu_q_p)
         #expect(wu_p_q != wu_p_r)
@@ -384,27 +386,27 @@ struct LTLFormulaPropertyTests {
 
         // Additional equality checks for completeness, though not explicitly for unhit lines previously
         // .and
-        let and_p_q = LTLFormula.and(pAtom, qAtom)
-        let and_p_q_copy = LTLFormula.and(pAtom, qAtom)
+        let and_p_q = LTLFormula<PropertyTestMockProposition>.and(pAtom, qAtom)
+        let and_p_q_copy = LTLFormula<PropertyTestMockProposition>.and(pAtom, qAtom)
         #expect(and_p_q == and_p_q_copy)
-        #expect(and_p_q != LTLFormula.and(qAtom, pAtom))
+        #expect(and_p_q != LTLFormula<PropertyTestMockProposition>.and(qAtom, pAtom))
 
         // .or
-        let or_p_q = LTLFormula.or(pAtom, qAtom)
-        let or_p_q_copy = LTLFormula.or(pAtom, qAtom)
+        let or_p_q = LTLFormula<PropertyTestMockProposition>.or(pAtom, qAtom)
+        let or_p_q_copy = LTLFormula<PropertyTestMockProposition>.or(pAtom, qAtom)
         #expect(or_p_q == or_p_q_copy)
-        #expect(or_p_q != LTLFormula.or(qAtom, pAtom))
+        #expect(or_p_q != LTLFormula<PropertyTestMockProposition>.or(qAtom, pAtom))
 
         // .eventually
-        let eventually_p = LTLFormula.eventually(pAtom)
-        let eventually_p_copy = LTLFormula.eventually(pAtom)
+        let eventually_p = LTLFormula<PropertyTestMockProposition>.eventually(pAtom)
+        let eventually_p_copy = LTLFormula<PropertyTestMockProposition>.eventually(pAtom)
         #expect(eventually_p == eventually_p_copy)
-        #expect(eventually_p != LTLFormula.eventually(qAtom))
+        #expect(eventually_p != LTLFormula<PropertyTestMockProposition>.eventually(qAtom))
 
         // .globally
-        let globally_p = LTLFormula.globally(pAtom)
-        let globally_p_copy = LTLFormula.globally(pAtom)
+        let globally_p = LTLFormula<PropertyTestMockProposition>.globally(pAtom)
+        let globally_p_copy = LTLFormula<PropertyTestMockProposition>.globally(pAtom)
         #expect(globally_p == globally_p_copy)
-        #expect(globally_p != LTLFormula.globally(qAtom))
+        #expect(globally_p != LTLFormula<PropertyTestMockProposition>.globally(qAtom))
     }
 }

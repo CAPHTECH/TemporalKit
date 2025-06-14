@@ -40,7 +40,9 @@ extension LTLFormula {
         case .next:
             throw LTLTraceEvaluationError.inconclusiveEvaluation("Cannot evaluate Next at the end of the trace")
         case .eventually:
-            return false // Eventually never satisfied in finite trace
+            // Eventually should have been satisfied during the trace if it was going to be
+            // If we reach the end with an eventually formula, it means it was never satisfied
+            return false
         case .globally:
             return true // Globally satisfied in finite trace if we reach here
         case .until:

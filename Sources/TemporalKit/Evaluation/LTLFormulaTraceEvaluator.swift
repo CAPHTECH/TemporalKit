@@ -128,4 +128,3 @@ public class LTLFormulaTraceEvaluator<P: TemporalProposition> where P.Value == B
         }
     }
 }
-

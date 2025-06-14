@@ -4,7 +4,7 @@ public enum TemporalKitError: Error, LocalizedError {
     case stateTypeMismatch(expected: String, actual: String, propositionID: PropositionID, propositionName: String)
     case stateNotAvailable(expected: String, propositionID: PropositionID, propositionName: String)
     case configurationError(message: String)
-    case invalidArgument(parameter: String, value: Any?, reason: String)
+    case invalidArgument(parameter: String, value: String?, reason: String)
     case unsupportedOperation(operation: String, reason: String)
 
     public var errorDescription: String? {
@@ -24,5 +24,23 @@ public enum TemporalKitError: Error, LocalizedError {
         case .unsupportedOperation(let operation, let reason):
             return "Unsupported operation '\(operation)': \(reason)"
         }
+    }
+}
+
+// MARK: - Type-safe Error Creation
+
+extension TemporalKitError {
+    /// Creates an invalidArgument error with type information preserved as a string.
+    /// This method provides better debugging information by including the actual type.
+    public static func invalidArgumentWithType<T>(
+        parameter: String,
+        value: T?,
+        reason: String
+    ) -> TemporalKitError {
+        .invalidArgument(
+            parameter: parameter,
+            value: value.map { String(describing: $0) },
+            reason: reason
+        )
     }
 }

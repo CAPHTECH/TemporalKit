@@ -62,8 +62,8 @@ internal struct LTLFormulaNNFConverter {
             // So, ¬(φ W ψ) ≡ ¬((φ U ψ) ∨ Gφ)
             //              ≡ ¬(φ U ψ) ∧ ¬(Gφ)
             //              ≡ (¬ψ R ¬φ) ∧ (F¬φ)  (using ¬(φ U ψ) -> (¬ψ R ¬φ) and ¬Gφ -> F¬φ)
-            let term1 = LTLFormula.release(convert(.not(rhs)), convert(.not(lhs)))
-            let term2 = LTLFormula.eventually(convert(.not(lhs)))
+            let term1 = LTLFormula<P>.release(convert(.not(rhs)), convert(.not(lhs)))
+            let term2 = LTLFormula<P>.eventually(convert(.not(lhs)))
             return .and(term1, term2)
 
         case .not(.release(let lhs, let rhs)):
