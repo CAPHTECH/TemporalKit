@@ -100,11 +100,15 @@ jobs:
           --disable-indexing \
           --transform-for-static-hosting
     
+    - name: Create documentation archive
+      run: |
+        tar -czf documentation.tar.gz ./docs
+    
     - name: Upload documentation artifacts
       uses: actions/upload-artifact@v4
       with:
         name: documentation
-        path: ./docs
+        path: documentation.tar.gz
 
   performance-test:
     name: Performance Tests
