@@ -18,12 +18,31 @@ open class ClosureTemporalProposition<StateType, PropositionResultType: Hashable
     public let name: String
     private let evaluationLogic: @Sendable (StateType) throws -> PropositionResultType
     
-    /// A default ID used when an invalid ID string is provided.
-    /// Uses a UUID to ensure uniqueness even for invalid propositions.
+    /// A default ID prefix used when an invalid ID string is provided.
     private static var invalidIDPrefix: String { "invalid_proposition_" }
+    
+    /// Creates a unique invalid ID using UUID.
+    /// While UUID generation has some overhead, it guarantees uniqueness without
+    /// requiring static stored properties (which aren't supported in generic types).
     private static func createInvalidID() -> PropositionID {
-        // This is safe because we control the format and ensure it's valid
-        PropositionID(rawValue: "\(invalidIDPrefix)\(UUID().uuidString)")!
+        // Create a deterministic fallback ID first
+        let fallbackID = PropositionID(rawValue: "system_fallback_proposition")
+        
+        // Generate a UUID-based ID
+        let generatedID = "\(invalidIDPrefix)\(UUID().uuidString)"
+        
+        // This should always succeed given our ID format, but we have a fallback just in case
+        if let id = PropositionID(rawValue: generatedID) {
+            return id
+        }
+        
+        // If both the generated ID and fallback are invalid, it means PropositionID's
+        // validation rules have changed dramatically
+        guard let safeID = fallbackID else {
+            fatalError("PropositionID validation logic has changed incompatibly. Cannot create any valid ID.")
+        }
+        
+        return safeID
     }
 
     /// Initializes a new closure-based temporal proposition.
