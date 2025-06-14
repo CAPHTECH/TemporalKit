@@ -6,7 +6,7 @@ import Foundation // For UUID
 private struct CTP_TestState { // Renamed to avoid conflicts
     let value: Int
     let shouldThrowInEvaluate: Bool
-    
+
     init(value: Int, shouldThrowInEvaluate: Bool = false) {
         self.value = value
         self.shouldThrowInEvaluate = shouldThrowInEvaluate
@@ -23,12 +23,12 @@ private class CTP_TestEvaluationContext: EvaluationContext { // Renamed
     }
 
     var currentTraceIndex: Int {
-        get { return _traceIndex }
+        get { _traceIndex }
         set { _traceIndex = newValue }
     }
-    
+
     func currentStateAs<S>(_ type: S.Type) -> S? {
-        return state as? S
+        state as? S
     }
 }
 
@@ -110,12 +110,12 @@ private enum CTP_TestEvaluationError: Error, Equatable { // Renamed
             _ = try proposition.evaluate(in: context)
         }
     }
-    
+
     @Test("nonThrowing factory creates proposition that evaluates correctly")
     func testNonThrowingFactory_Success() throws {
         let state = CTP_TestState(value: 50)
         let context = CTP_TestEvaluationContext(state: state)
-        
+
         let proposition = ClosureTemporalProposition<CTP_TestState, String>.nonThrowing(
             id: "p_non_throwing_success",
             name: "Non-Throwing Proposition Success",
@@ -128,18 +128,18 @@ private enum CTP_TestEvaluationError: Error, Equatable { // Renamed
 
     @Test("nonThrowing factory with non-throwing logic (testing internal throwing adaptation)")
     func testNonThrowingFactory_InternalLogicCoverage() throws {
-        let state = CTP_TestState(value: 1) 
+        let state = CTP_TestState(value: 1)
         let context = CTP_TestEvaluationContext(state: state)
-        
+
         let proposition = ClosureTemporalProposition<CTP_TestState, Int>.nonThrowing(
             id: "p_non_throwing_coverage",
             name: "Non-Throwing Proposition Coverage",
             evaluate: { (testState: CTP_TestState) -> Int in // Explicit type
-                return testState.value // This line (inside the nonThrowing's adapted closure) needs coverage
+                testState.value // This line (inside the nonThrowing's adapted closure) needs coverage
             }
         )
 
         let result = try proposition.evaluate(in: context) // This call will execute the adapted closure
         #expect(result == 1)
     }
-} 
+}

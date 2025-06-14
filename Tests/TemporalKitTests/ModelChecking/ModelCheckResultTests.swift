@@ -34,7 +34,7 @@ struct ModelCheckResultTests {
         let ce = Counterexample<MCR_TestState>(prefix: [], cycle: [])
         #expect(ce.infinitePathDescription == "")
     }
-    
+
     @Test("Counterexample - infinitePathDescription - Single State Prefix, Empty Cycle")
     func testCounterexampleDescription_SingleStatePrefixEmptyCycle() throws {
         let ce = Counterexample(prefix: [MCR_TestState.s0], cycle: [])
@@ -69,5 +69,5 @@ struct ModelCheckResultTests {
             Issue.record("Expected .fails")
         }
     }
-} 
- 
+}
+

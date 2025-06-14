@@ -73,8 +73,8 @@ public class LTLModelChecker<Model: KripkeStructure> {
         case .atomic(let prop):
             if model.initialStates.isEmpty { return .holds }
             for initialState in model.initialStates {
-                if !(model.atomicPropositionsTrue(in: initialState).contains(prop.id)) { 
-                    return .fails(counterexample: Counterexample(prefix: [initialState], cycle: [])) 
+                if !(model.atomicPropositionsTrue(in: initialState).contains(prop.id)) {
+                    return .fails(counterexample: Counterexample(prefix: [initialState], cycle: []))
                 }
             }
             return .holds
@@ -85,23 +85,23 @@ public class LTLModelChecker<Model: KripkeStructure> {
                 for initialState in model.initialStates {
                     if !(model.atomicPropositionsTrue(in: initialState).contains(prop.id)) {
                         anyInitialSatisfiesNotP = true
-                        break 
+                        break
                     }
                 }
-                return anyInitialSatisfiesNotP ? .holds : .fails(counterexample: Counterexample(prefix: model.initialStates.isEmpty ? [] : [model.initialStates.first!], cycle: [])) 
+                return anyInitialSatisfiesNotP ? .holds : .fails(counterexample: Counterexample(prefix: model.initialStates.isEmpty ? [] : [model.initialStates.first!], cycle: []))
             }
         default:
-            break 
+            break
         }
         // --- END SPECIAL HANDLING ---
-        
-        let negatedFormula = LTLFormula.not(formula) 
+
+        let negatedFormula = LTLFormula.not(formula)
 
         let modelAutomaton = try self.convertModelToBuchi(model: model, relevantPropositions: allRelevantAPIDs)
         let formulaAutomatonForNegated = try LTLToBuchiConverter.translateLTLToBuchi(negatedFormula, relevantPropositions: allRelevantAPIDs)
 
         let productAutomaton = try constructProductAutomaton(
-            modelAutomaton: modelAutomaton, 
+            modelAutomaton: modelAutomaton,
             formulaAutomaton: formulaAutomatonForNegated,
             forceLogDetails: false
         )
@@ -119,7 +119,7 @@ public class LTLModelChecker<Model: KripkeStructure> {
 
     private func extractPropositions<P: TemporalProposition>(from formula: LTLFormula<P>, and model: Model) -> Set<Model.AtomicPropositionIdentifier> where P.Value == Bool {
         var propositionsInFormula = Set<Model.AtomicPropositionIdentifier>()
-        
+
         func collectProps(from f: LTLFormula<P>) {
             switch f {
             case .booleanLiteral:
@@ -130,11 +130,11 @@ public class LTLModelChecker<Model: KripkeStructure> {
                 }
             case .not(let subFormula):
                 collectProps(from: subFormula)
-            case .next(let subFormula): 
+            case .next(let subFormula):
                 collectProps(from: subFormula)
-            case .eventually(let subFormula): 
+            case .eventually(let subFormula):
                 collectProps(from: subFormula)
-            case .globally(let subFormula): 
+            case .globally(let subFormula):
                 collectProps(from: subFormula)
             case .and(let left, let right):
                 collectProps(from: left)
@@ -145,19 +145,19 @@ public class LTLModelChecker<Model: KripkeStructure> {
             case .implies(let left, let right):
                 collectProps(from: left)
                 collectProps(from: right)
-            case .until(let left, let right): 
+            case .until(let left, let right):
                 collectProps(from: left)
                 collectProps(from: right)
-            case .weakUntil(let left, let right): 
+            case .weakUntil(let left, let right):
                 collectProps(from: left)
                 collectProps(from: right)
-            case .release(let left, let right): 
+            case .release(let left, let right):
                 collectProps(from: left)
                 collectProps(from: right)
             }
         }
         collectProps(from: formula)
-        
+
         // Ensure the formula automaton considers all propositions present in the model,
         // so its alphabet is compatible for product construction.
         var allPropsEverTrueInModel = Set<Model.AtomicPropositionIdentifier>()
@@ -165,7 +165,7 @@ public class LTLModelChecker<Model: KripkeStructure> {
             allPropsEverTrueInModel.formUnion(model.atomicPropositionsTrue(in: state))
         }
         propositionsInFormula.formUnion(allPropsEverTrueInModel)
-        
+
         // print("LTLModelChecker Helper: extractPropositions - Updated with LTLFormula.swift cases.") // Original print
         print("LTLModelChecker Helper: extractPropositions - Formula Props: \(propositionsInFormula), Model Props Considered: \(allPropsEverTrueInModel)")
         return propositionsInFormula
@@ -176,17 +176,17 @@ public class LTLModelChecker<Model: KripkeStructure> {
     /// Typically, all states in this automaton are accepting states.
     private func convertModelToBuchi(
         model: Model,
-        relevantPropositions: Set<Model.AtomicPropositionIdentifier> 
+        relevantPropositions: Set<Model.AtomicPropositionIdentifier>
     ) throws -> BuchiAutomaton<ModelAutomatonState, BuchiAlphabetSymbol> {
         let allModelStates = model.allStates
         var transitions = Set<BuchiAutomaton<ModelAutomatonState, BuchiAlphabetSymbol>.Transition>()
         var alphabet = Set<BuchiAlphabetSymbol>()
-        alphabet.insert(Set()) 
+        alphabet.insert(Set())
 
         for sourceState in allModelStates {
             let truePropositionsInSourceState = model.atomicPropositionsTrue(in: sourceState)
             alphabet.insert(truePropositionsInSourceState)
-            
+
             let successors = model.successors(of: sourceState)
             if successors.isEmpty {
                 transitions.insert(.init(
@@ -206,10 +206,10 @@ public class LTLModelChecker<Model: KripkeStructure> {
         }
         return BuchiAutomaton(
             states: allModelStates,
-            alphabet: alphabet, 
+            alphabet: alphabet,
             initialStates: initialStates,
             transitions: transitions,
-            acceptingStates: allModelStates 
+            acceptingStates: allModelStates
         )
     }
 
@@ -220,7 +220,7 @@ public class LTLModelChecker<Model: KripkeStructure> {
         formulaAutomaton: BuchiAutomaton<FormulaAutomatonState, BuchiAlphabetSymbol>,
         forceLogDetails: Bool // Added parameter
     ) throws -> BuchiAutomaton<ActualProductAutomatonState, BuchiAlphabetSymbol> {
-        
+
         var productStates = Set<ActualProductAutomatonState>()
         var productInitialStates = Set<ActualProductAutomatonState>()
         var productTransitions = Set<BuchiAutomaton<ActualProductAutomatonState, BuchiAlphabetSymbol>.Transition>()
@@ -228,7 +228,7 @@ public class LTLModelChecker<Model: KripkeStructure> {
 
         for s1_init in modelAutomaton.initialStates {
             for s2_init in formulaAutomaton.initialStates {
-                let productInitialState = ProductState(s1_init, s2_init) 
+                let productInitialState = ProductState(s1_init, s2_init)
                 productInitialStates.insert(productInitialState)
                 productStates.insert(productInitialState)
             }
@@ -238,12 +238,12 @@ public class LTLModelChecker<Model: KripkeStructure> {
         var visited = Set<ActualProductAutomatonState>()
 
         while let currentProductState = worklist.popLast() {
-            if visited.contains(currentProductState) { 
+            if visited.contains(currentProductState) {
                 if forceLogDetails { print("    [CPA DEBUG] Skipping already visited: \(currentProductState)") }
-                continue 
+                continue
             }
             visited.insert(currentProductState)
-            if forceLogDetails { 
+            if forceLogDetails {
                 print("    [CPA DEBUG] Popped from worklist: \(currentProductState), Visited count: \(visited.count), Worklist count: \(worklist.count)")
             }
 
@@ -274,7 +274,7 @@ public class LTLModelChecker<Model: KripkeStructure> {
                 }
             }
         }
-        
+
         productInitialStates.forEach { productStates.insert($0) }
         productAcceptingStates.forEach { productStates.insert($0) }
         for t in productTransitions {
@@ -284,15 +284,15 @@ public class LTLModelChecker<Model: KripkeStructure> {
 
         let finalProductAutomaton = BuchiAutomaton(
             states: productStates,
-            alphabet: modelAutomaton.alphabet.union(formulaAutomaton.alphabet), 
+            alphabet: modelAutomaton.alphabet.union(formulaAutomaton.alphabet),
             initialStates: productInitialStates,
             transitions: productTransitions,
             acceptingStates: productAcceptingStates
         )
-        
-        if forceLogDetails { 
+
+        if forceLogDetails {
             print("[LTLModelChecker.constructProductAutomaton DEBUG] Product BA Accepting States directly from construction (count: \(finalProductAutomaton.acceptingStates.count)):")
-            finalProductAutomaton.acceptingStates.sorted(by: { (s1, s2) -> Bool in 
+            finalProductAutomaton.acceptingStates.sorted(by: { s1, s2 -> Bool in
                 let s1m = String(describing: s1.s1); let s2m = String(describing: s2.s1)
                 if s1m != s2m { return s1m < s2m }
                 return String(describing: s1.s2) < String(describing: s2.s2)
@@ -305,7 +305,7 @@ public class LTLModelChecker<Model: KripkeStructure> {
 
     private func projectRunToModelStates(
         productRun: (prefix: [ActualProductAutomatonState], cycle: [ActualProductAutomatonState]),
-        model: Model 
+        model: Model
     ) -> (prefix: [Model.State], cycle: [Model.State]) {
         let prefixModelStates = productRun.prefix.map { $0.s1 }
         let cycleModelStates = productRun.cycle.map { $0.s1 }
@@ -317,7 +317,7 @@ public class LTLModelChecker<Model: KripkeStructure> {
 public enum LTLModelCheckerError: Error, LocalizedError {
     /// Indicates that one or more core model checking algorithms are not yet implemented.
     case algorithmsNotImplemented(String)
-    
+
     /// Placeholder for other potential errors, e.g., issues during automaton construction,
     /// inconsistencies in the model, or unsupported LTL formula constructs.
     case internalProcessingError(String)
@@ -330,4 +330,4 @@ public enum LTLModelCheckerError: Error, LocalizedError {
             return "LTLModelChecker Error: Internal Processing Failed. Details: \(message)"
         }
     }
-} 
+}

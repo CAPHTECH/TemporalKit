@@ -18,7 +18,7 @@ import Foundation
 /// For a trace π and position i:
 /// - (π, i) ⊨ ¬φ iff (π, i) ⊭ φ
 public prefix func ! <P: TemporalProposition>(formula: LTLFormula<P>) -> LTLFormula<P> {
-    return .not(formula)
+    .not(formula)
 }
 
 /// Logical AND operator for LTL formulas.
@@ -40,7 +40,7 @@ public prefix func ! <P: TemporalProposition>(formula: LTLFormula<P>) -> LTLForm
 /// For a trace π and position i:
 /// - (π, i) ⊨ φ ∧ ψ iff (π, i) ⊨ φ and (π, i) ⊨ ψ
 public func && <P: TemporalProposition>(lhs: LTLFormula<P>, rhs: LTLFormula<P>) -> LTLFormula<P> {
-    return .and(lhs, rhs)
+    .and(lhs, rhs)
 }
 
 /// Logical OR operator for LTL formulas.
@@ -62,7 +62,7 @@ public func && <P: TemporalProposition>(lhs: LTLFormula<P>, rhs: LTLFormula<P>) 
 /// For a trace π and position i:
 /// - (π, i) ⊨ φ ∨ ψ iff (π, i) ⊨ φ or (π, i) ⊨ ψ
 public func || <P: TemporalProposition>(lhs: LTLFormula<P>, rhs: LTLFormula<P>) -> LTLFormula<P> {
-    return .or(lhs, rhs)
+    .or(lhs, rhs)
 }
 
 // MARK: - Implication Operator
@@ -100,7 +100,7 @@ precedencegroup ImplicationPrecedence {
 /// - Precedence: `!q ~>> (p || q)` - "q cannot occur before p"
 infix operator ==>: ImplicationPrecedence
 public func ==> <P: TemporalProposition>(lhs: LTLFormula<P>, rhs: LTLFormula<P>) -> LTLFormula<P> {
-    return .implies(lhs, rhs)
+    .implies(lhs, rhs)
 }
 
 // MARK: - Temporal Operator Static Factory Methods
@@ -126,9 +126,8 @@ extension LTLFormula {
     /// ## Note
     /// The NEXT operator requires at least one more state in the trace after the current position.
     public static func X(_ formula: LTLFormula<P>) -> LTLFormula<P> {
-        return .next(formula)
+        .next(formula)
     }
-    
 
     /// Creates an EVENTUALLY (Finally) temporal formula (F φ).
     /// 
@@ -150,9 +149,8 @@ extension LTLFormula {
     /// ## Equivalence
     /// `F φ` is equivalent to `true U φ`
     public static func F(_ formula: LTLFormula<P>) -> LTLFormula<P> {
-        return .eventually(formula)
+        .eventually(formula)
     }
-    
 
     /// Creates a GLOBALLY temporal formula (G φ).
     /// 
@@ -174,9 +172,8 @@ extension LTLFormula {
     /// ## Equivalence
     /// `G φ` is equivalent to `¬F ¬φ`
     public static func G(_ formula: LTLFormula<P>) -> LTLFormula<P> {
-        return .globally(formula)
+        .globally(formula)
     }
-    
 }
 
 // MARK: - Custom Infix Temporal Operators (Until, Weak Until, Release)
@@ -216,7 +213,7 @@ precedencegroup TemporalOperatorPrecedence {
 infix operator ~>>: TemporalOperatorPrecedence
 
 public func ~>> <P: TemporalProposition>(lhs: LTLFormula<P>, rhs: LTLFormula<P>) -> LTLFormula<P> {
-    return .until(lhs, rhs)
+    .until(lhs, rhs)
 }
 
 /// Temporal WEAK UNTIL operator: φ W ψ
@@ -247,7 +244,7 @@ public func ~>> <P: TemporalProposition>(lhs: LTLFormula<P>, rhs: LTLFormula<P>)
 infix operator ~~>: TemporalOperatorPrecedence
 
 public func ~~> <P: TemporalProposition>(lhs: LTLFormula<P>, rhs: LTLFormula<P>) -> LTLFormula<P> {
-    return .weakUntil(lhs, rhs)
+    .weakUntil(lhs, rhs)
 }
 
 /// Temporal RELEASE operator: φ R ψ
@@ -279,7 +276,7 @@ public func ~~> <P: TemporalProposition>(lhs: LTLFormula<P>, rhs: LTLFormula<P>)
 infix operator ~<: TemporalOperatorPrecedence
 
 public func ~< <P: TemporalProposition>(lhs: LTLFormula<P>, rhs: LTLFormula<P>) -> LTLFormula<P> {
-    return .release(lhs, rhs)
+    .release(lhs, rhs)
 }
 
 // MARK: - Convenience Initializers for Literals
@@ -295,7 +292,7 @@ extension LTLFormula where P.Value == Bool {
     /// let tautology = .G(.true)  // Always true
     /// ```
     public static var `true`: LTLFormula<P> {
-        return .booleanLiteral(true)
+        .booleanLiteral(true)
     }
 
     /// Creates a formula representing a boolean literal `false`.
@@ -308,7 +305,7 @@ extension LTLFormula where P.Value == Bool {
     /// let contradiction = .F(.false)  // Never satisfied
     /// ```
     public static var `false`: LTLFormula<P> {
-        return .booleanLiteral(false)
+        .booleanLiteral(false)
     }
 }
 
@@ -322,9 +319,9 @@ extension LTLFormula {
     /// let result = busy.until(done)  // Equivalent to: busy ~>> done
     /// ```
     public func until(_ other: LTLFormula<P>) -> LTLFormula<P> {
-        return .until(self, other)
+        .until(self, other)
     }
-    
+
     /// Creates a WEAK UNTIL formula using method syntax.
     /// 
     /// ## Example
@@ -332,9 +329,9 @@ extension LTLFormula {
     /// let result = maintain.weakUntil(upgrade)  // Equivalent to: maintain ~~> upgrade
     /// ```
     public func weakUntil(_ other: LTLFormula<P>) -> LTLFormula<P> {
-        return .weakUntil(self, other)
+        .weakUntil(self, other)
     }
-    
+
     /// Creates a RELEASE formula using method syntax.
     /// 
     /// ## Example
@@ -342,9 +339,9 @@ extension LTLFormula {
     /// let result = reset.release(locked)  // Equivalent to: reset ~< locked
     /// ```
     public func release(_ other: LTLFormula<P>) -> LTLFormula<P> {
-        return .release(self, other)
+        .release(self, other)
     }
-    
+
     /// Creates an IMPLIES formula using method syntax.
     /// 
     /// ## Example
@@ -352,7 +349,7 @@ extension LTLFormula {
     /// let result = request.implies(grant)  // Equivalent to: request ==> grant
     /// ```
     public func implies(_ other: LTLFormula<P>) -> LTLFormula<P> {
-        return .implies(self, other)
+        .implies(self, other)
     }
 }
 
@@ -375,9 +372,9 @@ public enum LTL {
         _ lhs: LTLFormula<P>,
         _ rhs: LTLFormula<P>
     ) -> LTLFormula<P> {
-        return .until(lhs, rhs)
+        .until(lhs, rhs)
     }
-    
+
     /// Standard WEAK UNTIL operator.
     /// 
     /// ## Example
@@ -388,9 +385,9 @@ public enum LTL {
         _ lhs: LTLFormula<P>,
         _ rhs: LTLFormula<P>
     ) -> LTLFormula<P> {
-        return .weakUntil(lhs, rhs)
+        .weakUntil(lhs, rhs)
     }
-    
+
     /// Standard RELEASE operator.
     /// 
     /// ## Example
@@ -401,6 +398,6 @@ public enum LTL {
         _ lhs: LTLFormula<P>,
         _ rhs: LTLFormula<P>
     ) -> LTLFormula<P> {
-        return .release(lhs, rhs)
+        .release(lhs, rhs)
     }
 }

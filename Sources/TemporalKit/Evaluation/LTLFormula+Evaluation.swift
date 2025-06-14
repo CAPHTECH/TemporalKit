@@ -21,7 +21,7 @@ extension LTLFormula {
             // The 'nextFormula' for an atomic proposition is its current truth value, as it's 'consumed'.
             let holds = try proposition.evaluate(in: context)
             return (holdsNow: holds, nextFormula: .booleanLiteral(holds))
-            
+
         case .booleanLiteral(let value):
             return (value, .booleanLiteral(value))
 
@@ -38,7 +38,7 @@ extension LTLFormula {
         case .and(let lhs, let rhs):
             let (lhsHolds, lhsNext) = try lhs.step(with: context)
             let (rhsHolds, rhsNext) = try rhs.step(with: context)
-            
+
             let currentHolds = lhsHolds && rhsHolds
 
             // Simplification for nextFormula for 'and': A && B
@@ -46,46 +46,46 @@ extension LTLFormula {
             // If B.next is false, result is false.
             // If A.next is true, result is B.next.
             // If B.next is true, result is A.next.
-            if case .booleanLiteral(false) = lhsNext { 
+            if case .booleanLiteral(false) = lhsNext {
                 return (currentHolds, .booleanLiteral(false))
             }
-            if case .booleanLiteral(false) = rhsNext { 
+            if case .booleanLiteral(false) = rhsNext {
                 return (currentHolds, .booleanLiteral(false))
             }
-            if case .booleanLiteral(true) = lhsNext { 
+            if case .booleanLiteral(true) = lhsNext {
                 return (currentHolds, rhsNext)
             }
-            if case .booleanLiteral(true) = rhsNext { 
+            if case .booleanLiteral(true) = rhsNext {
                 return (currentHolds, lhsNext)
             }
             return (currentHolds, .and(lhsNext, rhsNext))
 
         case .or(let lhs, let rhs):
             let (lhsHolds, lhsNext) = try lhs.step(with: context)
-            
+
             // Early simplification: if lhsNext is true, the OR is satisfied
             if case .booleanLiteral(true) = lhsNext {
                 return (true, .booleanLiteral(true))
             }
-            
+
             // If lhs doesn't hold now and its next is false, result depends entirely on rhs
             if !lhsHolds, case .booleanLiteral(false) = lhsNext {
                 let (rhsHolds, rhsNext) = try rhs.step(with: context)
                 return (rhsHolds, rhsNext)
             }
-            
+
             // Evaluate rhs for complete next formula calculation
             let (rhsHolds, rhsNext) = try rhs.step(with: context)
             let currentHolds = lhsHolds || rhsHolds
 
             // Simplification for nextFormula
-            if case .booleanLiteral(true) = rhsNext { 
+            if case .booleanLiteral(true) = rhsNext {
                 return (currentHolds, .booleanLiteral(true))
             }
-            if case .booleanLiteral(false) = lhsNext { 
+            if case .booleanLiteral(false) = lhsNext {
                 return (currentHolds, rhsNext)
             }
-            if case .booleanLiteral(false) = rhsNext { 
+            if case .booleanLiteral(false) = rhsNext {
                 return (currentHolds, lhsNext)
             }
             return (currentHolds, .or(lhsNext, rhsNext))
@@ -94,7 +94,7 @@ extension LTLFormula {
             // p -> q is equivalent to !p || q
             let (lhsHoldsNow, lhsNextFormula) = try lhs.step(with: context)
             let (rhsHoldsNow, rhsNextFormula) = try rhs.step(with: context)
-            
+
             let currentHolds = !lhsHoldsNow || rhsHoldsNow
 
             // For nextFormula: implies(lhsNextFormula, rhsNextFormula) is !lhsNextFormula || rhsNextFormula
@@ -126,7 +126,7 @@ extension LTLFormula {
         case .next(let subFormula):
             // `X p` (Next p): holdsNow is true (vacuously), nextFormula is p.
             return (true, subFormula)
-        
+
         case .eventually(let subFormula):
             // F p == p || X (F p)
             let (subHolds, subNext) = try subFormula.step(with: context)
@@ -137,7 +137,7 @@ extension LTLFormula {
                 return (false, .booleanLiteral(false))
             } else {
                 // p does not hold now, so F p must hold from the next state onwards
-                return (false, self) 
+                return (false, self)
             }
 
         case .globally(let subFormula):

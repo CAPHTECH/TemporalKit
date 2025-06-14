@@ -5,7 +5,7 @@ public enum PropositionIDError: Error, LocalizedError, Equatable {
     case emptyString
     case containsWhitespace
     case invalidCharacters(String)
-    
+
     public var errorDescription: String? {
         switch self {
         case .emptyString:
@@ -28,15 +28,15 @@ public struct PropositionID: Hashable, Equatable, RawRepresentable, Codable, Sen
             return nil
         }
     }
-    
+
     /// Throwing initializer that provides detailed error information
     public init(validating rawValue: String) throws {
         guard !rawValue.isEmpty else {
             throw PropositionIDError.emptyString
         }
-        
+
         var invalidCharacters: [Character] = []
-        
+
         // Single pass validation with prioritized error reporting
         for char in rawValue {
             if char.isWhitespace {
@@ -46,21 +46,21 @@ public struct PropositionID: Hashable, Equatable, RawRepresentable, Codable, Sen
                 invalidCharacters.append(char)
             }
         }
-        
+
         guard invalidCharacters.isEmpty else {
             let invalidString = String(invalidCharacters)
             throw PropositionIDError.invalidCharacters(invalidString)
         }
-        
+
         self.rawValue = rawValue
     }
-    
+
     /// Optimized character validation using direct character property checks
     @inline(__always)
     private static func isValidCharacter(_ char: Character) -> Bool {
-        return char.isLetter || char.isNumber || char == "_" || char == "-" || char == "."
+        char.isLetter || char.isNumber || char == "_" || char == "-" || char == "."
     }
-    
+
     /// Convenience initializer for backward compatibility
     /// - Warning: This will return nil for invalid IDs. Use `init(validating:)` for detailed errors.
     public init?(_ rawValue: String) {

@@ -69,17 +69,17 @@ open class ClosureTemporalProposition<StateType, PropositionResultType: Hashable
         name: String,
         evaluate: @escaping (StateType) -> PropositionResultType
     ) -> ClosureTemporalProposition<StateType, PropositionResultType> {
-        return ClosureTemporalProposition(
+        ClosureTemporalProposition(
             id: id,
             name: name,
             evaluate: { state in // Adapt the non-throwing closure to the internal throwing signature
-                return evaluate(state)
+                evaluate(state)
             }
         )
     }
-    
+
     // Conformance to Hashable & Equatable is implicitly handled by the default implementations
     // in TemporalProposition protocol extension, based on `id`.
     // Conformance to Identifiable is satisfied by `id: PropositionID`.
     // Conformance to AnyObject is satisfied because this is a class.
-} 
+}

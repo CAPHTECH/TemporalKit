@@ -25,4 +25,4 @@ public enum TemporalKitError: Error, LocalizedError {
             return "Unsupported operation '\(operation)': \(reason)"
         }
     }
-} 
+}

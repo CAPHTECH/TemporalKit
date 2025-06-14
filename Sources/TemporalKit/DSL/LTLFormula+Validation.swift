@@ -14,7 +14,7 @@ extension LTLFormula {
         validateFormula(self, path: [], warnings: &warnings)
         return warnings
     }
-    
+
     private func validateFormula(
         _ formula: LTLFormula<P>,
         path: [String],
@@ -23,7 +23,7 @@ extension LTLFormula {
         switch formula {
         case .atomic:
             break // Propositions are always valid
-            
+
         case .booleanLiteral(let value):
             // Check for redundant temporal operators on constants
             if !path.isEmpty {
@@ -33,51 +33,51 @@ extension LTLFormula {
                     warnings.append(.redundantTemporalOnFalse(path: path))
                 }
             }
-            
+
         case .not(let inner):
             let newPath = path + ["NOT"]
             validateFormula(inner, path: newPath, warnings: &warnings)
-            
+
             // Check for double negation
             if case .not = inner {
                 warnings.append(.doubleNegation(path: path))
             }
-            
+
         case .and(let lhs, let rhs):
             let newPath = path + ["AND"]
             validateFormula(lhs, path: newPath + ["LHS"], warnings: &warnings)
             validateFormula(rhs, path: newPath + ["RHS"], warnings: &warnings)
-            
+
             // Check for contradictions
             if areContradictory(lhs, rhs) {
                 warnings.append(.contradiction(path: newPath))
             }
-            
+
             // Check for redundancy
             if areEquivalent(lhs, rhs) {
                 warnings.append(.redundantConjunction(path: newPath))
             }
-            
+
         case .or(let lhs, let rhs):
             let newPath = path + ["OR"]
             validateFormula(lhs, path: newPath + ["LHS"], warnings: &warnings)
             validateFormula(rhs, path: newPath + ["RHS"], warnings: &warnings)
-            
+
             // Check for tautologies
             if areContradictory(lhs, rhs) {
                 warnings.append(.tautology(path: newPath))
             }
-            
+
             // Check for redundancy
             if areEquivalent(lhs, rhs) {
                 warnings.append(.redundantDisjunction(path: newPath))
             }
-            
+
         case .implies(let lhs, let rhs):
             let newPath = path + ["IMPLIES"]
             validateFormula(lhs, path: newPath + ["LHS"], warnings: &warnings)
             validateFormula(rhs, path: newPath + ["RHS"], warnings: &warnings)
-            
+
             // Check for always true implications
             if case .booleanLiteral(false) = lhs {
                 warnings.append(.vacuousImplication(path: newPath))
@@ -85,56 +85,56 @@ extension LTLFormula {
             if case .booleanLiteral(true) = rhs {
                 warnings.append(.trivialImplication(path: newPath))
             }
-            
+
         case .next(let inner):
             let newPath = path + ["NEXT"]
             validateFormula(inner, path: newPath, warnings: &warnings)
-            
+
         case .eventually(let inner):
             let newPath = path + ["EVENTUALLY"]
             validateFormula(inner, path: newPath, warnings: &warnings)
-            
+
             // Check for nested eventually
             if case .eventually = inner {
                 warnings.append(.redundantEventually(path: newPath))
             }
-            
+
         case .globally(let inner):
             let newPath = path + ["GLOBALLY"]
             validateFormula(inner, path: newPath, warnings: &warnings)
-            
+
             // Check for nested globally
             if case .globally = inner {
                 warnings.append(.redundantGlobally(path: newPath))
             }
-            
+
         case .until(let lhs, let rhs):
             let newPath = path + ["UNTIL"]
             validateFormula(lhs, path: newPath + ["LHS"], warnings: &warnings)
             validateFormula(rhs, path: newPath + ["RHS"], warnings: &warnings)
-            
+
             // Check for immediate satisfaction
             if case .booleanLiteral(true) = rhs {
                 warnings.append(.immediateUntil(path: newPath))
             }
-            
+
         case .weakUntil(let lhs, let rhs):
             let newPath = path + ["WEAK_UNTIL"]
             validateFormula(lhs, path: newPath + ["LHS"], warnings: &warnings)
             validateFormula(rhs, path: newPath + ["RHS"], warnings: &warnings)
-            
+
         case .release(let lhs, let rhs):
             let newPath = path + ["RELEASE"]
             validateFormula(lhs, path: newPath + ["LHS"], warnings: &warnings)
             validateFormula(rhs, path: newPath + ["RHS"], warnings: &warnings)
         }
     }
-    
+
     // Helper methods for equivalence and contradiction checking
     private func areEquivalent(_ lhs: LTLFormula<P>, _ rhs: LTLFormula<P>) -> Bool {
-        return lhs.semanticallyEquivalent(to: rhs)
+        lhs.semanticallyEquivalent(to: rhs)
     }
-    
+
     private func areContradictory(_ lhs: LTLFormula<P>, _ rhs: LTLFormula<P>) -> Bool {
         // Check for direct contradictions
         switch (lhs, rhs) {
@@ -157,18 +157,18 @@ extension LTLFormula {
 public struct ValidationWarning: Equatable, CustomStringConvertible {
     /// The type of warning
     public let type: WarningType
-    
+
     /// The path to the problematic sub-formula
     public let path: [String]
-    
+
     /// A human-readable message describing the issue
     public let message: String
-    
+
     public var description: String {
         let pathStr = path.isEmpty ? "root" : path.joined(separator: " -> ")
         return "[\(type)] at \(pathStr): \(message)"
     }
-    
+
     // Factory methods for common warnings
     static func redundantTemporalOnTrue(path: [String]) -> ValidationWarning {
         ValidationWarning(
@@ -177,7 +177,7 @@ public struct ValidationWarning: Equatable, CustomStringConvertible {
             message: "Temporal operator on 'true' literal is redundant"
         )
     }
-    
+
     static func redundantTemporalOnFalse(path: [String]) -> ValidationWarning {
         ValidationWarning(
             type: .redundancy,
@@ -185,7 +185,7 @@ public struct ValidationWarning: Equatable, CustomStringConvertible {
             message: "Temporal operator on 'false' literal may produce unexpected results"
         )
     }
-    
+
     static func doubleNegation(path: [String]) -> ValidationWarning {
         ValidationWarning(
             type: .redundancy,
@@ -193,7 +193,7 @@ public struct ValidationWarning: Equatable, CustomStringConvertible {
             message: "Double negation can be simplified"
         )
     }
-    
+
     static func contradiction(path: [String]) -> ValidationWarning {
         ValidationWarning(
             type: .contradiction,
@@ -201,7 +201,7 @@ public struct ValidationWarning: Equatable, CustomStringConvertible {
             message: "Formula contains a contradiction and will always be false"
         )
     }
-    
+
     static func tautology(path: [String]) -> ValidationWarning {
         ValidationWarning(
             type: .tautology,
@@ -209,7 +209,7 @@ public struct ValidationWarning: Equatable, CustomStringConvertible {
             message: "Formula is a tautology and will always be true"
         )
     }
-    
+
     static func redundantConjunction(path: [String]) -> ValidationWarning {
         ValidationWarning(
             type: .redundancy,
@@ -217,7 +217,7 @@ public struct ValidationWarning: Equatable, CustomStringConvertible {
             message: "Both sides of AND are equivalent"
         )
     }
-    
+
     static func redundantDisjunction(path: [String]) -> ValidationWarning {
         ValidationWarning(
             type: .redundancy,
@@ -225,7 +225,7 @@ public struct ValidationWarning: Equatable, CustomStringConvertible {
             message: "Both sides of OR are equivalent"
         )
     }
-    
+
     static func vacuousImplication(path: [String]) -> ValidationWarning {
         ValidationWarning(
             type: .tautology,
@@ -233,7 +233,7 @@ public struct ValidationWarning: Equatable, CustomStringConvertible {
             message: "Implication with false antecedent is always true"
         )
     }
-    
+
     static func trivialImplication(path: [String]) -> ValidationWarning {
         ValidationWarning(
             type: .tautology,
@@ -241,7 +241,7 @@ public struct ValidationWarning: Equatable, CustomStringConvertible {
             message: "Implication with true consequent is always true"
         )
     }
-    
+
     static func redundantEventually(path: [String]) -> ValidationWarning {
         ValidationWarning(
             type: .redundancy,
@@ -249,7 +249,7 @@ public struct ValidationWarning: Equatable, CustomStringConvertible {
             message: "Nested EVENTUALLY operators can be simplified to a single EVENTUALLY"
         )
     }
-    
+
     static func redundantGlobally(path: [String]) -> ValidationWarning {
         ValidationWarning(
             type: .redundancy,
@@ -257,7 +257,7 @@ public struct ValidationWarning: Equatable, CustomStringConvertible {
             message: "Nested GLOBALLY operators can be simplified to a single GLOBALLY"
         )
     }
-    
+
     static func immediateUntil(path: [String]) -> ValidationWarning {
         ValidationWarning(
             type: .redundancy,
@@ -295,7 +295,7 @@ extension LTLFormula {
             return treeDescription(indent: 0)
         }
     }
-    
+
     private func infixDescription() -> String {
         switch self {
         case .atomic(let prop):
@@ -324,7 +324,7 @@ extension LTLFormula {
             return "(\(lhs.infixDescription()) R \(rhs.infixDescription()))"
         }
     }
-    
+
     private func prefixDescription() -> String {
         switch self {
         case .atomic(let prop):
@@ -353,10 +353,10 @@ extension LTLFormula {
             return "RELEASE(\(lhs.prefixDescription()), \(rhs.prefixDescription()))"
         }
     }
-    
+
     private func treeDescription(indent: Int) -> String {
         let spacing = String(repeating: "  ", count: indent)
-        
+
         switch self {
         case .atomic(let prop):
             return "\(spacing)└─ \(prop.name)"
@@ -390,10 +390,10 @@ extension LTLFormula {
 public enum PrettyPrintStyle {
     /// Standard infix notation with symbols (∧, ∨, ¬, etc.)
     case infix
-    
+
     /// Prefix notation with operators (AND, OR, NOT, etc.)
     case prefix
-    
+
     /// Tree structure showing formula hierarchy
     case tree
 }
@@ -417,11 +417,11 @@ extension LTLFormula {
         if self.syntacticallyEqual(to: other) {
             return true
         }
-        
+
         // Then check semantic equivalence
         return self.normalizedForm().syntacticallyEqual(to: other.normalizedForm())
     }
-    
+
     /// Checks syntactic equality between formulas.
     private func syntacticallyEqual(to other: LTLFormula<P>) -> Bool {
         switch (self, other) {
@@ -455,7 +455,7 @@ extension LTLFormula {
             return false
         }
     }
-    
+
     /// Returns a normalized form of the formula for semantic comparison.
     /// This applies various logical simplifications.
     private func normalizedForm() -> LTLFormula<P> {
@@ -463,7 +463,7 @@ extension LTLFormula {
         // Remove double negation
         case .not(.not(let inner)):
             return inner.normalizedForm()
-            
+
         // Identity laws
         case .and(let lhs, .booleanLiteral(true)):
             return lhs.normalizedForm()
@@ -473,7 +473,7 @@ extension LTLFormula {
             return lhs.normalizedForm()
         case .or(.booleanLiteral(false), let rhs):
             return rhs.normalizedForm()
-            
+
         // Annihilation laws
         case .and(_, .booleanLiteral(false)),
              .and(.booleanLiteral(false), _):
@@ -481,19 +481,19 @@ extension LTLFormula {
         case .or(_, .booleanLiteral(true)),
              .or(.booleanLiteral(true), _):
             return .booleanLiteral(true)
-            
+
         // Idempotent laws (requires comparison)
         case .and(let lhs, let rhs) where lhs.syntacticallyEqual(to: rhs):
             return lhs.normalizedForm()
         case .or(let lhs, let rhs) where lhs.syntacticallyEqual(to: rhs):
             return lhs.normalizedForm()
-            
+
         // Nested temporal operators
         case .eventually(.eventually(let inner)):
             return .eventually(inner.normalizedForm())
         case .globally(.globally(let inner)):
             return .globally(inner.normalizedForm())
-            
+
         // Recursively normalize subformulas
         case .not(let inner):
             return .not(inner.normalizedForm())
@@ -515,7 +515,7 @@ extension LTLFormula {
             return .weakUntil(lhs.normalizedForm(), rhs.normalizedForm())
         case .release(let lhs, let rhs):
             return .release(lhs.normalizedForm(), rhs.normalizedForm())
-            
+
         // Base cases
         case .atomic, .booleanLiteral:
             return self
@@ -529,27 +529,27 @@ extension LTLFormula {
 public struct ValidationConfiguration {
     /// The level of validation to perform.
     public let level: ValidationLevel
-    
+
     /// Whether to check for performance issues.
     public let checkPerformance: Bool
-    
+
     /// Maximum formula depth before warning about complexity.
     public let maxDepth: Int
-    
+
     /// Default configuration with basic validation.
     public static let `default` = ValidationConfiguration(
         level: .basic,
         checkPerformance: false,
         maxDepth: 50
     )
-    
+
     /// Thorough configuration that performs all checks.
     public static let thorough = ValidationConfiguration(
         level: .thorough,
         checkPerformance: true,
         maxDepth: 30
     )
-    
+
     public init(level: ValidationLevel, checkPerformance: Bool, maxDepth: Int) {
         self.level = level
         self.checkPerformance = checkPerformance
@@ -561,10 +561,10 @@ public struct ValidationConfiguration {
 public enum ValidationLevel {
     /// Basic validation for obvious issues.
     case basic
-    
+
     /// Thorough validation including semantic analysis.
     case thorough
-    
+
     /// Exhaustive validation (may be slow for large formulas).
     case exhaustive
 }
@@ -576,10 +576,10 @@ extension LTLFormula {
     /// - Returns: An array of validation warnings
     public func validate(configuration: ValidationConfiguration) -> [ValidationWarning] {
         var warnings: [ValidationWarning] = []
-        
+
         // Basic validation
         validateFormula(self, path: [], warnings: &warnings)
-        
+
         // Performance checks
         if configuration.checkPerformance {
             let depth = self.depth()
@@ -591,7 +591,7 @@ extension LTLFormula {
                 ))
             }
         }
-        
+
         // Additional checks based on level
         switch configuration.level {
         case .basic:
@@ -603,10 +603,10 @@ extension LTLFormula {
             // Add exhaustive checks here
             break
         }
-        
+
         return warnings
     }
-    
+
     /// Calculates the depth of the formula tree.
     private func depth() -> Int {
         switch self {

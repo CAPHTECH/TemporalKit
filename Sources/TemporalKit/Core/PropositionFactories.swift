@@ -17,9 +17,9 @@ public func makeProposition<StateType, PropositionResultType: Hashable>(
     evaluate: @escaping (StateType) -> PropositionResultType
 ) -> ClosureTemporalProposition<StateType, PropositionResultType> {
     // Internally, it calls the static 'nonThrowing' factory method we already defined.
-    return ClosureTemporalProposition<StateType, PropositionResultType>.nonThrowing(
+    ClosureTemporalProposition<StateType, PropositionResultType>.nonThrowing(
         id: id,
         name: name,
         evaluate: evaluate
     )
-} 
+}

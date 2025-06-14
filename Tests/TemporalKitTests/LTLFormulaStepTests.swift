@@ -25,9 +25,9 @@ struct LTLFormulaStepTests {
     }
 
     static func makeProp(id: String, evalLogic: @escaping (TestState) throws -> Bool) -> ClosureTemporalProposition<TestState, Bool> { // Changed to throws
-        return ClosureTemporalProposition(id: id, name: id, evaluate: evalLogic) // Changed label to evaluate
+        ClosureTemporalProposition(id: id, name: id, evaluate: evalLogic) // Changed label to evaluate
     }
-    
+
     static let p_eval_true = makeProp(id: "p_true") { $0.value == true }
     static let p_eval_false = makeProp(id: "p_false") { state -> Bool in state.value == false } // Example, usually prop name implies truth
     enum DeliberateError: Error { case testError }
@@ -42,7 +42,7 @@ struct LTLFormulaStepTests {
         let formula: TestFormula = .atomic(Self.p_eval_true)
         let context = TestEvalContext(state: TestState(index: 0, value: true), traceIndex: 0)
         let (holdsNow, nextFormula) = try formula.step(with: context)
-        
+
         #expect(holdsNow == true)
         #expect(nextFormula == .booleanLiteral(true))
     }
@@ -50,10 +50,10 @@ struct LTLFormulaStepTests {
     @Test("step for .atomic when proposition evaluates to false")
     func testStepAtomic_PropFalse() throws {
         // Using p_eval_true but context makes it false
-        let formula: TestFormula = .atomic(Self.p_eval_true) 
+        let formula: TestFormula = .atomic(Self.p_eval_true)
         let context = TestEvalContext(state: TestState(index: 0, value: false), traceIndex: 0)
         let (holdsNow, nextFormula) = try formula.step(with: context)
-        
+
         #expect(holdsNow == false)
         #expect(nextFormula == .booleanLiteral(false))
     }
@@ -62,7 +62,7 @@ struct LTLFormulaStepTests {
     func testStepAtomic_PropThrows() throws {
         let formula: TestFormula = .atomic(Self.p_eval_throws)
         let context = TestEvalContext(state: TestState(index: 0, value: true), traceIndex: 0)
-        
+
         #expect(throws: DeliberateError.testError) {
             _ = try formula.step(with: context)
         }
@@ -74,7 +74,7 @@ struct LTLFormulaStepTests {
         let formula: TestFormula = .booleanLiteral(true)
         let context = TestEvalContext(state: TestState(index: 0, value: false), traceIndex: 0) // Context content doesn't matter
         let (holdsNow, nextFormula) = try formula.step(with: context)
-        
+
         #expect(holdsNow == true)
         #expect(nextFormula == .booleanLiteral(true))
     }
@@ -84,7 +84,7 @@ struct LTLFormulaStepTests {
         let formula: TestFormula = .booleanLiteral(false)
         let context = TestEvalContext(state: TestState(index: 0, value: true), traceIndex: 0) // Context content doesn't matter
         let (holdsNow, nextFormula) = try formula.step(with: context)
-        
+
         #expect(holdsNow == false)
         #expect(nextFormula == .booleanLiteral(false))
     }
@@ -133,7 +133,7 @@ struct LTLFormulaStepTests {
         let p2: TestFormula = .next(.atomic(Self.p_eval_false)) // p2.step -> (true, .atomic(p_false))
         let formula: TestFormula = .and(p1, p2)
         let context = TestEvalContext(state: TestState(index: 0, value: true), traceIndex: 0)
-        
+
         let (holdsNow, nextFormula) = try formula.step(with: context)
         #expect(holdsNow == true) // true (p1 holdsNow) && true (p2 holdsNow)
         // next: .atomic(p_true) && .atomic(p_false)
@@ -146,7 +146,7 @@ struct LTLFormulaStepTests {
         let p2: TestFormula = .next(.atomic(Self.p_eval_false)) // p2.step -> (true, .atomic(p_false))
         let formula: TestFormula = .and(p1, p2)
         let context = TestEvalContext(state: TestState(index: 0, value: true), traceIndex: 0)
-        
+
         let (holdsNow, nextFormula) = try formula.step(with: context)
         #expect(holdsNow == true)
         // next: true && .atomic(p_false) -> .atomic(p_false)
@@ -159,13 +159,13 @@ struct LTLFormulaStepTests {
         let p2: TestFormula = .atomic(Self.p_eval_true_next_true) // p2.step -> (true, .booleanLiteral(true))
         let formula: TestFormula = .and(p1, p2)
         let context = TestEvalContext(state: TestState(index: 0, value: true), traceIndex: 0)
-        
+
         let (holdsNow, nextFormula) = try formula.step(with: context)
         #expect(holdsNow == true)
         // next: .atomic(p_false) && true -> .atomic(p_false)
         #expect(nextFormula == .atomic(Self.p_eval_false))
     }
-    
+
     @Test("step for .and - Error in LHS propagates")
     func testStepAnd_LhsThrows() throws {
         let formula: TestFormula = .and(.atomic(Self.p_eval_throws), .booleanLiteral(true))
@@ -210,7 +210,7 @@ struct LTLFormulaStepTests {
         // subFormula.step will yield (true, .atomic(Self.p_eval_true))
         let formula: TestFormula = .not(subFormula)
         let context = TestEvalContext(state: TestState(index: 0, value: true), traceIndex: 0) // value: true for p_eval_true
-        
+
         let (holdsNow, nextFormula) = try formula.step(with: context)
         #expect(holdsNow == false) // not(true) is false
         #expect(nextFormula == .not(.atomic(Self.p_eval_true))) // not(atomic(p_true))
@@ -269,7 +269,7 @@ struct LTLFormulaStepTests {
         let p2: TestFormula = .next(.atomic(Self.p_eval_false)) // steps to (true, .atomic(p_eval_false))
         let formula: TestFormula = .or(p1, p2)
         let context = TestEvalContext(state: TestState(index: 0, value: true), traceIndex: 0)
-        
+
         let (holdsNow, nextFormula) = try formula.step(with: context)
         #expect(holdsNow == true) // true || true
         // next: .atomic(p_eval_true) || .atomic(p_eval_false)
@@ -305,7 +305,7 @@ struct LTLFormulaStepTests {
         let formula: TestFormula = .or(.atomic(Self.p_eval_throws), .booleanLiteral(true)) // If LHS non-throwing would be false || true
         let context = TestEvalContext(state: TestState(index: 0, value: true), traceIndex: 0)
         #expect(throws: DeliberateError.testError) {
-            _ = try formula.step(with: context) 
+            _ = try formula.step(with: context)
             // Error should propagate because evaluation of LHS happens before short-circuit check for OR.
             // Let's confirm the logic: OR short-circuits if LHS is true. If LHS is false or throws, RHS is evaluated.
             // If p_eval_throws -> (throws), then error propagates.
@@ -327,7 +327,7 @@ struct LTLFormulaStepTests {
         let context = TestEvalContext(state: TestState(index: 0, value: true), traceIndex: 0)
         // Expect an error because RHS.step() will be called to determine the full nextFormula,
         // and it will throw.
-        #expect(throws: DeliberateError.testError) { 
+        #expect(throws: DeliberateError.testError) {
             _ = try formula.step(with: context)
         }
     }
@@ -376,7 +376,7 @@ struct LTLFormulaStepTests {
         let p2: TestFormula = .next(.atomic(Self.p_eval_false))     // steps to (true, .atomic(p_eval_false))
         let formula: TestFormula = .implies(p1, p2)
         let context = TestEvalContext(state: TestState(index: 0, value: true), traceIndex: 0)
-        
+
         let (holdsNow, nextFormula) = try formula.step(with: context)
         #expect(holdsNow == true) // !true || true == true
         // lhsNext = true. !lhsNext = false.
@@ -391,7 +391,7 @@ struct LTLFormulaStepTests {
         let p2: TestFormula = .atomic(Self.p_eval_true_next_true)  // steps to (true, .booleanLiteral(true))
         let formula: TestFormula = .implies(p1, p2)
         let context = TestEvalContext(state: TestState(index: 0, value: true), traceIndex: 0)
-        
+
         let (holdsNow, nextFormula) = try formula.step(with: context)
         #expect(holdsNow == true) // !true || true == true
         // lhsNext = .atomic(p_eval_true). !lhsNext = .not(.atomic(p_eval_true)).
@@ -399,7 +399,7 @@ struct LTLFormulaStepTests {
         // nextFormula = .or(.not(.atomic(p_eval_true)), .booleanLiteral(true)) -> .booleanLiteral(true)
         #expect(nextFormula == .booleanLiteral(true))
     }
-    
+
     @Test("step for .implies - P_false_nextF -> Q_true_nextNonLit (LHS false implies current true)")
     func testStepImplies_LhsFalse_RhsNextNonLit() throws {
         let p1: TestFormula = .atomic(Self.p_eval_false) // steps to (false, .booleanLiteral(false))
@@ -422,7 +422,7 @@ struct LTLFormulaStepTests {
         let p2: TestFormula = .atomic(Self.p_eval_false) // steps to (false, .booleanLiteral(false))
         let formula: TestFormula = .implies(p1, p2)
         // Context: p_eval_true makes p1 holdsNow true, p_eval_false makes p2 holdsNow false.
-        let evalContext = TestEvalContext(state: TestState(index: 0, value: true), traceIndex: 0) 
+        let evalContext = TestEvalContext(state: TestState(index: 0, value: true), traceIndex: 0)
 
         let (holdsNow, nextFormula) = try formula.step(with: evalContext)
         #expect(holdsNow == false) // !true || false == false
@@ -459,7 +459,7 @@ struct LTLFormulaStepTests {
         let subFormula: TestFormula = .atomic(Self.p_eval_true)
         let formula: TestFormula = .next(subFormula)
         let context = TestEvalContext(state: TestState(index: 0, value: true), traceIndex: 0) // Context irrelevant for .next's own step
-        
+
         let (holdsNow, nextFormula) = try formula.step(with: context)
         #expect(holdsNow == true)
         #expect(nextFormula == subFormula)
@@ -470,7 +470,7 @@ struct LTLFormulaStepTests {
         let subFormula: TestFormula = .booleanLiteral(false)
         let formula: TestFormula = .next(subFormula)
         let context = TestEvalContext(state: TestState(index: 0, value: true), traceIndex: 0)
-        
+
         let (holdsNow, nextFormula) = try formula.step(with: context)
         #expect(holdsNow == true)
         #expect(nextFormula == subFormula)
@@ -481,7 +481,7 @@ struct LTLFormulaStepTests {
         let subFormula: TestFormula = .and(.atomic(Self.p_eval_true), .atomic(Self.p_eval_false))
         let formula: TestFormula = .next(subFormula)
         let context = TestEvalContext(state: TestState(index: 0, value: true), traceIndex: 0)
-        
+
         let (holdsNow, nextFormula) = try formula.step(with: context)
         #expect(holdsNow == true)
         #expect(nextFormula == subFormula)
@@ -492,7 +492,7 @@ struct LTLFormulaStepTests {
         let subFormula: TestFormula = .atomic(Self.p_eval_throws)
         let formula: TestFormula = .next(subFormula)
         let context = TestEvalContext(state: TestState(index: 0, value: true), traceIndex: 0)
-        
+
         let (holdsNow, nextFormula) = try formula.step(with: context)
         #expect(holdsNow == true)
         #expect(nextFormula == subFormula) // The throwing prop is passed as the next obligation
@@ -505,7 +505,7 @@ struct LTLFormulaStepTests {
         let p: TestFormula = .atomic(Self.p_eval_true)
         let formula: TestFormula = .eventually(p)
         let context = TestEvalContext(state: TestState(index: 0, value: true), traceIndex: 0) // Makes p_eval_true evaluate to true
-        
+
         let (holdsNow, nextFormula) = try formula.step(with: context)
         #expect(holdsNow == true)
         #expect(nextFormula == .booleanLiteral(true))
@@ -516,7 +516,7 @@ struct LTLFormulaStepTests {
         let p: TestFormula = .atomic(Self.p_eval_true) // Using p_eval_true
         let formula: TestFormula = .eventually(p)
         let context = TestEvalContext(state: TestState(index: 0, value: false), traceIndex: 0) // Makes p_eval_true evaluate to false
-        
+
         let (holdsNow, nextFormula) = try formula.step(with: context)
         #expect(holdsNow == false)
         #expect(nextFormula == formula) // Next obligation is F P itself
@@ -527,7 +527,7 @@ struct LTLFormulaStepTests {
         let p: TestFormula = .atomic(Self.p_eval_throws)
         let formula: TestFormula = .eventually(p)
         let context = TestEvalContext(state: TestState(index: 0, value: true), traceIndex: 0)
-        
+
         #expect(throws: DeliberateError.testError) {
             _ = try formula.step(with: context)
         }
@@ -540,7 +540,7 @@ struct LTLFormulaStepTests {
         let p: TestFormula = .atomic(Self.p_eval_true)
         let formula: TestFormula = .globally(p)
         let context = TestEvalContext(state: TestState(index: 0, value: true), traceIndex: 0) // Makes p_eval_true evaluate to true
-        
+
         let (holdsNow, nextFormula) = try formula.step(with: context)
         #expect(holdsNow == true)
         #expect(nextFormula == formula) // Next obligation is G P itself (self)
@@ -551,7 +551,7 @@ struct LTLFormulaStepTests {
         let p: TestFormula = .atomic(Self.p_eval_true) // Using p_eval_true
         let formula: TestFormula = .globally(p)
         let context = TestEvalContext(state: TestState(index: 0, value: false), traceIndex: 0) // Makes p_eval_true evaluate to false
-        
+
         let (holdsNow, nextFormula) = try formula.step(with: context)
         #expect(holdsNow == false)
         #expect(nextFormula == formula) // Next obligation is G P itself (self)
@@ -562,7 +562,7 @@ struct LTLFormulaStepTests {
         let p: TestFormula = .atomic(Self.p_eval_throws)
         let formula: TestFormula = .globally(p)
         let context = TestEvalContext(state: TestState(index: 0, value: true), traceIndex: 0)
-        
+
         #expect(throws: DeliberateError.testError) {
             _ = try formula.step(with: context)
         }
@@ -576,7 +576,7 @@ struct LTLFormulaStepTests {
         let q: TestFormula = .atomic(Self.p_eval_true)
         let formula: TestFormula = .until(p, q)
         let context = TestEvalContext(state: TestState(index: 0, value: true), traceIndex: 0) // Makes q_eval_true true
-        
+
         let (holdsNow, nextFormula) = try formula.step(with: context)
         #expect(holdsNow == true)
         #expect(nextFormula == .booleanLiteral(true))
@@ -588,8 +588,8 @@ struct LTLFormulaStepTests {
         let q: TestFormula = .atomic(Self.p_eval_false)
         let formula: TestFormula = .until(p, q)
         // Context: p_eval_true is true, p_eval_false is false (so q is false)
-        let context = TestEvalContext(state: TestState(index: 0, value: true), traceIndex: 0) 
-        
+        let context = TestEvalContext(state: TestState(index: 0, value: true), traceIndex: 0)
+
         let (holdsNow, nextFormula) = try formula.step(with: context)
         #expect(holdsNow == true)
         #expect(nextFormula == formula) // Next obligation is P U Q itself
@@ -600,11 +600,11 @@ struct LTLFormulaStepTests {
         // We need P to be false and Q to be false with the same context.
         // Context: TestState(index: 0, value: false)
         // p_eval_true logic: { $0.value == true }. With value:false, this is false.
-        let p_is_false: TestFormula = .atomic(Self.p_eval_true) 
+        let p_is_false: TestFormula = .atomic(Self.p_eval_true)
         let q_is_false: TestFormula = .atomic(Self.p_eval_true) // Corrected: q should also be false in this context.
         let formula: TestFormula = .until(p_is_false, q_is_false)
         let context = TestEvalContext(state: TestState(index: 0, value: false), traceIndex: 0)
-        
+
         let (holdsNow, nextFormula) = try formula.step(with: context)
         #expect(holdsNow == false)
         #expect(nextFormula == .booleanLiteral(false))
@@ -616,7 +616,7 @@ struct LTLFormulaStepTests {
         let q: TestFormula = .atomic(Self.p_eval_throws)
         let formula: TestFormula = .until(p, q)
         let context = TestEvalContext(state: TestState(index: 0, value: true), traceIndex: 0)
-        
+
         #expect(throws: DeliberateError.testError) {
             _ = try formula.step(with: context)
         }
@@ -628,7 +628,7 @@ struct LTLFormulaStepTests {
         let q: TestFormula = .booleanLiteral(false) // Q is definitively false
         let formula: TestFormula = .until(p, q)
         let context = TestEvalContext(state: TestState(index: 0, value: true), traceIndex: 0)
-        
+
         #expect(throws: DeliberateError.testError) {
             _ = try formula.step(with: context)
         }
@@ -642,7 +642,7 @@ struct LTLFormulaStepTests {
         let q: TestFormula = .atomic(Self.p_eval_true)
         let formula: TestFormula = .weakUntil(p, q)
         let context = TestEvalContext(state: TestState(index: 0, value: true), traceIndex: 0) // Makes q_eval_true true
-        
+
         let (holdsNow, nextFormula) = try formula.step(with: context)
         #expect(holdsNow == true)
         #expect(nextFormula == .booleanLiteral(true))
@@ -654,8 +654,8 @@ struct LTLFormulaStepTests {
         let q: TestFormula = .atomic(Self.p_eval_false)
         let formula: TestFormula = .weakUntil(p, q)
         // Context: p_eval_true is true, p_eval_false is false (so q is false)
-        let context = TestEvalContext(state: TestState(index: 0, value: true), traceIndex: 0) 
-        
+        let context = TestEvalContext(state: TestState(index: 0, value: true), traceIndex: 0)
+
         let (holdsNow, nextFormula) = try formula.step(with: context)
         #expect(holdsNow == true)
         #expect(nextFormula == formula) // Next obligation is P W Q itself
@@ -666,11 +666,11 @@ struct LTLFormulaStepTests {
         // We need P to be false and Q to be false with the same context.
         // Context: TestState(index: 0, value: false)
         // p_eval_true logic: { $0.value == true }. With value:false, this is false.
-        let p_is_false: TestFormula = .atomic(Self.p_eval_true) 
-        let q_is_false: TestFormula = .atomic(Self.p_eval_true) 
+        let p_is_false: TestFormula = .atomic(Self.p_eval_true)
+        let q_is_false: TestFormula = .atomic(Self.p_eval_true)
         let formula: TestFormula = .weakUntil(p_is_false, q_is_false)
         let context = TestEvalContext(state: TestState(index: 0, value: false), traceIndex: 0)
-        
+
         let (holdsNow, nextFormula) = try formula.step(with: context)
         #expect(holdsNow == false)
         #expect(nextFormula == .booleanLiteral(false))
@@ -682,7 +682,7 @@ struct LTLFormulaStepTests {
         let q: TestFormula = .atomic(Self.p_eval_throws)
         let formula: TestFormula = .weakUntil(p, q)
         let context = TestEvalContext(state: TestState(index: 0, value: true), traceIndex: 0)
-        
+
         #expect(throws: DeliberateError.testError) {
             _ = try formula.step(with: context)
         }
@@ -694,7 +694,7 @@ struct LTLFormulaStepTests {
         let q: TestFormula = .booleanLiteral(false) // Q is definitively false
         let formula: TestFormula = .weakUntil(p, q)
         let context = TestEvalContext(state: TestState(index: 0, value: true), traceIndex: 0)
-        
+
         #expect(throws: DeliberateError.testError) {
             _ = try formula.step(with: context)
         }
@@ -721,7 +721,7 @@ struct LTLFormulaStepTests {
         let q: TestFormula = .atomic(Self.p_eval_true)
         let formula: TestFormula = .release(p, q)
         let context = TestEvalContext(state: TestState(index: 0, value: true), traceIndex: 0) // Makes both P and Q true
-        
+
         let (holdsNow, nextFormula) = try formula.step(with: context)
         #expect(holdsNow == true)
         #expect(nextFormula == .booleanLiteral(true))
@@ -733,7 +733,7 @@ struct LTLFormulaStepTests {
         let q: TestFormula = .atomic(Self.p_eval_true)  // Q is true
         let formula: TestFormula = .release(p, q)
         // Context: value=true makes p_eval_false false, and p_eval_true true.
-        let context = TestEvalContext(state: TestState(index: 0, value: true), traceIndex: 0) 
+        let context = TestEvalContext(state: TestState(index: 0, value: true), traceIndex: 0)
 
         let (holdsNow, nextFormula) = try formula.step(with: context)
         #expect(holdsNow == true)
@@ -746,7 +746,7 @@ struct LTLFormulaStepTests {
         let q: TestFormula = .atomic(Self.p_eval_throws)
         let formula: TestFormula = .release(p, q)
         let context = TestEvalContext(state: TestState(index: 0, value: true), traceIndex: 0)
-        
+
         #expect(throws: DeliberateError.testError) {
             _ = try formula.step(with: context)
         }
@@ -758,9 +758,9 @@ struct LTLFormulaStepTests {
         let q: TestFormula = .booleanLiteral(true) // Q is definitively true
         let formula: TestFormula = .release(p, q)
         let context = TestEvalContext(state: TestState(index: 0, value: true), traceIndex: 0)
-        
+
         #expect(throws: DeliberateError.testError) {
             _ = try formula.step(with: context)
         }
     }
-} 
+}

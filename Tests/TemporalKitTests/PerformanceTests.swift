@@ -26,16 +26,16 @@ final class PerformanceTests: XCTestCase {
         let transitions: [KripkeTransition]
 
         var allStates: Set<String> {
-            return Set(states.map { $0.id })
+            Set(states.map { $0.id })
         }
 
         // Correct implementation: Computed property conforming to KripkeStructure
         var initialStates: Set<String> {
-            return [initialState]
+            [initialState]
         }
 
         func successors(of state: String) -> Set<String> { // Implement successors
-            return Set(transitions.filter { $0.from == state }.map { $0.to })
+            Set(transitions.filter { $0.from == state }.map { $0.to })
         }
 
         func atomicPropositionsTrue(in state: String) -> Set<PropositionID> { // Implement atomicPropositionsTrue
@@ -45,17 +45,17 @@ final class PerformanceTests: XCTestCase {
             return Set(kState.propositions.map { PropositionID(rawValue: $0)! })
         }
     }
-    
+
     // Use ClosureTemporalProposition like in EdgeCaseTests
     typealias TestProposition = ClosureTemporalProposition<String, Bool>
 
     // Helper to create ClosureTemporalProposition instances
     func makeProposition(_ name: String) -> TestProposition {
-        return ClosureTemporalProposition.nonThrowing(
+        ClosureTemporalProposition.nonThrowing(
             id: name,
             name: name,
-            evaluate: { (stateString: String) -> Bool in
-                return true 
+            evaluate: { (_: String) -> Bool in
+                true
             }
         )
     }
@@ -85,19 +85,19 @@ final class PerformanceTests: XCTestCase {
                 transitions.append(KripkeTransition(from: stateID, to: targetStateID))
             }
         }
-        
+
         // Basic reachability: Ensure s0 can reach s1, s1 reach s2 etc. if not already possible
         for i in 0..<(numStates - 1) {
             let fromState = "s\(i)"
-            let toState = "s\(i+1)"
+            let toState = "s\(i + 1)"
             if !transitions.contains(where: { $0.from == fromState }) {
                  // Add transition to next state if source has no outgoing transitions
                  transitions.append(KripkeTransition(from: fromState, to: toState))
             }
         }
          // Ensure the last state has a transition (e.g., loop back or to start) if needed
-         if numStates > 0 && numTransitionsPerState > 0 && !transitions.contains(where: {$0.from == "s\(numStates-1)"}){
-             transitions.append(KripkeTransition(from: "s\(numStates-1)", to: "s0"))
+         if numStates > 0 && numTransitionsPerState > 0 && !transitions.contains(where: { $0.from == "s\(numStates - 1)" }) {
+             transitions.append(KripkeTransition(from: "s\(numStates - 1)", to: "s0"))
          }
 
         // Ensure initialState exists if states is not empty
@@ -111,7 +111,7 @@ final class PerformanceTests: XCTestCase {
         let kripke = createLargeKripkeStructure(numStates: 10, numTransitionsPerState: 2)
         let p = makeProposition("p")
         let formula: LTLFormula<TestProposition> = .globally(.atomic(p)) // Use .atomic
-        
+
         // LTLModelChecker is not generic on Proposition anymore
         let modelChecker = LTLModelChecker<TestKripkeStructure>()
 
@@ -144,7 +144,7 @@ final class PerformanceTests: XCTestCase {
             )
         }
     }
-    
+
     func testNestedDFS_Performance_LargeStructure() {
         // Note: 100 states can be quite demanding for complex formulas
         let kripke = createLargeKripkeStructure(numStates: 100, numTransitionsPerState: 2)
@@ -171,16 +171,16 @@ final class PerformanceTests: XCTestCase {
     }
 
     // MARK: - GBAConditionGenerator Benchmarks
-    
+
     private func createGBAConditionGenerator() -> GBAConditionGenerator<TestProposition> {
-        return GBAConditionGenerator<TestProposition>()
+        GBAConditionGenerator<TestProposition>()
     }
-    
+
     func testGBAGeneration_Performance_SimpleFormula() {
         let p = makeProposition("p")
         let formula: LTLFormula<TestProposition> = .globally(.atomic(p))
         let nnfFormula = LTLFormulaNNFConverter.convert(formula) // Convert to NNF
-        
+
         let constructor = TableauGraphConstructor<TestProposition, PropositionID>(
             nnfFormula: nnfFormula, // Use NNF formula
             originalPreNNFFormula: formula,
@@ -189,9 +189,9 @@ final class PerformanceTests: XCTestCase {
         constructor.buildGraph()
         let tableauNodes = constructor.constructedTableauNodes
         let nodeMap = constructor.gbaStateIDMap
-        
+
         let generator = createGBAConditionGenerator()
-        
+
         self.measure {
             _ = GBAConditionGenerator<TestProposition>.determineConditions(
                 tableauNodes: tableauNodes,
@@ -200,7 +200,7 @@ final class PerformanceTests: XCTestCase {
             )
         }
     }
-    
+
     func testGBAGeneration_Performance_MediumFormula() {
         let p = makeProposition("p")
         let q = makeProposition("q")
@@ -211,7 +211,7 @@ final class PerformanceTests: XCTestCase {
             )
         )
         let nnfFormula = LTLFormulaNNFConverter.convert(formula) // Convert to NNF
-        
+
         let constructor = TableauGraphConstructor<TestProposition, PropositionID>(
             nnfFormula: nnfFormula, // Use NNF formula
             originalPreNNFFormula: formula,
@@ -220,9 +220,9 @@ final class PerformanceTests: XCTestCase {
         constructor.buildGraph()
         let tableauNodes = constructor.constructedTableauNodes
         let nodeMap = constructor.gbaStateIDMap
-        
+
         let generator = createGBAConditionGenerator()
-        
+
         self.measure {
             _ = GBAConditionGenerator<TestProposition>.determineConditions(
                 tableauNodes: tableauNodes,
@@ -231,7 +231,7 @@ final class PerformanceTests: XCTestCase {
             )
         }
     }
-    
+
     func testGBAGeneration_Performance_ComplexFormula() {
         let p = makeProposition("p")
         let q = makeProposition("q")
@@ -249,7 +249,7 @@ final class PerformanceTests: XCTestCase {
             )
         )
         let nnfFormula = LTLFormulaNNFConverter.convert(formula) // Convert to NNF
-        
+
         let constructor = TableauGraphConstructor<TestProposition, PropositionID>(
             nnfFormula: nnfFormula, // Use NNF formula
             originalPreNNFFormula: formula,
@@ -260,7 +260,7 @@ final class PerformanceTests: XCTestCase {
         let nodeMap = constructor.gbaStateIDMap
 
         let generator = createGBAConditionGenerator()
-        
+
         self.measure {
             _ = GBAConditionGenerator<TestProposition>.determineConditions(
                 tableauNodes: tableauNodes,
@@ -269,4 +269,4 @@ final class PerformanceTests: XCTestCase {
             )
         }
     }
-} 
+}

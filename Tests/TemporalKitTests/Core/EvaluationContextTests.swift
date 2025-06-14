@@ -25,7 +25,7 @@ struct EvaluationContextTests {
         }
 
         var traceIndex: Int? {
-            return index
+            index
         }
     }
 
@@ -40,14 +40,13 @@ struct EvaluationContextTests {
         }
         // traceIndex will use the default implementation (returns nil)
     }
-    
+
     struct TestContextEmptyState: EvaluationContext {
         // No state stored directly
         func currentStateAs<T>(_ type: T.Type) -> T? {
-            return nil // Always returns nil, or could have specific logic
+            nil // Always returns nil, or could have specific logic
         }
     }
-
 
     @Test("currentStateAs returns correct type")
     func testCurrentStateAsReturnsCorrectType() {
@@ -67,7 +66,7 @@ struct EvaluationContextTests {
         let retrievedState: AnotherMockState? = context.currentStateAs(AnotherMockState.self)
         #expect(retrievedState == nil)
     }
-    
+
     @Test("currentStateAs returns nil when context state is empty or different")
     func testCurrentStateAsReturnsNilForEmptyContextState() {
         let context = TestContextEmptyState()
@@ -86,4 +85,4 @@ struct EvaluationContextTests {
         let context = TestContextWithoutExplicitTraceIndex(state: MockState(value: "test"))
         #expect(context.traceIndex == nil)
     }
-} 
+}

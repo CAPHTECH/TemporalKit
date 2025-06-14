@@ -7,11 +7,11 @@ public indirect enum LTLFormula<P: TemporalProposition>: Hashable where P.Value 
     case and(LTLFormula<P>, LTLFormula<P>)
     case or(LTLFormula<P>, LTLFormula<P>)
     case implies(LTLFormula<P>, LTLFormula<P>)
-    
+
     case next(LTLFormula<P>)
     case eventually(LTLFormula<P>)
     case globally(LTLFormula<P>)
-    
+
     case until(LTLFormula<P>, LTLFormula<P>)
     case weakUntil(LTLFormula<P>, LTLFormula<P>)
     case release(LTLFormula<P>, LTLFormula<P>)
@@ -31,7 +31,7 @@ public indirect enum LTLFormula<P: TemporalProposition>: Hashable where P.Value 
         case weakUntil = 10
         case release = 11
     }
-    
+
     // Recursive Hashable conformance
     public func hash(into hasher: inout Hasher) {
         // Use discriminator values for better performance

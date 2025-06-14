@@ -20,9 +20,9 @@ struct TemporalKitErrorTests {
         )
 
         let expectedDescription = "State type mismatch for proposition 'TestProp' (ID: test-prop-id). Expected context to provide 'ExpectedTestState', but got 'ActualTestState'."
-        
+
         #expect(error.errorDescription == expectedDescription)
         // For more robust testing of LocalizedError conformance:
         #expect(error.localizedDescription == expectedDescription)
     }
-} 
+}

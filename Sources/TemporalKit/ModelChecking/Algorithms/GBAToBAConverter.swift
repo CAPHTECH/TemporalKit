@@ -54,7 +54,7 @@ internal struct GBAToBAConverter<S: Hashable, SymbolT: Hashable> {
         var productBAAcceptingStates = Set<ProductBATState<S>>()
 
         let orderedAcceptanceSets = Array(gbaAcceptanceSets)
-        
+
         // ---- REMOVED GBAToBAConverter DEBUG ----
         // if k > 0 && !orderedAcceptanceSets.isEmpty {
         //     print("[GBAToBAConverter DEBUG] Number of GBA acceptance sets (k): \(k)")
@@ -84,11 +84,11 @@ internal struct GBAToBAConverter<S: Hashable, SymbolT: Hashable> {
             let symbol_on = gbaTransition.symbol
             let q_dest_gba = gbaTransition.destinationState
 
-            for i in 0..<k { 
+            for i in 0..<k {
                 let current_Fi = orderedAcceptanceSets[i]
-                var j_next_index = i 
-                
-                if current_Fi.contains(q_source_gba) { 
+                var j_next_index = i
+
+                if current_Fi.contains(q_source_gba) {
                     j_next_index = (i + 1) % k
                 }
 
@@ -97,7 +97,7 @@ internal struct GBAToBAConverter<S: Hashable, SymbolT: Hashable> {
 
                 if productBAStates.contains(productStateFrom) && productBAStates.contains(productStateTo) {
                     productBATransitions.insert(BuchiAutomaton<ProductBATState<S>, SymbolT>.Transition(from: productStateFrom, on: symbol_on, to: productStateTo))
-                    
+
                     // ---- REMOVED GBAToBAConverter DEBUG ----
                     // let qSourceDesc = String(describing: q_source_gba)
                     // let pDemoLikeRawValue = "p_demo_like"
@@ -119,7 +119,7 @@ internal struct GBAToBAConverter<S: Hashable, SymbolT: Hashable> {
                 }
             }
         }
-        
+
         // ---- REMOVED GBAToBAConverter DEBUG ----
         // print("[GBAToBAConverter DEBUG] Generated BA: States=\(productBAStates.count), Initials=\(productBAInitialStates.count), Accepting=\(productBAAcceptingStates.count), Transitions=\(productBATransitions.count)")
         // for trans in productBATransitions.sorted(by: { (t1,t2) -> Bool in
@@ -147,17 +147,17 @@ internal struct GBAToBAConverter<S: Hashable, SymbolT: Hashable> {
 
         if isDemoRelated {
             print("[GBAToBAConverter DEBUG OUTPUT for Demo-related Automaton]")
-            print("    Input GBA Acceptance Sets (count: \(gbaAcceptanceSets.count)): \(gbaAcceptanceSets.map { $0.map { String(describing: $0)}.sorted() })")
+            print("    Input GBA Acceptance Sets (count: \(gbaAcceptanceSets.count)): \(gbaAcceptanceSets.map { $0.map { String(describing: $0) }.sorted() })")
             print("    BA Initial States (count: \(finalBuchiAutomaton.initialStates.count)):")
-            finalBuchiAutomaton.initialStates.sorted(by: {String(describing: $0) < String(describing: $1)}).forEach { initState in
+            finalBuchiAutomaton.initialStates.sorted(by: { String(describing: $0) < String(describing: $1) }).forEach { initState in
                 print("        \(initState)")
             }
             print("    BA Accepting States (count: \(finalBuchiAutomaton.acceptingStates.count)):")
-            finalBuchiAutomaton.acceptingStates.sorted(by: {String(describing: $0) < String(describing: $1)}).forEach { accState in
+            finalBuchiAutomaton.acceptingStates.sorted(by: { String(describing: $0) < String(describing: $1) }).forEach { accState in
                 print("        \(accState)")
             }
         }
         // ---- END DEBUG ----
         return finalBuchiAutomaton
     }
-} 
+}

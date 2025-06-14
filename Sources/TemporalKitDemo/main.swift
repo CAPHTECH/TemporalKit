@@ -31,15 +31,15 @@ let cartHasMoreThanTwoItems = TemporalKit.makeProposition(
 // 2. Create a Trace (a sequence of AppStates)
 let trace: [AppState] = [
     AppState(isUserLoggedIn: false, hasUnreadMessages: false, cartItemCount: 0), // time 0
-    AppState(isUserLoggedIn: true,  hasUnreadMessages: false, cartItemCount: 0), // time 1
-    AppState(isUserLoggedIn: true,  hasUnreadMessages: true,  cartItemCount: 1), // time 2
-    AppState(isUserLoggedIn: true,  hasUnreadMessages: false, cartItemCount: 3), // time 3
+    AppState(isUserLoggedIn: true, hasUnreadMessages: false, cartItemCount: 0), // time 1
+    AppState(isUserLoggedIn: true, hasUnreadMessages: true, cartItemCount: 1), // time 2
+    AppState(isUserLoggedIn: true, hasUnreadMessages: false, cartItemCount: 3), // time 3
     AppState(isUserLoggedIn: false, hasUnreadMessages: false, cartItemCount: 0)  // time 4
 ]
 
 // Helper to wrap AppState in AppEvaluationContext
 func contextFor(appState: AppState, at index: Int) -> AppEvaluationContext {
-    return AppEvaluationContext(appState: appState, index: index)
+    AppEvaluationContext(appState: appState, index: index)
 }
 
 // Define a typealias for the specific proposition type used in this demo, for LTL formulas
@@ -176,8 +176,8 @@ func evaluate(prop: KripkeDemoProposition, in state: DemoKripkeModelState) -> Bo
     do {
         struct SimpleContext: EvaluationContext {
             let state: DemoKripkeModelState
-            func currentStateAs<T>(_ type: T.Type) -> T? { return state as? T }
-            var traceIndex: Int? { return nil }
+            func currentStateAs<T>(_ type: T.Type) -> T? { state as? T }
+            var traceIndex: Int? { nil }
         }
         return try prop.evaluate(in: SimpleContext(state: state))
     } catch {
@@ -206,12 +206,12 @@ func contextFor(state: DemoKripkeModelState, index: Int) -> EvaluationContext {
     struct SimpleContext: EvaluationContext {
         let state: DemoKripkeModelState
         let idx: Int
-        
+
         func currentStateAs<T>(_ type: T.Type) -> T? {
-            return state as? T
+            state as? T
         }
-        
-        var traceIndex: Int? { return idx }
+
+        var traceIndex: Int? { idx }
     }
     return SimpleContext(state: state, idx: index)
 }
@@ -254,18 +254,18 @@ print("\nFor comparison, automated model check still reports:")
 // Demo code for p U r formula evaluation
 do {
     let pUr_result = try modelChecker.check(formula: formula_p_U_r_kripke, model: kripkeModel)
-    
+
     // Convert ModelCheckResult to boolean
     let holdsValue = if case .holds = pUr_result { true } else { false }
-    
+
     print("\nFinal result for p U r was: \(holdsValue ? "HOLDS" : "FAILS")")
-    
+
     // Print counterexample details if the formula fails
     if case .fails(let counterexample) = pUr_result {
         print("Counterexample Prefix: \(counterexample.prefix.map { $0.description }.joined(separator: " -> "))")
         print("Counterexample Cycle: \(counterexample.cycle.map { $0.description }.joined(separator: " -> "))")
     }
-    
+
     print("\nInteresting observation: Our improved algorithm determined p U r HOLDS. This is because:")
     print("1. In our model, s0 has p=true, r=false, and transitions to s1")
     print("2. Then s1 has p=false, r=false, and transitions to s2")
@@ -274,10 +274,9 @@ do {
     print("5. Since in our path [s0, s1, s2], r becomes true at s2, and although p becomes false at s1,")
     print("   the algorithm still considers paths where p remains true until r becomes true (e.g., a path from s0 to s2 directly)")
     print("6. The formal semantics of our Büchi-based algorithm treats this correctly as HOLDS")
-    
+
     print("\nThis demonstrates the importance of careful interpretation of LTL results in model checking.")
-}
-catch {
+} catch {
     print("Error during model checking: \(error)")
 }
 
@@ -345,10 +344,10 @@ let reactiveFormulasToCheck: [(String, LTLFormula<ReactiveUIProposition>)] = [
 for (description, formula) in reactiveFormulasToCheck {
     print("\nVerifying: \(description)")
     print("Formula: \(formula)")
-    
+
     do {
         let result = try reactiveSystemChecker.check(formula: formula, model: reactiveUIModel)
-        
+
         switch result {
         case .holds:
             print("  Result: ✅ PROPERTY HOLDS")

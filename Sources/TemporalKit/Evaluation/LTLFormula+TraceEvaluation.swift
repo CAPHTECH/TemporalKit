@@ -11,28 +11,28 @@ extension LTLFormula {
     ///   - debugHandler: Optional closure for debug output. Default is nil.
     /// - Returns: A Boolean indicating whether the formula holds for the entire trace.
     /// - Throws: `LTLTraceEvaluationError` in case of evaluation failures.
-    public func evaluate(over trace: [EvaluationContext], 
+    public func evaluate(over trace: [EvaluationContext],
                          debugHandler: ((String) -> Void)? = nil) throws -> Bool {
         guard !trace.isEmpty else {
             throw LTLTraceEvaluationError.emptyTrace
         }
-        
+
         var currentFormula = self
         debugHandler?("Starting evaluation of formula: \(self)")
-        
+
         for (index, context) in trace.enumerated() {
             let (holdsNow, nextFormula) = try currentFormula.step(with: context)
             debugHandler?("Step \(index): Holds Now = \(holdsNow), Next Formula = \(nextFormula)")
-            
+
             // Early termination for definitive results
             if case .booleanLiteral(let value) = nextFormula {
                 debugHandler?("Formula evaluation completed at step \(index) with result: \(value)")
                 return value
             }
-            
+
             currentFormula = nextFormula
         }
-        
+
         // Handle end-of-trace cases
         switch currentFormula {
         case .booleanLiteral(let value):
@@ -54,7 +54,7 @@ extension LTLFormula {
             return true
         }
     }
-    
+
     /// Convenience function to evaluate a simple proposition at a specific context.
     ///
     /// - Parameter context: The evaluation context.

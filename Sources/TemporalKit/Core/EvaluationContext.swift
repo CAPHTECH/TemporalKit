@@ -22,8 +22,8 @@ public protocol EvaluationContext {
 
 // Provide defaults and enhanced functionality via extension
 public extension EvaluationContext {
-    var traceIndex: Int? { return nil }
-    
+    var traceIndex: Int? { nil }
+
     /// Enhanced state retrieval with detailed error information
     /// This is provided as an extension method to maintain backward compatibility.
     /// - Parameter type: The expected type of the state object.
