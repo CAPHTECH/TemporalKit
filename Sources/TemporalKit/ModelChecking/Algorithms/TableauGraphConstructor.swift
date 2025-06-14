@@ -207,6 +207,13 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
             }
         }
 
+        // Create local variables first
+        var worklist = currentWorklist
+        var processed = processedOnPath
+        let vSet = vSet
+        let pAtomic = pAtomicSet
+        let nAtomic = nAtomicSet
+        
         if isTargetFormulaContextForSolve {
             let currentWorklistDesc = currentWorklist.map { String(describing: $0).prefix(40) }
             let processedDesc = processedOnPath.map { String(describing: $0).prefix(40) }
@@ -221,12 +228,6 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
             print("    V (count \(vSetDesc.count)): \(vSetDesc), P_atomic: \(pAtomicDesc), N_atomic: \(nAtomicDesc), forSymbol: \(forSymbolDesc)")
         }
         // ---- END DEBUG ----
-
-        var worklist = currentWorklist
-        var processed = processedOnPath
-        let vSet = vSet
-        let pAtomic = pAtomicSet
-        let nAtomic = nAtomicSet
 
         if worklist.isEmpty {
             var currentBasicFormulas = Set<LTLFormula<P>>()
