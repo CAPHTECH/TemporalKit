@@ -8,4 +8,4 @@ internal typealias BuchiAlphabetSymbol<PropositionIDType: Hashable> = Set<Propos
 internal struct ProductBATState<OriginalState: Hashable>: Hashable {
     let originalState: OriginalState
     let index: Int
-} 
+}

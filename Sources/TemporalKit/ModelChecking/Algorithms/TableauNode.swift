@@ -7,10 +7,10 @@ import Foundation
 internal struct TableauNode<P: TemporalProposition>: Hashable where P.Value == Bool {
     /// Formulas that must be true *now* at this node.
     let currentFormulas: Set<LTLFormula<P>>
-    
+
     /// Formulas that must be true in the *next* state(s) reached from this node.
     let nextFormulas: Set<LTLFormula<P>>
-    
+
     // --- Conceptual fields for a more complete TableauNode (from original comments) ---
     // let uniqueID: UUID // For distinctness if formula sets are not canonical enough
     // let processedFormulas: Set<LTLFormula<P>> // Formulas already expanded within this node
@@ -24,6 +24,6 @@ internal struct TableauNode<P: TemporalProposition>: Hashable where P.Value == B
     }
 
     internal static func == (lhs: TableauNode<P>, rhs: TableauNode<P>) -> Bool {
-        return lhs.currentFormulas == rhs.currentFormulas && lhs.nextFormulas == rhs.nextFormulas
+        lhs.currentFormulas == rhs.currentFormulas && lhs.nextFormulas == rhs.nextFormulas
     }
-} 
+}

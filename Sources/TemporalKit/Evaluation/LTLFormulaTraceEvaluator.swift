@@ -1,6 +1,10 @@
 import Foundation
 
 /// Evaluates an LTL formula against a trace of states.
+/// 
+/// Note: This class is now redundant. Use `LTLFormula.evaluate(over:debugHandler:)` instead
+/// for better performance and consistency.
+@available(*, deprecated, message: "Use LTLFormula.evaluate(over:debugHandler:) instead")
 public class LTLFormulaTraceEvaluator<P: TemporalProposition> where P.Value == Bool {
 
     public init() {}
@@ -15,7 +19,7 @@ public class LTLFormulaTraceEvaluator<P: TemporalProposition> where P.Value == B
     /// - Returns: `true` if the formula holds on the trace, `false` otherwise.
     /// - Throws: An error if evaluation cannot be performed (e.g., empty trace for certain operators).
     public func evaluate<S, C: EvaluationContext>(formula: LTLFormula<P>, trace: [S], contextProvider: (S, Int) -> C) throws -> Bool {
-        return try evaluateRecursive(formula: formula, trace: trace, currentIndex: 0, contextProvider: contextProvider)
+        try evaluateRecursive(formula: formula, trace: trace, currentIndex: 0, contextProvider: contextProvider)
     }
 
     private func evaluateRecursive<S, C: EvaluationContext>(formula: LTLFormula<P>, trace: [S], currentIndex: Int, contextProvider: (S, Int) -> C) throws -> Bool {
@@ -25,10 +29,14 @@ public class LTLFormulaTraceEvaluator<P: TemporalProposition> where P.Value == B
 
         case .atomic(let proposition):
             guard currentIndex < trace.count else {
-                throw LTLEvaluationError.traceIndexOutOfBounds(index: currentIndex, traceLength: trace.count)
+                throw LTLTraceEvaluationError.inconclusiveEvaluation("Trace index \(currentIndex) out of bounds for trace length \(trace.count)")
             }
             let context = contextProvider(trace[currentIndex], currentIndex)
-            return try proposition.evaluate(in: context)
+            do {
+                return try proposition.evaluate(in: context)
+            } catch {
+                throw LTLTraceEvaluationError.propositionEvaluationFailure("Error evaluating proposition: \(error)")
+            }
 
         case .not(let subformula):
             return try !evaluateRecursive(formula: subformula, trace: trace, currentIndex: currentIndex, contextProvider: contextProvider)
@@ -54,13 +62,13 @@ public class LTLFormulaTraceEvaluator<P: TemporalProposition> where P.Value == B
         case .next(let subformula):
             let nextIndex = currentIndex + 1
             guard nextIndex < trace.count else {
-                throw LTLEvaluationError.traceIndexOutOfBounds(index: nextIndex, traceLength: trace.count)
+                throw LTLTraceEvaluationError.inconclusiveEvaluation("Cannot evaluate Next at end of trace - next index \(nextIndex) out of bounds")
             }
             return try evaluateRecursive(formula: subformula, trace: trace, currentIndex: nextIndex, contextProvider: contextProvider)
 
         case .eventually(let subformula):
             if currentIndex >= trace.count { // F(phi) on empty (remaining) trace is false
-                return false 
+                return false
             }
             for i in currentIndex..<trace.count {
                 if try evaluateRecursive(formula: subformula, trace: trace, currentIndex: i, contextProvider: contextProvider) {
@@ -95,7 +103,7 @@ public class LTLFormulaTraceEvaluator<P: TemporalProposition> where P.Value == B
                 }
             }
             return false
-        
+
         case .weakUntil(let left, let right):
             let globallyLeftFormula = LTLFormula<P>.globally(left)
             if try evaluateRecursive(formula: globallyLeftFormula, trace: trace, currentIndex: currentIndex, contextProvider: contextProvider) {
@@ -103,14 +111,14 @@ public class LTLFormulaTraceEvaluator<P: TemporalProposition> where P.Value == B
             }
             let untilFormula = LTLFormula<P>.until(left, right)
             return try evaluateRecursive(formula: untilFormula, trace: trace, currentIndex: currentIndex, contextProvider: contextProvider)
-            
+
         case .release(let left, let right):
             // p R q  is equivalent to not ( (not p) U (not q) )
             let notP = LTLFormula<P>.not(left)
             let notQ = LTLFormula<P>.not(right)
             let notPUntilNotQ = LTLFormula<P>.until(notP, notQ)
             let equivalentFormula = LTLFormula<P>.not(notPUntilNotQ)
-            
+
             return try evaluateRecursive(
                 formula: equivalentFormula,
                 trace: trace,
@@ -121,9 +129,3 @@ public class LTLFormulaTraceEvaluator<P: TemporalProposition> where P.Value == B
     }
 }
 
-/// Errors that can occur during LTL formula evaluation.
-public enum LTLEvaluationError: Error, Equatable {
-    case traceIndexOutOfBounds(index: Int, traceLength: Int)
-    case notImplemented(String) // Kept for now, can be removed if all ops are considered implemented
-    case custom(String)
-} 

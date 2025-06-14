@@ -39,9 +39,9 @@ struct LTLDSLTests {
     func testNotOperator() {
         let p = MockProposition(name: "p")
         let atomicP: LTLFormula<MockProposition> = .atomic(p)
-        
+
         let notP = !atomicP
-        
+
         // Using #expect for assertion
         switch notP {
         case .not(let innerFormula):
@@ -232,4 +232,4 @@ struct LTLDSLTests {
             #expect(Bool(false), "LTLFormula.false did not produce a .booleanLiteral. Got: \(falseLiteral)")
         }
     }
-} 
+}

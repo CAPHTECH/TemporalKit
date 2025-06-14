@@ -8,7 +8,7 @@ public struct AppState {
     public let hasUnreadMessages: Bool
     public let cartItemCount: Int
     public let lastNotificationTime: Date?
-    
+
     public init(isUserLoggedIn: Bool, hasUnreadMessages: Bool, cartItemCount: Int, lastNotificationTime: Date? = nil) {
         self.isUserLoggedIn = isUserLoggedIn
         self.hasUnreadMessages = hasUnreadMessages
@@ -22,25 +22,25 @@ public struct AppState {
 public struct AppEvaluationContext: EvaluationContext {
     private let appState: AppState
     private let index: Int
-    
+
     public init(appState: AppState, index: Int) {
         self.appState = appState
         self.index = index
     }
-    
+
     /// Returns the current state as the specified type, if possible.
     public func currentStateAs<T>(_ type: T.Type) -> T? {
-        return appState as? T
+        appState as? T
     }
-    
+
     /// Returns the raw AppState.
     public var state: AppState {
-        return appState
+        appState
     }
-    
+
     /// Returns the index of this state in the trace.
     public var traceIndex: Int? {
-        return index
+        index
     }
 }
 
@@ -48,15 +48,15 @@ public struct AppEvaluationContext: EvaluationContext {
 /// This makes it easier to implement propositions that evaluate against AppState.
 public class AppProposition: TemporalProposition {
     public typealias Value = Bool
-    
+
     public let id: PropositionID
     public let name: String
-    
+
     public init(id: String, name: String) {
         self.id = PropositionID(rawValue: id) ?? PropositionID(rawValue: "demo_fallback_id")!
         self.name = name
     }
-    
+
     /// Base implementation that attempts to get the AppState from the context.
     /// Subclasses should override this method to perform their specific evaluation.
     public func evaluate(in context: EvaluationContext) throws -> Bool {
@@ -70,7 +70,7 @@ public class AppProposition: TemporalProposition {
         }
         return evaluateWithAppState(appContext.state)
     }
-    
+
     /// Method to be overridden by subclasses to evaluate against the AppState.
     /// - Parameter state: The current application state.
     /// - Returns: Whether the proposition holds in the given state.
@@ -84,9 +84,9 @@ public class IsUserLoggedInProposition: AppProposition {
     public init() {
         super.init(id: "isUserLoggedIn", name: "User is logged in")
     }
-    
+
     override public func evaluateWithAppState(_ state: AppState) -> Bool {
-        return state.isUserLoggedIn
+        state.isUserLoggedIn
     }
 }
 
@@ -95,9 +95,9 @@ public class HasUnreadMessagesProposition: AppProposition {
     public init() {
         super.init(id: "hasUnreadMessages", name: "User has unread messages")
     }
-    
+
     override public func evaluateWithAppState(_ state: AppState) -> Bool {
-        return state.hasUnreadMessages
+        state.hasUnreadMessages
     }
 }
 
@@ -106,9 +106,9 @@ public class CartHasItemsProposition: AppProposition {
     public init() {
         super.init(id: "cartHasItems", name: "Cart has items")
     }
-    
+
     override public func evaluateWithAppState(_ state: AppState) -> Bool {
-        return state.cartItemCount > 0
+        state.cartItemCount > 0
     }
 }
 
@@ -122,7 +122,7 @@ public class CartItemCountExceedsProposition: AppProposition {
     }
 
     override public func evaluateWithAppState(_ state: AppState) -> Bool {
-        return state.cartItemCount > threshold
+        state.cartItemCount > threshold
     }
 }
 
@@ -145,18 +145,18 @@ public typealias KripkeDemoProposition = TemporalKit.ClosureTemporalProposition<
 
 // Define propositions that will label the Kripke structure states.
 public let p_kripke = TemporalKit.makeProposition(
-    id: "p_kripke", 
-    name: "p (for Kripke)", 
+    id: "p_kripke",
+    name: "p (for Kripke)",
     evaluate: { (state: DemoKripkeModelState) -> Bool in state == .s0 || state == .s2 }
 )
 public let q_kripke = TemporalKit.makeProposition(
-    id: "q_kripke", 
-    name: "q (for Kripke)", 
+    id: "q_kripke",
+    name: "q (for Kripke)",
     evaluate: { (state: DemoKripkeModelState) -> Bool in state == .s1 }
 )
 public let r_kripke = TemporalKit.makeProposition(
-    id: "r_kripke", 
-    name: "r (for Kripke)", 
+    id: "r_kripke",
+    name: "r (for Kripke)",
     evaluate: { (state: DemoKripkeModelState) -> Bool in state == .s2 }
 )
 
@@ -196,7 +196,7 @@ public enum UIComponentState: Hashable, CustomStringConvertible {
     case success
     case error
     case retrying
-    
+
     public var description: String {
         switch self {
         case .idle: return "idle"
@@ -245,16 +245,16 @@ public let isRetrying = TemporalKit.makeProposition(
 public let isResponding = TemporalKit.makeProposition(
     id: "isResponding",
     name: "Component is responding (loading, retrying)",
-    evaluate: { (state: UIComponentState) -> Bool in 
-        state == .loading || state == .retrying 
+    evaluate: { (state: UIComponentState) -> Bool in
+        state == .loading || state == .retrying
     }
 )
 
 public let isDone = TemporalKit.makeProposition(
     id: "isDone",
     name: "Component has completed processing (success or error)",
-    evaluate: { (state: UIComponentState) -> Bool in 
-        state == .success || state == .error 
+    evaluate: { (state: UIComponentState) -> Bool in
+        state == .success || state == .error
     }
 )
 
@@ -264,37 +264,37 @@ public let isDone = TemporalKit.makeProposition(
 public struct ReactiveUISystem: KripkeStructure {
     public typealias State = UIComponentState
     public typealias AtomicPropositionIdentifier = PropositionID
-    
+
     public let initialStates: Set<State> = [.idle]
     public let allStates: Set<State> = [.idle, .loading, .success, .error, .retrying]
-    
+
     public func successors(of state: State) -> Set<State> {
         switch state {
         case .idle:
             // From idle, we can only transition to loading (when user initiates action)
             return [.loading]
-            
+
         case .loading:
             // From loading, we can go to success or error
             return [.success, .error]
-            
+
         case .success:
             // From success, we can go back to idle (e.g., when user resets)
             return [.idle]
-            
+
         case .error:
             // From error, we can retry or go back to idle
             return [.retrying, .idle]
-            
+
         case .retrying:
             // From retrying, same transitions as loading
             return [.success, .error]
         }
     }
-    
+
     public func atomicPropositionsTrue(in state: State) -> Set<AtomicPropositionIdentifier> {
         var trueProps = Set<AtomicPropositionIdentifier>()
-        
+
         // Add the proposition for the current state
         switch state {
         case .idle: trueProps.insert(isIdle.id)
@@ -303,16 +303,16 @@ public struct ReactiveUISystem: KripkeStructure {
         case .error: trueProps.insert(isError.id)
         case .retrying: trueProps.insert(isRetrying.id)
         }
-        
+
         // Add derived propositions
         if state == .loading || state == .retrying {
             trueProps.insert(isResponding.id)
         }
-        
+
         if state == .success || state == .error {
             trueProps.insert(isDone.id)
         }
-        
+
         return trueProps
     }
 }

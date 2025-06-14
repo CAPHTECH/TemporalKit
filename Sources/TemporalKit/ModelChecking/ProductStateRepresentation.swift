@@ -26,6 +26,6 @@ internal struct ProductState<S1: Hashable, S2: Hashable>: Hashable {
 
     // Explicit Equatable conformance (required by Hashable)
     internal static func == (lhs: ProductState<S1, S2>, rhs: ProductState<S1, S2>) -> Bool {
-        return lhs.s1 == rhs.s1 && lhs.s2 == rhs.s2
+        lhs.s1 == rhs.s1 && lhs.s2 == rhs.s2
     }
-} 
+}

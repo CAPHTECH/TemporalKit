@@ -22,7 +22,7 @@ internal struct GBAConditionGenerator<P: TemporalProposition> where P.Value == B
 
             // 1. Add to livenessFormulas ONLY if current itself is U, F, R, or G
             switch current {
-            case .until(_, _), .eventually(_), .release(_, _), .globally(_):
+            case .until, .eventually, .release, .globally:
                 livenessFormulas.insert(current)
             default:
                 break // Not a top-level liveness formula itself
@@ -32,11 +32,11 @@ internal struct GBAConditionGenerator<P: TemporalProposition> where P.Value == B
             switch current {
                 case .not(let sub), .next(let sub), .eventually(let sub), .globally(let sub):
                     if !visited.contains(sub) { worklist.append(sub) }
-                case .until(let l, let r), .release(let l, let r), .weakUntil(let l, let r), 
+                case .until(let l, let r), .release(let l, let r), .weakUntil(let l, let r),
                      .and(let l, let r), .or(let l, let r), .implies(let l, let r):
                     if !visited.contains(l) { worklist.append(l) }
                     if !visited.contains(r) { worklist.append(r) }
-                case .booleanLiteral(_), .atomic(_):
+                case .booleanLiteral, .atomic:
                     break // No children to recurse on
             }
         }
@@ -83,7 +83,7 @@ internal struct GBAConditionGenerator<P: TemporalProposition> where P.Value == B
             // Process each liveness formula to create its acceptance set
             for livenessFormula in livenessSubformulas {
                 var specificAcceptanceSet = Set<FormulaAutomatonState>()
-                
+
                 for tableauNode in tableauNodes {
                     guard let nodeID = nodeToStateIDMap[tableauNode] else { continue }
                     var conditionMet = false
@@ -93,10 +93,10 @@ internal struct GBAConditionGenerator<P: TemporalProposition> where P.Value == B
                         // For Until (A U B), a node contributes to acceptance set if:
                         // 1. It contains B (right side of Until is satisfied), OR
                         // 2. It does not contain A U B (formula doesn't need to be satisfied)
-                        if lhsU.isBooleanLiteralTrue() { 
-                            conditionMet = tableauNode.currentFormulas.contains(rhsU) 
-                        } else { 
-                            conditionMet = tableauNode.currentFormulas.contains(rhsU) || 
+                        if lhsU.isBooleanLiteralTrue() {
+                            conditionMet = tableauNode.currentFormulas.contains(rhsU)
+                        } else {
+                            conditionMet = tableauNode.currentFormulas.contains(rhsU) ||
                                          !tableauNode.currentFormulas.contains(livenessFormula)
                         }
 
@@ -104,9 +104,9 @@ internal struct GBAConditionGenerator<P: TemporalProposition> where P.Value == B
                         // For Eventually (F A), a node contributes to acceptance set if:
                         // 1. It contains A (the Eventually is satisfied), OR
                         // 2. It does not contain F A (formula doesn't need to be satisfied)
-                        conditionMet = tableauNode.currentFormulas.contains(subE) || 
-                                     !tableauNode.currentFormulas.contains(livenessFormula) 
-                    
+                        conditionMet = tableauNode.currentFormulas.contains(subE) ||
+                                     !tableauNode.currentFormulas.contains(livenessFormula)
+
                     case .release(let lhsR, let rhsR):
                         // For Release (A R B), acceptance requires satisfying B until A & B holds
                         // A node contributes to acceptance set if:
@@ -116,14 +116,14 @@ internal struct GBAConditionGenerator<P: TemporalProposition> where P.Value == B
                         conditionMet = !tableauNode.currentFormulas.contains(livenessFormula) ||
                                        tableauNode.currentFormulas.contains(lhsR) ||
                                        !tableauNode.currentFormulas.contains(rhsR)
-                        
+
                         // Special case: if A is false, R becomes G(B), which has a different acceptance condition
                         if lhsR.isBooleanLiteralFalse() {
                             // For false R B (equivalent to G B), a node contributes if it contains B
                             conditionMet = tableauNode.currentFormulas.contains(rhsR) ||
                                          !tableauNode.currentFormulas.contains(livenessFormula)
                         }
-                        
+
                         // Special case: if A is true, R becomes just B, no liveness constraint needed
                         if lhsR.isBooleanLiteralTrue() {
                             conditionMet = true // All states can be in acceptance set
@@ -135,7 +135,7 @@ internal struct GBAConditionGenerator<P: TemporalProposition> where P.Value == B
                         // 2. It does not contain G A (formula doesn't need to be satisfied)
                         conditionMet = tableauNode.currentFormulas.contains(subG) ||
                                       !tableauNode.currentFormulas.contains(livenessFormula)
-                    
+
                     default:
                         continue // Skip non-liveness formulas
                     }
@@ -144,9 +144,9 @@ internal struct GBAConditionGenerator<P: TemporalProposition> where P.Value == B
                         specificAcceptanceSet.insert(nodeID)
                     }
                 }
-                
+
                 // Add the acceptance set if it's not empty, or this is the only liveness formula
-                if !specificAcceptanceSet.isEmpty || livenessSubformulas.count == 1 { 
+                if !specificAcceptanceSet.isEmpty || livenessSubformulas.count == 1 {
                      gbaAcceptanceSets.append(specificAcceptanceSet)
                 } else {
                     // This is a fallback to ensure we have an acceptance set even if empty
@@ -155,7 +155,7 @@ internal struct GBAConditionGenerator<P: TemporalProposition> where P.Value == B
                 }
             }
         }
-        
+
         // Validate acceptance sets
         if livenessSubformulas.isEmpty && gbaAcceptanceSets.isEmpty && !tableauNodes.isEmpty {
             // For formulas without liveness but with tableau nodes, create an all-accepting set
@@ -169,7 +169,7 @@ internal struct GBAConditionGenerator<P: TemporalProposition> where P.Value == B
                 gbaAcceptanceSets.append(allStatesSet)
             }
         }
-        
+
         return gbaAcceptanceSets
     }
 }
@@ -180,7 +180,7 @@ fileprivate extension LTLFormula {
         if case .booleanLiteral(let bVal) = self, bVal == true { return true }
         return false
     }
-    
+
     /// Returns true if this formula is the boolean literal `false`.
     func isBooleanLiteralFalse() -> Bool {
         if case .booleanLiteral(let bVal) = self, !bVal { return true }

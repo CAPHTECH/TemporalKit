@@ -10,11 +10,11 @@ internal struct LTLFormulaNNFConverter {
         // print("LTLFormulaNNFConverter.convert: Implementing NNF conversion.") // Original debug print
         switch formula {
         // Base cases for NNF:
-        case .booleanLiteral(_):
+        case .booleanLiteral:
             return formula
-        case .atomic(_):
+        case .atomic:
             return formula
-        case .not(.atomic(_)): // Negation is already at an atomic proposition
+        case .not(.atomic): // Negation is already at an atomic proposition
             return formula
         case .not(.booleanLiteral(let b)): // ¬true -> false, ¬false -> true
              return .booleanLiteral(!b)
@@ -45,7 +45,7 @@ internal struct LTLFormulaNNFConverter {
             let fNotSub = LTLFormula.eventually(convert(.not(subFormula)))
             return convert(fNotSub) // Convert the produced F formula
 
-        case .not(.until(let lhs, let rhs)): 
+        case .not(.until(let lhs, let rhs)):
             // ¬(φ U ψ)  ->  (¬ψ R ¬φ) (NNF)
             // This is a fundamental duality in LTL: 
             // The negation of "φ holds until ψ holds" is
@@ -56,17 +56,17 @@ internal struct LTLFormulaNNFConverter {
             // 2. φ fails to hold before ψ (¬φ holds at some point before ψ)
             // This is exactly what (¬ψ R ¬φ) encodes.
             return .release(convert(.not(rhs)), convert(.not(lhs)))
-        
+
         case .not(.weakUntil(let lhs, let rhs)):
             // φ W ψ  ≡  (φ U ψ) ∨ Gφ
             // So, ¬(φ W ψ) ≡ ¬((φ U ψ) ∨ Gφ)
             //              ≡ ¬(φ U ψ) ∧ ¬(Gφ)
             //              ≡ (¬ψ R ¬φ) ∧ (F¬φ)  (using ¬(φ U ψ) -> (¬ψ R ¬φ) and ¬Gφ -> F¬φ)
             let term1 = LTLFormula.release(convert(.not(rhs)), convert(.not(lhs)))
-            let term2 = LTLFormula.eventually(convert(.not(lhs))) 
+            let term2 = LTLFormula.eventually(convert(.not(lhs)))
             return .and(term1, term2)
 
-        case .not(.release(let lhs, let rhs)): 
+        case .not(.release(let lhs, let rhs)):
             // ¬(φ R ψ)  ->  (¬φ U ¬ψ) (NNF)
             // This is the dual of the Until negation above.
             // The negation of "φ releases ψ from having to hold" is
@@ -78,13 +78,13 @@ internal struct LTLFormulaNNFConverter {
             return .and(convert(lhs), convert(rhs))
         case .or(let lhs, let rhs):
             return .or(convert(lhs), convert(rhs))
-        
+
         case .implies(let lhs, let rhs): // φ → ψ  is  ¬φ ∨ ψ. Apply NNF to this structure.
             return .or(convert(.not(lhs)), convert(rhs))
 
         case .next(let subFormula):
             return .next(convert(subFormula))
-            
+
         case .eventually(let subFormula): // F φ  ≡  true U φ. Convert to NNF of (true U NNF(subFormula)).
             return .until(.booleanLiteral(true), convert(subFormula))
 
@@ -100,4 +100,4 @@ internal struct LTLFormulaNNFConverter {
             return .release(convert(lhs), convert(rhs))
         }
     }
-} 
+}

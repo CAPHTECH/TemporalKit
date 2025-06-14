@@ -54,4 +54,4 @@ public protocol KripkeStructure {
     /// - Returns: A set of `AtomicPropositionIdentifier`s that are considered true
     ///            in the specified `state`.
     func atomicPropositionsTrue(in state: State) -> Set<AtomicPropositionIdentifier>
-} 
+}

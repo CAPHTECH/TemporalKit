@@ -5,7 +5,7 @@ public enum PropositionIDError: Error, LocalizedError, Equatable {
     case emptyString
     case containsWhitespace
     case invalidCharacters(String)
-    
+
     public var errorDescription: String? {
         switch self {
         case .emptyString:
@@ -20,33 +20,47 @@ public enum PropositionIDError: Error, LocalizedError, Equatable {
 
 public struct PropositionID: Hashable, Equatable, RawRepresentable, Codable, Sendable {
     public let rawValue: String
-    
-    /// Valid characters for PropositionID: alphanumeric, underscore, hyphen, and dot
-    private static let validCharacterSet = CharacterSet.alphanumerics
-        .union(CharacterSet(charactersIn: "_-."))
 
     public init?(rawValue: String) {
-        guard !rawValue.isEmpty else { return nil }
-        guard rawValue.rangeOfCharacter(from: .whitespacesAndNewlines) == nil else { return nil }
-        guard rawValue.rangeOfCharacter(from: Self.validCharacterSet.inverted) == nil else { return nil }
-        self.rawValue = rawValue
+        do {
+            try self.init(validating: rawValue)
+        } catch {
+            return nil
+        }
     }
-    
+
     /// Throwing initializer that provides detailed error information
     public init(validating rawValue: String) throws {
         guard !rawValue.isEmpty else {
             throw PropositionIDError.emptyString
         }
-        guard rawValue.rangeOfCharacter(from: .whitespacesAndNewlines) == nil else {
-            throw PropositionIDError.containsWhitespace
+
+        var invalidCharacters: [Character] = []
+
+        // Single pass validation with prioritized error reporting
+        for char in rawValue {
+            if char.isWhitespace {
+                throw PropositionIDError.containsWhitespace
+            }
+            if !Self.isValidCharacter(char) {
+                invalidCharacters.append(char)
+            }
         }
-        if let range = rawValue.rangeOfCharacter(from: Self.validCharacterSet.inverted) {
-            let invalidChars = String(rawValue[range])
-            throw PropositionIDError.invalidCharacters(invalidChars)
+
+        guard invalidCharacters.isEmpty else {
+            let invalidString = String(invalidCharacters)
+            throw PropositionIDError.invalidCharacters(invalidString)
         }
+
         self.rawValue = rawValue
     }
-    
+
+    /// Optimized character validation using direct character property checks
+    @inline(__always)
+    private static func isValidCharacter(_ char: Character) -> Bool {
+        char.isLetter || char.isNumber || char == "_" || char == "-" || char == "."
+    }
+
     /// Convenience initializer for backward compatibility
     /// - Warning: This will return nil for invalid IDs. Use `init(validating:)` for detailed errors.
     public init?(_ rawValue: String) {

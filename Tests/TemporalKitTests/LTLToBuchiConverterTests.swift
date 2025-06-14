@@ -2,10 +2,10 @@ import Testing
 @testable import TemporalKit
 
 // Define a dummy state type for ClosureTemporalProposition in tests
-fileprivate struct DummyTestState {}
+private struct DummyTestState {}
 
 // Type alias for the proposition type used in these tests
-fileprivate typealias OurProposition = ClosureTemporalProposition<DummyTestState, Bool>
+private typealias OurProposition = ClosureTemporalProposition<DummyTestState, Bool>
 
 // Helper to create LTL formulas from common patterns for conciseness in tests
 fileprivate extension LTLFormula where P == OurProposition {
@@ -38,7 +38,7 @@ struct LTLToBuchiConverterTests {
     @Test func atomicProposition_p() throws {
         let pIdString = "p"
         let pId = PropositionID(rawValue: pIdString)!
-        let pFormula: Formula = Formula.prop(pIdString)
+        let pFormula = Formula.prop(pIdString)
         let relevantPropositions: Set<PropositionID> = [pId]
 
         let buchiAutomaton: BA = try LTLToBuchiConverter.translateLTLToBuchi(
@@ -49,7 +49,7 @@ struct LTLToBuchiConverterTests {
         #expect(!buchiAutomaton.states.isEmpty, "BA should have states.")
         #expect(!buchiAutomaton.initialStates.isEmpty, "BA should have initial states.")
         #expect(!buchiAutomaton.acceptingStates.isEmpty, "BA should have accepting states.")
-        
+
         #expect(buchiAutomaton.states.count == 1, "Expected 1 state for simple 'p' based on typical minimal BA.")
         let initialState = try #require(buchiAutomaton.initialStates.first, "Should have one initial state")
         #expect(buchiAutomaton.acceptingStates.contains(initialState), "Initial state should be accepting for 'p'")
@@ -64,7 +64,7 @@ struct LTLToBuchiConverterTests {
         let transitionsOnNotP = buchiAutomaton.transitions.filter { $0.sourceState == initialState && $0.symbol == notPSymbol }
         #expect(transitionsOnNotP.isEmpty, "Should be no transition on '!p' from initial state for atomic(p) if path is inconsistent.")
     }
-    
+
     @Test func eventually_p() throws {
         let pIdString = "p"
         let pId = PropositionID(rawValue: pIdString)!
@@ -75,7 +75,7 @@ struct LTLToBuchiConverterTests {
             f_pFormula,
             relevantPropositions: relevantPropositions
         )
-        
+
         #expect(!buchiAutomaton.states.isEmpty, "BA should have states for F p.")
         #expect(!buchiAutomaton.initialStates.isEmpty, "BA should have initial states for F p.")
         #expect(!buchiAutomaton.acceptingStates.isEmpty, "BA should have accepting states for F p.")
@@ -83,7 +83,7 @@ struct LTLToBuchiConverterTests {
         let initialStates = buchiAutomaton.initialStates
         #expect(initialStates.count == 1, "Expected one initial state for F p")
         let s0 = try #require(initialStates.first)
-        
+
         #expect(
             !(buchiAutomaton.acceptingStates).contains(s0),
             "Initial state for F p should typically not be accepting."
@@ -119,7 +119,7 @@ struct LTLToBuchiConverterTests {
 
         #expect(!buchiAutomaton.states.isEmpty, "BA should have states for X p.")
         #expect(!buchiAutomaton.initialStates.isEmpty, "BA should have initial states for X p.")
-        
+
         let initial_state_for_Xp_log = buchiAutomaton.initialStates.first
         let initial_state_is_present = initial_state_for_Xp_log != nil
         #expect(initial_state_is_present, "Initial state should be present for Xp automaton (A_X(¬p)).")

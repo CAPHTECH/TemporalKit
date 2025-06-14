@@ -70,4 +70,4 @@ public struct Counterexample<State: Hashable> {
         self.prefix = prefix
         self.cycle = cycle
     }
-} 
+}
