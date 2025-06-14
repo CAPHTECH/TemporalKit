@@ -91,8 +91,8 @@ struct TestPropositions {
     static let p_false = TestProposition(name: "p_false", evaluation: { _ in false })
     
     // Convenience TRUE/FALSE LTL formulas for testing
-    static let ltl_true: LTLFormula<TestProposition> = .atomic(p_true)
-    static let ltl_false: LTLFormula<TestProposition> = .atomic(p_false)
+    static let ltl_true: LTLFormula<TestProposition> = .atomic(TestPropositions.p_true)
+    static let ltl_false: LTLFormula<TestProposition> = .atomic(TestPropositions.p_false)
 }
 
 @Suite final class LTLFormulaTraceEvaluationTests {
@@ -180,7 +180,7 @@ struct TestPropositions {
         let emptyTrace: [TestEvaluationContext] = []
 
         // Test 1: Empty trace: p R q should be true
-        #expect(try simpleEvaluator.evaluate(formula: .release(p_true, p_false), trace: emptyTrace, contextProvider: contextProvider), "R on empty trace should be true")
+        #expect(try simpleEvaluator.evaluate(formula: .release(.atomic(TestPropositions.p_true), .atomic(TestPropositions.p_false)), trace: emptyTrace, contextProvider: contextProvider), "R on empty trace should be true")
 
         // Test 2: Basic Literal/Propositional Cases
         // true R true => true
@@ -192,10 +192,10 @@ struct TestPropositions {
         // false R false => false. ¬(¬F U ¬F) = ¬(T U T) = ¬T = F
         #expect(try !simpleEvaluator.evaluate(formula: .release(falseLit, falseLit), trace: trace_s0, contextProvider: contextProvider))
 
-        #expect(try simpleEvaluator.evaluate(formula: .release(p_true, p_true), trace: trace_s0, contextProvider: contextProvider))
-        #expect(try !simpleEvaluator.evaluate(formula: .release(p_true, p_false), trace: trace_s0, contextProvider: contextProvider))
-        #expect(try simpleEvaluator.evaluate(formula: .release(p_false, p_true), trace: trace_s0, contextProvider: contextProvider))
-        #expect(try !simpleEvaluator.evaluate(formula: .release(p_false, p_false), trace: trace_s0, contextProvider: contextProvider))
+        #expect(try simpleEvaluator.evaluate(formula: .release(.atomic(TestPropositions.p_true), .atomic(TestPropositions.p_true)), trace: trace_s0, contextProvider: contextProvider))
+        #expect(try !simpleEvaluator.evaluate(formula: .release(.atomic(TestPropositions.p_true), .atomic(TestPropositions.p_false)), trace: trace_s0, contextProvider: contextProvider))
+        #expect(try simpleEvaluator.evaluate(formula: .release(.atomic(TestPropositions.p_false), .atomic(TestPropositions.p_true)), trace: trace_s0, contextProvider: contextProvider))
+        #expect(try !simpleEvaluator.evaluate(formula: .release(.atomic(TestPropositions.p_false), .atomic(TestPropositions.p_false)), trace: trace_s0, contextProvider: contextProvider))
 
         // Test 3: q holds always (G q), then p R q is true
         // (idx == 0) R (idx < 3) on [s0, s1, s2]
@@ -348,7 +348,7 @@ struct TestPropositions {
         #expect(try !simpleEvaluator.evaluate(formula: not_p_true, trace: trace, contextProvider: contextProvider))
 
         // Test 4: !p_false (where p_false is .atomic(TestProposition that is always false))
-        let not_p_false: LTLFormula<TestProposition> = .not(.atomic(p_false))
+        let not_p_false: LTLFormula<TestProposition> = .not(.atomic(TestPropositions.p_false))
         #expect(try simpleEvaluator.evaluate(formula: not_p_false, trace: trace, contextProvider: contextProvider))
 
         // Test with IndexEqualsProposition
@@ -391,8 +391,8 @@ struct TestPropositions {
         #expect(try !simpleEvaluator.evaluate(formula: .and(falseLit, falseLit), trace: trace, contextProvider: contextProvider))
 
         // Atomic Propositions
-        let p_true_atomic: LTLFormula<TestProposition> = .atomic(p_true)
-        let p_false_atomic: LTLFormula<TestProposition> = .atomic(p_false)
+        let p_true_atomic: LTLFormula<TestProposition> = .atomic(TestPropositions.p_true)
+        let p_false_atomic: LTLFormula<TestProposition> = .atomic(TestPropositions.p_false)
 
         // Test 5: p_true && p_true
         #expect(try simpleEvaluator.evaluate(formula: .and(p_true_atomic, p_true_atomic), trace: trace, contextProvider: contextProvider))
@@ -462,8 +462,8 @@ struct TestPropositions {
         #expect(try !simpleEvaluator.evaluate(formula: .or(falseLit, falseLit), trace: trace, contextProvider: contextProvider))
 
         // Atomic Propositions
-        let p_true_atomic: LTLFormula<TestProposition> = .atomic(p_true)
-        let p_false_atomic: LTLFormula<TestProposition> = .atomic(p_false)
+        let p_true_atomic: LTLFormula<TestProposition> = .atomic(TestPropositions.p_true)
+        let p_false_atomic: LTLFormula<TestProposition> = .atomic(TestPropositions.p_false)
 
         // Test 5: p_true || p_true
         #expect(try simpleEvaluator.evaluate(formula: .or(p_true_atomic, p_true_atomic), trace: trace, contextProvider: contextProvider))
@@ -530,8 +530,8 @@ struct TestPropositions {
         #expect(try simpleEvaluator.evaluate(formula: .implies(falseLit, falseLit), trace: trace, contextProvider: contextProvider))
 
         // Atomic Propositions
-        let p_true_atomic: LTLFormula<TestProposition> = .atomic(p_true)
-        let p_false_atomic: LTLFormula<TestProposition> = .atomic(p_false)
+        let p_true_atomic: LTLFormula<TestProposition> = .atomic(TestPropositions.p_true)
+        let p_false_atomic: LTLFormula<TestProposition> = .atomic(TestPropositions.p_false)
 
         // Test 5: p_true => p_true (true)
         #expect(try simpleEvaluator.evaluate(formula: .implies(p_true_atomic, p_true_atomic), trace: trace, contextProvider: contextProvider))
@@ -586,8 +586,8 @@ struct TestPropositions {
 
         let trueLit: LTLFormula<TestProposition> = .booleanLiteral(true)
         let falseLit: LTLFormula<TestProposition> = .booleanLiteral(false)
-        let p_true_atomic: LTLFormula<TestProposition> = .atomic(p_true)
-        let p_false_atomic: LTLFormula<TestProposition> = .atomic(p_false)
+        let p_true_atomic: LTLFormula<TestProposition> = .atomic(TestPropositions.p_true)
+        let p_false_atomic: LTLFormula<TestProposition> = .atomic(TestPropositions.p_false)
 
         // Test 1: X true on [s0, s1] (evaluates true at s1) -> true at s0
         #expect(try simpleEvaluator.evaluate(formula: .next(trueLit), trace: trace_len2, contextProvider: contextProvider))
@@ -626,11 +626,10 @@ struct TestPropositions {
             Issue.record("Expected LTLTraceEvaluationError.traceIndexOutOfBounds but no error was thrown.")
         } catch let error as LTLTraceEvaluationError {
             switch error {
-            case .traceIndexOutOfBounds(let index, let length):
-                #expect(index == 1, "Error index should be 1 for Next on trace of length 1")
-                #expect(length == 1, "Error traceLength should be 1 for Next on trace of length 1")
+            case .inconclusiveEvaluation(let message):
+                #expect(message.contains("next index 1 out of bounds"), "Error should mention next index 1 out of bounds")
             default:
-                Issue.record("Expected LTLTraceEvaluationError.traceIndexOutOfBounds but got \(error)")
+                Issue.record("Expected LTLTraceEvaluationError.inconclusiveEvaluation but got \(error)")
             }
         } catch {
             Issue.record("Expected LTLTraceEvaluationError but got a different error type: \(error)")
@@ -659,8 +658,8 @@ struct TestPropositions {
 
         let trueLit: LTLFormula<TestProposition> = .booleanLiteral(true)
         let falseLit: LTLFormula<TestProposition> = .booleanLiteral(false)
-        let p_true_atomic: LTLFormula<TestProposition> = .atomic(p_true)
-        let p_false_atomic: LTLFormula<TestProposition> = .atomic(p_false)
+        let p_true_atomic: LTLFormula<TestProposition> = .atomic(TestPropositions.p_true)
+        let p_false_atomic: LTLFormula<TestProposition> = .atomic(TestPropositions.p_false)
 
         // Test 1: F true_literal (should be true on any non-empty trace)
         let trace_len1 = createTestTrace(length: 1)
@@ -739,8 +738,8 @@ struct TestPropositions {
 
         let trueLit: LTLFormula<TestProposition> = .booleanLiteral(true)
         let falseLit: LTLFormula<TestProposition> = .booleanLiteral(false)
-        let p_true_atomic: LTLFormula<TestProposition> = .atomic(p_true)
-        let p_false_atomic: LTLFormula<TestProposition> = .atomic(p_false)
+        let p_true_atomic: LTLFormula<TestProposition> = .atomic(TestPropositions.p_true)
+        let p_false_atomic: LTLFormula<TestProposition> = .atomic(TestPropositions.p_false)
 
         // Test 1: G true_literal (should be true on any trace)
         let trace_len1 = createTestTrace(length: 1)
@@ -822,8 +821,8 @@ struct TestPropositions {
         let idxEvaluator = LTLFormulaTraceEvaluator<IndexEqualsProposition>()
         let contextProvider = { (context: TestEvaluationContext, _: Int) -> TestEvaluationContext in context }
 
-        let p_true_atomic: LTLFormula<TestProposition> = .atomic(p_true)
-        let p_false_atomic: LTLFormula<TestProposition> = .atomic(p_false)
+        let p_true_atomic: LTLFormula<TestProposition> = .atomic(TestPropositions.p_true)
+        let p_false_atomic: LTLFormula<TestProposition> = .atomic(TestPropositions.p_false)
         let trueLit: LTLFormula<TestProposition> = .booleanLiteral(true)
         let falseLit: LTLFormula<TestProposition> = .booleanLiteral(false)
 
@@ -899,7 +898,7 @@ struct TestPropositions {
     // MARK: - Error Handling Tests
     @Test func testEmptyTraceEvaluationThrowsError() throws {
         let evaluator = LTLFormulaTraceEvaluator<TestProposition>()
-        let formula: LTLFormula<TestProposition> = .atomic(p_true)
+        let formula: LTLFormula<TestProposition> = .atomic(TestPropositions.p_true)
         let trace: [TestEvaluationContext] = []
         let contextProvider = { (context: TestEvaluationContext, _: Int) -> TestEvaluationContext in context }
 
@@ -910,10 +909,11 @@ struct TestPropositions {
                 Issue.record("Error was not of type LTLTraceEvaluationError: \\(error)")
                 return false
             }
-            if case .traceIndexOutOfBounds = evalError {
+            if case .inconclusiveEvaluation(let message) = evalError {
+                #expect(message.contains("Trace index 0 out of bounds"), "Error should mention index 0 out of bounds")
                 return true
             } else {
-                Issue.record("Error was not traceIndexOutOfBounds for empty trace (atomic): \\(evalError)")
+                Issue.record("Error was not inconclusiveEvaluation for empty trace (atomic): \\(evalError)")
                 return false
             }
         }
@@ -922,7 +922,7 @@ struct TestPropositions {
     @Test func testTraceIndexOutOfBoundsInNext() throws {
         let trace = createTestTrace(length: 1) // s0
         let evaluator = LTLFormulaTraceEvaluator<TestProposition>()
-        let formula: LTLFormula<TestProposition> = .next(.atomic(p_true))
+        let formula: LTLFormula<TestProposition> = .next(.atomic(TestPropositions.p_true))
         let contextProvider = { (context: TestEvaluationContext, _: Int) -> TestEvaluationContext in context }
 
         #expect {
@@ -932,12 +932,11 @@ struct TestPropositions {
                 Issue.record("Error was not of type LTLTraceEvaluationError: \\(error)")
                 return false
             }
-            if case .traceIndexOutOfBounds(let index, let traceLength) = evalError {
-                #expect(index == 1, "Error index should be 1 for Next on trace of length 1")
-                #expect(traceLength == 1, "Error traceLength should be 1 for Next on trace of length 1")
+            if case .inconclusiveEvaluation(let message) = evalError {
+                #expect(message.contains("next index 1 out of bounds"), "Error should mention next index 1 out of bounds")
                 return true
             } else {
-                 Issue.record("Error was not traceIndexOutOfBounds: \\(evalError) for LTLFormula.next")
+                 Issue.record("Error was not inconclusiveEvaluation: \\(evalError) for LTLFormula.next")
                  return false
             }
         }
@@ -964,8 +963,8 @@ struct TestPropositions {
         let evaluator = LTLFormulaTraceEvaluator<TestProposition>()
         let trace = createTestTrace(length: 1)
         let contextProvider = { (context: TestEvaluationContext, _: Int) -> TestEvaluationContext in context }
-        let formula_throws_and_true: LTLFormula<TestProposition> = .and(.atomic(p_throws), .atomic(p_true))
-        #expect(throws: DeliberateTestError.ohNoAnError) {
+        let formula_throws_and_true: LTLFormula<TestProposition> = .and(.atomic(p_throws), .atomic(TestPropositions.p_true))
+        #expect(throws: LTLTraceEvaluationError.propositionEvaluationFailure("Error evaluating proposition: ohNoAnError")) {
             _ = try evaluator.evaluate(formula: formula_throws_and_true, trace: trace, contextProvider: contextProvider)
         }
     }
@@ -974,8 +973,8 @@ struct TestPropositions {
         let evaluator = LTLFormulaTraceEvaluator<TestProposition>()
         let trace = createTestTrace(length: 1)
         let contextProvider = { (context: TestEvaluationContext, _: Int) -> TestEvaluationContext in context }
-        let formula_throws_or_true: LTLFormula<TestProposition> = .or(.atomic(p_throws), .atomic(p_true))
-        #expect(throws: DeliberateTestError.ohNoAnError) {
+        let formula_throws_or_true: LTLFormula<TestProposition> = .or(.atomic(p_throws), .atomic(TestPropositions.p_true))
+        #expect(throws: LTLTraceEvaluationError.propositionEvaluationFailure("Error evaluating proposition: ohNoAnError")) {
             _ = try evaluator.evaluate(formula: formula_throws_or_true, trace: trace, contextProvider: contextProvider)
         }
     }
@@ -984,8 +983,8 @@ struct TestPropositions {
         let evaluator = LTLFormulaTraceEvaluator<TestProposition>()
         let trace = createTestTrace(length: 1)
         let contextProvider = { (context: TestEvaluationContext, _: Int) -> TestEvaluationContext in context }
-        let formula_throws_implies_true: LTLFormula<TestProposition> = .implies(.atomic(p_throws), .atomic(p_true))
-        #expect(throws: DeliberateTestError.ohNoAnError) {
+        let formula_throws_implies_true: LTLFormula<TestProposition> = .implies(.atomic(p_throws), .atomic(TestPropositions.p_true))
+        #expect(throws: LTLTraceEvaluationError.propositionEvaluationFailure("Error evaluating proposition: ohNoAnError")) {
             _ = try evaluator.evaluate(formula: formula_throws_implies_true, trace: trace, contextProvider: contextProvider)
         }
     }
@@ -995,7 +994,7 @@ struct TestPropositions {
         let trace = createTestTrace(length: 2)
         let contextProvider = { (context: TestEvaluationContext, _: Int) -> TestEvaluationContext in context }
         let formula_X_throws: LTLFormula<TestProposition> = .next(.atomic(p_throws))
-        #expect(throws: DeliberateTestError.ohNoAnError) {
+        #expect(throws: LTLTraceEvaluationError.propositionEvaluationFailure("Error evaluating proposition: ohNoAnError")) {
             _ = try evaluator.evaluate(formula: formula_X_throws, trace: trace, contextProvider: contextProvider)
         }
     }
@@ -1004,12 +1003,12 @@ struct TestPropositions {
         let evaluator = LTLFormulaTraceEvaluator<TestProposition>()
         let trace = createTestTrace(length: 2)
         let contextProvider = { (context: TestEvaluationContext, _: Int) -> TestEvaluationContext in context }
-        let formula_true_U_throws: LTLFormula<TestProposition> = .until(.atomic(p_true), .atomic(p_throws))
-        #expect(throws: DeliberateTestError.ohNoAnError) {
+        let formula_true_U_throws: LTLFormula<TestProposition> = .until(.atomic(TestPropositions.p_true), .atomic(p_throws))
+        #expect(throws: LTLTraceEvaluationError.propositionEvaluationFailure("Error evaluating proposition: ohNoAnError")) {
             _ = try evaluator.evaluate(formula: formula_true_U_throws, trace: trace, contextProvider: contextProvider)
         }
-        let formula_false_U_throws: LTLFormula<TestProposition> = .until(.atomic(p_false), .atomic(p_throws))
-        #expect(throws: DeliberateTestError.ohNoAnError) {
+        let formula_false_U_throws: LTLFormula<TestProposition> = .until(.atomic(TestPropositions.p_false), .atomic(p_throws))
+        #expect(throws: LTLTraceEvaluationError.propositionEvaluationFailure("Error evaluating proposition: ohNoAnError")) {
             _ = try evaluator.evaluate(formula: formula_false_U_throws, trace: trace, contextProvider: contextProvider)
         }
     }
@@ -1020,7 +1019,7 @@ struct TestPropositions {
         let contextProvider = { (context: TestEvaluationContext, _: Int) -> TestEvaluationContext in context }
         let p_false_at_s0 = TestProposition(name: "p_false_at_s0") { ctx in ctx.traceIndex != 0 }
         let formula_throws_U_false_at_s0: LTLFormula<TestProposition> = .until(.atomic(p_throws), .atomic(p_false_at_s0))
-        #expect(throws: DeliberateTestError.ohNoAnError) {
+        #expect(throws: LTLTraceEvaluationError.propositionEvaluationFailure("Error evaluating proposition: ohNoAnError")) {
             _ = try evaluator.evaluate(formula: formula_throws_U_false_at_s0, trace: trace, contextProvider: contextProvider)
         }
     }
@@ -1029,20 +1028,20 @@ struct TestPropositions {
         let evaluator = LTLFormulaTraceEvaluator<TestProposition>()
         let trace = createTestTrace(length: 2)
         let contextProvider = { (context: TestEvaluationContext, _: Int) -> TestEvaluationContext in context }
-        let formula_G_throws_W_true: LTLFormula<TestProposition> = .weakUntil(.atomic(p_throws), .atomic(p_true))
-        #expect(throws: DeliberateTestError.ohNoAnError) {
+        let formula_G_throws_W_true: LTLFormula<TestProposition> = .weakUntil(.atomic(p_throws), .atomic(TestPropositions.p_true))
+        #expect(throws: LTLTraceEvaluationError.propositionEvaluationFailure("Error evaluating proposition: ohNoAnError")) {
             _ = try evaluator.evaluate(formula: formula_G_throws_W_true, trace: trace, contextProvider: contextProvider)
         }
-        let formula_false_W_false_U_throws: LTLFormula<TestProposition> = .weakUntil(.atomic(p_false), .atomic(p_throws))
-        #expect(throws: DeliberateTestError.ohNoAnError) {
+        let formula_false_W_false_U_throws: LTLFormula<TestProposition> = .weakUntil(.atomic(TestPropositions.p_false), .atomic(p_throws))
+        #expect(throws: LTLTraceEvaluationError.propositionEvaluationFailure("Error evaluating proposition: ohNoAnError")) {
             _ = try evaluator.evaluate(formula: formula_false_W_false_U_throws, trace: trace, contextProvider: contextProvider)
         }
         let p_false_at_s0 = TestProposition(name: "p_false_at_s0_for_W_U_left_err", evaluation: { $0.traceIndex != 0 })
         let formula_false_W_throws_U_false_at_s0: LTLFormula<TestProposition> = .weakUntil(
-            .atomic(p_false),
+            .atomic(TestPropositions.p_false),
             .until(.atomic(p_throws), .atomic(p_false_at_s0))
         )
-        #expect(throws: DeliberateTestError.ohNoAnError) {
+        #expect(throws: LTLTraceEvaluationError.propositionEvaluationFailure("Error evaluating proposition: ohNoAnError")) {
             _ = try evaluator.evaluate(formula: formula_false_W_throws_U_false_at_s0, trace: trace, contextProvider: contextProvider)
         }
     }
@@ -1053,7 +1052,7 @@ struct TestPropositions {
         let contextProvider = { (context: TestEvaluationContext, _: Int) -> TestEvaluationContext in context }
 
         let formula_not_throws: LTLFormula<TestProposition> = .not(.atomic(p_throws))
-        #expect(throws: DeliberateTestError.ohNoAnError) {
+        #expect(throws: LTLTraceEvaluationError.propositionEvaluationFailure("Error evaluating proposition: ohNoAnError")) {
             _ = try evaluator.evaluate(formula: formula_not_throws, trace: trace, contextProvider: contextProvider)
         }
     }
@@ -1066,7 +1065,7 @@ struct TestPropositions {
         // not p_true is false.
         // (not p_throws) U false  --- this evaluates to false, as 'not p_throws' is never evaluated because 'false' (right operand) is never true.
         // not (false) is true. No error should be thrown.
-        let formula_throws_R_true: LTLFormula<TestProposition> = .release(.atomic(p_throws), .atomic(p_true))
+        let formula_throws_R_true: LTLFormula<TestProposition> = .release(.atomic(p_throws), .atomic(TestPropositions.p_true))
         let result = try evaluator.evaluate(formula: formula_throws_R_true, trace: trace, contextProvider: contextProvider)
         #expect(result == true)
     }
@@ -1078,8 +1077,8 @@ struct TestPropositions {
         // p_true R p_throws => not ( (not p_true) U (not p_throws) )
         // (not p_true) is false. (not p_throws) will be evaluated for the U's right operand.
         // Evaluation of (not p_throws) at s0 for the U should throw.
-        let formula_true_R_throws: LTLFormula<TestProposition> = .release(.atomic(p_true), .atomic(p_throws))
-        #expect(throws: DeliberateTestError.ohNoAnError) {
+        let formula_true_R_throws: LTLFormula<TestProposition> = .release(.atomic(TestPropositions.p_true), .atomic(p_throws))
+        #expect(throws: LTLTraceEvaluationError.propositionEvaluationFailure("Error evaluating proposition: ohNoAnError")) {
             _ = try evaluator.evaluate(formula: formula_true_R_throws, trace: trace, contextProvider: contextProvider)
         }
     }
@@ -1092,8 +1091,8 @@ struct TestPropositions {
         // -> not ( true U (not p_throws) )
         //   true U (not p_throws) at s0:
         //     (not p_throws) at s0 -> should throw.
-        let formula_false_R_throws: LTLFormula<TestProposition> = .release(.atomic(p_false), .atomic(p_throws))
-        #expect(throws: DeliberateTestError.ohNoAnError) {
+        let formula_false_R_throws: LTLFormula<TestProposition> = .release(.atomic(TestPropositions.p_false), .atomic(p_throws))
+        #expect(throws: LTLTraceEvaluationError.propositionEvaluationFailure("Error evaluating proposition: ohNoAnError")) {
             _ = try evaluator.evaluate(formula: formula_false_R_throws, trace: trace, contextProvider: contextProvider)
         }
     }

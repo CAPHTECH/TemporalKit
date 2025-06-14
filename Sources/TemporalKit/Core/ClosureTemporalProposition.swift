@@ -18,32 +18,6 @@ open class ClosureTemporalProposition<StateType, PropositionResultType: Hashable
     public let name: String
     private let evaluationLogic: @Sendable (StateType) throws -> PropositionResultType
     
-    /// A default ID prefix used when an invalid ID string is provided.
-    private static var invalidIDPrefix: String { "invalid_proposition_" }
-    
-    /// Creates a unique invalid ID using UUID.
-    /// While UUID generation has some overhead, it guarantees uniqueness without
-    /// requiring static stored properties (which aren't supported in generic types).
-    private static func createInvalidID() -> PropositionID {
-        // Create a deterministic fallback ID first
-        let fallbackID = PropositionID(rawValue: "system_fallback_proposition")
-        
-        // Generate a UUID-based ID
-        let generatedID = "\(invalidIDPrefix)\(UUID().uuidString)"
-        
-        // This should always succeed given our ID format, but we have a fallback just in case
-        if let id = PropositionID(rawValue: generatedID) {
-            return id
-        }
-        
-        // If both the generated ID and fallback are invalid, it means PropositionID's
-        // validation rules have changed dramatically
-        guard let safeID = fallbackID else {
-            fatalError("PropositionID validation logic has changed incompatibly. Cannot create any valid ID.")
-        }
-        
-        return safeID
-    }
 
     /// Initializes a new closure-based temporal proposition.
     ///
@@ -52,9 +26,30 @@ open class ClosureTemporalProposition<StateType, PropositionResultType: Hashable
     ///   - name: The human-readable name of the proposition.
     ///   - evaluate: A closure that takes an object of `StateType` and returns the `PropositionResultType`.
     ///               This closure can throw errors.
+    /// - Note: If the provided ID is invalid, a fallback ID will be generated. For explicit error handling,
+    ///         use `init(validatingId:name:evaluate:)` instead.
     public init(id: String, name: String, evaluate: @escaping @Sendable (StateType) throws -> PropositionResultType) {
-        // Use failable initializer and provide fallback for invalid IDs
-        self.id = PropositionID(rawValue: id) ?? Self.createInvalidID()
+        // Use the factory to create ID with safe fallback handling
+        self.id = PropositionIDFactory.createOrNil(from: id) ?? {
+            // Ultimate fallback - this should rarely happen
+            assertionFailure("Failed to create fallback ID for: \(id)")
+            return PropositionID(rawValue: "emergency_fallback_\(abs(id.hashValue))")!
+        }()
+        self.name = name
+        self.evaluationLogic = evaluate
+    }
+    
+    /// Initializes a new closure-based temporal proposition with explicit ID validation.
+    ///
+    /// - Parameters:
+    ///   - id: The unique identifier for the proposition.
+    ///   - name: The human-readable name of the proposition.
+    ///   - evaluate: A closure that takes an object of `StateType` and returns the `PropositionResultType`.
+    ///               This closure can throw errors.
+    /// - Throws: `TemporalKitError` if the provided ID is invalid and no fallback ID can be created.
+    public init(validatingId id: String, name: String, evaluate: @escaping @Sendable (StateType) throws -> PropositionResultType) throws {
+        // Use the factory for strict validation with proper error handling
+        self.id = try PropositionIDFactory.create(from: id)
         self.name = name
         self.evaluationLogic = evaluate
     }

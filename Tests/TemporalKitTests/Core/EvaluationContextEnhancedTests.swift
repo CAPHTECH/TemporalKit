@@ -68,7 +68,7 @@ struct EvaluationContextEnhancedTests {
         case .notAvailable:
             Issue.record("Expected type mismatch, not 'not available'")
         case .typeMismatch(let actual):
-            #expect(actual == StringState.self)
+            #expect(String(describing: actual) == String(describing: StringState.self))
         }
     }
 

@@ -201,18 +201,9 @@ final class EdgeCaseTests: XCTestCase {
     // MARK: - Helper methods
 
     private func makeProposition(_ id: String) -> TestProposition {
-        // Pre-compute the state mapping to avoid capturing self
+        // Use the helper to create thread-safe propositions
         let statePropositionsMap = createStatePropositionsMap()
-        
-        return TemporalKit.makeProposition(
-            id: id,
-            name: id,
-            evaluate: { (state: String) -> Bool in
-                // For testing, the proposition holds if the state contains the proposition ID
-                guard let propositions = statePropositionsMap[state] else { return false }
-                return propositions.contains(id)
-            }
-        )
+        return TestKripkeStructureHelper.makeProposition(id: id, stateMapping: statePropositionsMap)
     }
     
     private func createStatePropositionsMap() -> [String: [String]] {
@@ -220,24 +211,14 @@ final class EdgeCaseTests: XCTestCase {
         
         // Collect states from all test structures
         let allStructures = [
-            createMultiAcceptanceKripke()
-            // Note: Other structures not available in this test class
+            createMultiAcceptanceKripke(),
+            createSelfLoopKripke(withoutProposition: false),
+            createSelfLoopKripke(withoutProposition: true),
+            createTerminalStateKripke(withPropositionInTerminal: false),
+            createTerminalStateKripke(withPropositionInTerminal: true)
         ]
         
         for structure in allStructures {
-            for state in structure.states {
-                map[state.id] = state.propositions
-            }
-        }
-        
-        // Add states from other structures used in tests
-        let otherStructures = [
-            createSelfLoopKripke(withoutProposition: false),
-            createSelfLoopKripke(withoutProposition: true)
-            // Note: createEmptyKripke not available
-        ]
-        
-        for structure in otherStructures {
             for state in structure.states {
                 map[state.id] = state.propositions
             }

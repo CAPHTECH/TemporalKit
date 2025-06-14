@@ -129,12 +129,9 @@ extension LTLFormula {
 
         case .eventually(let subFormula):
             // F p == p || X (F p)
-            let (subHolds, subNext) = try subFormula.step(with: context)
+            let (subHolds, _) = try subFormula.step(with: context)
             if subHolds {
                 return (true, .booleanLiteral(true)) // p holds, so F p is satisfied
-            } else if case .booleanLiteral(false) = subNext {
-                // If subNext is false, F p can never be satisfied
-                return (false, .booleanLiteral(false))
             } else {
                 // p does not hold now, so F p must hold from the next state onwards
                 return (false, self)

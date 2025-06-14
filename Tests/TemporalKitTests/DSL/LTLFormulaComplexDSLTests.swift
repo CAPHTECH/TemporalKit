@@ -70,7 +70,7 @@ struct LTLFormulaComplexDSLTests {
         #expect(dslExpression3 == expected3, "DSL expression !((p && q) || (!r && s)) should produce the correct LTLFormula")
 
         // Test expression with different temporal operators: (G(p)) U (F(q))
-        let dslExpression4 = LTLFormula.until(LTLFormula.globally(p.ltl), LTLFormula.eventually(q.ltl))
+        let dslExpression4 = LTLFormula<DSLMockProposition>.until(LTLFormula<DSLMockProposition>.globally(p.ltl), LTLFormula<DSLMockProposition>.eventually(q.ltl))
 
         // Manually build the expected formula structure
         let expected4: LTLFormula<DSLMockProposition> = .until(
@@ -93,7 +93,7 @@ struct LTLFormulaComplexDSLTests {
         #expect(dslExpression5 == expected5, "DSL expression p && q || r ==> s should follow operator precedence rules")
 
         // Test expression with weak until: p W (q U r)
-        let dslExpression6 = LTLFormula.weakUntil(p.ltl, LTLFormula.until(q.ltl, r.ltl))
+        let dslExpression6 = LTLFormula<DSLMockProposition>.weakUntil(p.ltl, LTLFormula<DSLMockProposition>.until(q.ltl, r.ltl))
 
         // Manually build the expected formula structure
         let expected6: LTLFormula<DSLMockProposition> = .weakUntil(

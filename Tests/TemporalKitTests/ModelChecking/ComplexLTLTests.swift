@@ -212,17 +212,9 @@ final class ComplexLTLTests: XCTestCase {
     // MARK: - Helper methods
 
     private func makeProposition(_ id: String) -> TestProposition {
-        // Pre-compute the state mapping to avoid capturing self
+        // Use the helper to create thread-safe propositions
         let statePropositionsMap = createStatePropositionsMap()
-        
-        return TemporalKit.makeProposition(
-            id: id,
-            name: id,
-            evaluate: { (state: String) -> Bool in
-                guard let propositions = statePropositionsMap[state] else { return false }
-                return propositions.contains(id)
-            }
-        )
+        return TestKripkeStructureHelper.makeProposition(id: id, stateMapping: statePropositionsMap)
     }
     
     private func createStatePropositionsMap() -> [String: [String]] {
@@ -239,10 +231,6 @@ final class ComplexLTLTests: XCTestCase {
                 map[state.id] = state.propositions
             }
         }
-        
-        // Add states from large structure
-        // Note: createLargeKripkeStructure doesn't exist in this test class
-        // We'll use a reasonable default for missing states
         
         return map
     }
