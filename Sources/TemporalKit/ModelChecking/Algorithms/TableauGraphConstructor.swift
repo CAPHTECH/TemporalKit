@@ -623,7 +623,7 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
     private func expandBooleanLiteral(value b: Bool,
                                     isNegated: Bool,
                                     currentWorklist: [LTLFormula<P>],
-                                    processedOnPath: Set<LTLFormula<P>],
+                                    processedOnPath: Set<LTLFormula<P>>,
                                     vSet: Set<LTLFormula<P>>,
                                     pAtomicSet: Set<P>,
                                     nAtomicSet: Set<P>,
