@@ -268,7 +268,10 @@ struct LTLModelCheckerTemporalOperatorTests {
 
         if case .fails(let counterexample) = result {
             let modelStatesInPrefix = counterexample.prefix
-            #expect(\n                modelStatesInPrefix.contains(LTLModelCheckerTestState.s1),\n                "Counterexample prefix should lead to a state not satisfying p (e.g. s1)."\n            )
+            #expect(
+                modelStatesInPrefix.contains(LTLModelCheckerTestState.s1),
+                "Counterexample prefix should lead to a state not satisfying p (e.g. s1)."
+            )
             // The specific path can vary based on the implementation, just ensure s1 is included
         } else {
             Issue.record("Expected a counterexample for failing formula 'G p'.")
@@ -334,7 +337,12 @@ struct LTLModelCheckerTemporalOperatorTests {
         let result = try checker.check(formula: qUr_formula, model: TestModels.model1)
         #expect(!result.holds, "Formula 'q U r' should fail for model1 from s0.")
         if case .fails(let counterexample) = result {
-            #expect(\n                counterexample.prefix.first == LTLModelCheckerTestState.s0 &&\n                !(TestModels.model1.atomicPropositionsTrue(in: LTLModelCheckerTestState.s0).contains(TestPropEnumID.q.officialID))\n            )
+            let firstState = counterexample.prefix.first
+            let atomicProps = TestModels.model1.atomicPropositionsTrue(in: LTLModelCheckerTestState.s0)
+            #expect(
+                firstState == LTLModelCheckerTestState.s0 &&
+                !atomicProps.contains(TestPropEnumID.q.officialID)
+            )
         } else {
             Issue.record("Expected counterexample for 'q U r'.")
         }
@@ -378,7 +386,10 @@ struct LTLModelCheckerEdgeCaseTests {
         // The current LTLModelChecker logic for not(.atomic(P)) returns .fails if initialStates is empty.
         #expect(!result.holds, "Not atomic formula should fail for a model with no initial states.")
         if case .fails(let counterexample) = result {
-            #expect(\n                counterexample.prefix.isEmpty && counterexample.cycle.isEmpty,\n                "Counterexample should be empty for not(.atomic) on empty initial states model."\n            )
+            #expect(
+                counterexample.prefix.isEmpty && counterexample.cycle.isEmpty,
+                "Counterexample should be empty for not(.atomic) on empty initial states model."
+            )
         } else {
             Issue.record("Expected a failure for not(.atomic) on empty initial states model.")
         }
@@ -667,7 +678,7 @@ struct LTLModelCheckerDemoStructureTests {
             Issue.record("Error: G p_demo_like should FAIL on this model, but it HOLDS.")
         case .fails(let counterexample):
             // Expected to fail. For now, don't validate counterexample structure, just that it fails.
-            print("Test testModelCheck_Gp_OnDemoLikeStructure_ShouldFail: Correctly FAILED.")
+            // print("Test testModelCheck_Gp_OnDemoLikeStructure_ShouldFail: Correctly FAILED.")
             // Add more detailed counterexample checks later if needed.
             #expect(!counterexample.prefix.isEmpty || !counterexample.cycle.isEmpty, "Counterexample should not be completely empty.")
         }
@@ -711,7 +722,7 @@ struct LTLModelCheckerDemoStructureTests {
 
             // Due to the nature of the nested DFS algorithm, it may not always include s1 in the counterexample
             // What matters is that it correctly reports FAILS, not the exact counterexample path
-            print("Counterexample: prefix=\(counterexample.prefix), cycle=\(counterexample.cycle)")
+            // print("Counterexample: prefix=\(counterexample.prefix), cycle=\(counterexample.cycle)")
         }
     }
 }

@@ -167,7 +167,7 @@ public class LTLModelChecker<Model: KripkeStructure> {
         propositionsInFormula.formUnion(allPropsEverTrueInModel)
 
         // print("LTLModelChecker Helper: extractPropositions - Updated with LTLFormula.swift cases.") // Original print
-        print("LTLModelChecker Helper: extractPropositions - Formula Props: \(propositionsInFormula), Model Props Considered: \(allPropsEverTrueInModel)")
+        // print("LTLModelChecker Helper: extractPropositions - Formula Props: \(propositionsInFormula), Model Props Considered: \(allPropsEverTrueInModel)")
         return propositionsInFormula
     }
 
