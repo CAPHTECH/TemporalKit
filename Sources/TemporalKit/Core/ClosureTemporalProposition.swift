@@ -35,9 +35,12 @@ open class ClosureTemporalProposition<StateType, PropositionResultType: Hashable
             // Ultimate fallback - this should rarely happen
             assertionFailure("Failed to create fallback ID for: \(id)")
             // Use a guaranteed valid ID as last resort - this is a programming error if it fails
-            self.id = PropositionID(rawValue: "invalid_proposition") ?? {
+            // Since PropositionID validation is extremely basic (non-empty string), this should never fail
+            // If it does, it indicates a fundamental system failure
+            guard let fallbackID = PropositionID(rawValue: "invalid_proposition") else {
                 fatalError("Critical error: Unable to create any valid PropositionID. This indicates a fundamental system failure.")
-            }()
+            }
+            self.id = fallbackID
         }
         self.name = name
         self.evaluationLogic = evaluate
