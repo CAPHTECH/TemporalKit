@@ -78,3 +78,20 @@ public struct ModelCheckingStatistics: Sendable {
         self.peakMemoryUsage = peakMemoryUsage
     }
 }
+
+// MARK: - Migration Support
+
+/// A sendable wrapper for non-sendable state types to support legacy code migration.
+public struct SendableStateBox<T>: @unchecked Sendable {
+    public let value: T
+    
+    public init(_ value: T) {
+        self.value = value
+    }
+}
+
+/// Type alias for backward compatibility with non-Sendable state types.
+/// - Warning: This is deprecated and will be removed in a future version.
+///   Please ensure your state types conform to Sendable.
+@available(*, deprecated, message: "Use ModelCheckingError with Sendable state types. Wrap non-Sendable states with SendableStateBox if needed.")
+public typealias LegacyModelCheckingError<State> = ModelCheckingError<SendableStateBox<State>>

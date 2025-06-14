@@ -6,12 +6,25 @@ import Foundation
 /// making it convenient for simpler propositions without needing to create a separate subclass.
 /// It is generic over the `StateType` it expects from the `EvaluationContext` and the
 /// `PropositionResultType` that the evaluation yields.
+///
+/// - Important: Thread Safety: This class is immutable after initialization and thus thread-safe.
+///   Subclasses MUST NOT add mutable state to maintain Sendable conformance.
+///   The `@unchecked Sendable` conformance is safe because all stored properties are immutable
+///   and the evaluation logic closure is marked as `@Sendable`.
 open class ClosureTemporalProposition<StateType, PropositionResultType: Hashable>: TemporalProposition, @unchecked Sendable {
     public typealias Value = PropositionResultType
 
     public let id: PropositionID
     public let name: String
     private let evaluationLogic: @Sendable (StateType) throws -> PropositionResultType
+    
+    /// A default ID used when an invalid ID string is provided.
+    /// Uses a UUID to ensure uniqueness even for invalid propositions.
+    private static var invalidIDPrefix: String { "invalid_proposition_" }
+    private static func createInvalidID() -> PropositionID {
+        // This is safe because we control the format and ensure it's valid
+        PropositionID(rawValue: "\(invalidIDPrefix)\(UUID().uuidString)")!
+    }
 
     /// Initializes a new closure-based temporal proposition.
     ///
@@ -22,7 +35,7 @@ open class ClosureTemporalProposition<StateType, PropositionResultType: Hashable
     ///               This closure can throw errors.
     public init(id: String, name: String, evaluate: @escaping @Sendable (StateType) throws -> PropositionResultType) {
         // Use failable initializer and provide fallback for invalid IDs
-        self.id = PropositionID(rawValue: id) ?? PropositionID(rawValue: "invalid_id")!
+        self.id = PropositionID(rawValue: id) ?? Self.createInvalidID()
         self.name = name
         self.evaluationLogic = evaluate
     }
