@@ -14,7 +14,7 @@ private struct TestStateStruct { // Renamed to avoid conflicts
 }
 
 // Dummy context for testing, specific to this test file
-private class TestEvaluationContext: EvaluationContext { // Renamed
+private class ClosureTestEvaluationContext: EvaluationContext { // Renamed
     private let state: Any?
     private var _traceIndex: Int = 0
 
@@ -42,7 +42,7 @@ private enum TestEvaluationError: Error, Equatable { // Renamed
     @Test("Evaluate succeeds when context provides correct state type and logic returns value")
     func testEvaluate_Success() throws {
         let state = TestStateStruct(value: 10)
-        let context = TestEvaluationContext(state: state)
+        let context = ClosureTestEvaluationContext(state: state)
         let proposition = ClosureTemporalProposition<TestStateStruct, Int>(
             id: "p_success",
             name: "Proposition Success",
@@ -55,7 +55,7 @@ private enum TestEvaluationError: Error, Equatable { // Renamed
 
     @Test("Evaluate throws stateTypeMismatch when context cannot provide expected state type")
     func testEvaluate_StateTypeMismatch() throws {
-        let context = TestEvaluationContext(state: "NotTheCorrectState") // String instead of TestStateStruct
+        let context = ClosureTestEvaluationContext(state: "NotTheCorrectState") // String instead of TestStateStruct
         let proposition = ClosureTemporalProposition<TestStateStruct, Int>(
             id: "p_mismatch",
             name: "Proposition State Mismatch",
@@ -94,7 +94,7 @@ private enum TestEvaluationError: Error, Equatable { // Renamed
     @Test("Evaluate rethrows error from evaluationLogic")
     func testEvaluate_EvaluationLogicThrows() throws {
         let state = TestStateStruct(value: 1, shouldThrowInEvaluate: true)
-        let context = TestEvaluationContext(state: state)
+        let context = ClosureTestEvaluationContext(state: state)
         let proposition = ClosureTemporalProposition<TestStateStruct, Int>(
             id: "p_eval_throws",
             name: "Proposition Evaluation Throws",
@@ -114,7 +114,7 @@ private enum TestEvaluationError: Error, Equatable { // Renamed
     @Test("nonThrowing factory creates proposition that evaluates correctly")
     func testNonThrowingFactory_Success() throws {
         let state = TestStateStruct(value: 50)
-        let context = TestEvaluationContext(state: state)
+        let context = ClosureTestEvaluationContext(state: state)
 
         let proposition = ClosureTemporalProposition<TestStateStruct, String>.nonThrowing(
             id: "p_non_throwing_success",
@@ -129,7 +129,7 @@ private enum TestEvaluationError: Error, Equatable { // Renamed
     @Test("nonThrowing factory with non-throwing logic (testing internal throwing adaptation)")
     func testNonThrowingFactory_InternalLogicCoverage() throws {
         let state = TestStateStruct(value: 1)
-        let context = TestEvaluationContext(state: state)
+        let context = ClosureTestEvaluationContext(state: state)
 
         let proposition = ClosureTemporalProposition<TestStateStruct, Int>.nonThrowing(
             id: "p_non_throwing_coverage",
