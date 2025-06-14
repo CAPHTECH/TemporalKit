@@ -75,7 +75,10 @@ internal enum LTLToBuchiConverter {
         var productStateToIntMap: [GBAToBAConverter<FormulaAutomatonState, BuchiAlphabetSymbol<PropositionIDType>>.ProductBATState<FormulaAutomatonState>: FormulaAutomatonState] = [:]
         var nextFinalStateID: FormulaAutomatonState = 0
 
-        func mapProductStateToFinalInt(_ productState: GBAToBAConverter<FormulaAutomatonState, BuchiAlphabetSymbol<PropositionIDType>>.ProductBATState<FormulaAutomatonState>) -> FormulaAutomatonState {
+        func mapProductStateToFinalInt(
+            _ productState: GBAToBAConverter<FormulaAutomatonState, BuchiAlphabetSymbol<PropositionIDType>>
+                .ProductBATState<FormulaAutomatonState>
+        ) -> FormulaAutomatonState {
             if let existingID = productStateToIntMap[productState] {
                 return existingID
             }
@@ -95,7 +98,9 @@ internal enum LTLToBuchiConverter {
         //     // ... sorting logic ...
         // }
         // for prodTransition in sortedIntermediateTransitions {
-        //     print("    BA_ProductState_Trans: ProductState(orig:\(prodTransition.sourceState.originalState),idx:\(prodTransition.sourceState.index)) -- \(String(describing: prodTransition.symbol)) --> ProductState(orig:\(prodTransition.destinationState.originalState),idx:\(prodTransition.destinationState.index))")
+        //     print("    BA_ProductState_Trans: ProductState(orig:\(prodTransition.sourceState.originalState)," +
+        //           "idx:\(prodTransition.sourceState.index)) -- \(String(describing: prodTransition.symbol)) --> " +
+        //           "ProductState(orig:\(prodTransition.destinationState.originalState),idx:\(prodTransition.destinationState.index))")
         // }
         // print("[LTLToBuchiConverter DEBUG] ---- END INTERMEDIATE TRANSITIONS LOG ----")
 
@@ -111,7 +116,9 @@ internal enum LTLToBuchiConverter {
         }
 
         // ---- REMOVED LTLToBuchiConverter DEBUG for final BA ----
-        // print("[LTLToBuchiConverter] Final BA for formula \(ltlFormula): States=\(finalStatesInt.count), Initial=\(finalInitialStatesInt.count), Transitions=\(finalTransitionsInt.count), Accepting=\(finalAcceptingStatesInt.count)")
+        // print("[LTLToBuchiConverter] Final BA for formula \(ltlFormula): States=\(finalStatesInt.count), " +
+        //       "Initial=\(finalInitialStatesInt.count), Transitions=\(finalTransitionsInt.count), " +
+        //       "Accepting=\(finalAcceptingStatesInt.count)")
         // print("[LTLToBuchiConverter DEBUG] Final BA Transitions for formula: \(String(describing: ltlFormula))")
         // for t in finalTransitionsInt.sorted(by: { (t1, t2) -> Bool in 
         //     // ... sorting logic ...

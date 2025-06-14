@@ -559,7 +559,11 @@ struct LTLModelCheckerTests {
             }
             if case .internalProcessingError(let actualMessage) = checkerError {
                 #expect(actualMessage == "Initial states of the model are not a subset of all model states.")
-                #expect(checkerError.errorDescription == "LTLModelChecker Error: Internal Processing Failed. Details: Initial states of the model are not a subset of all model states.", "Error description for internalProcessingError did not match.")
+                #expect(
+                    checkerError.errorDescription == "LTLModelChecker Error: Internal Processing Failed. " +
+                    "Details: Initial states of the model are not a subset of all model states.",
+                    "Error description for internalProcessingError did not match."
+                )
                 return true
             } else {
                 Issue.record("Expected .internalProcessingError case with specific message, but got \\(checkerError)")
