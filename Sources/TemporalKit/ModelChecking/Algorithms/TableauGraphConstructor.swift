@@ -205,7 +205,7 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
         let vSet = vSet
         let pAtomic = pAtomicSet
         let nAtomic = nAtomicSet
-        
+
         if isTargetFormulaContextForSolve {
             printDebugInfo(
                 heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
@@ -265,7 +265,7 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
             allPossibleOutcomes: &allPossibleOutcomes
         )
     }
-    
+
     // Helper method to check if we should debug a formula
     private func shouldDebugFormula(_ formula: LTLFormula<P>) -> Bool {
         let formulaStrForDebug = String(describing: formula)
@@ -279,7 +279,7 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
         }
         return false
     }
-    
+
     // Helper method to print debug information
     private func printDebugInfo(
         heuristicOriginalLTLFormula: LTLFormula<P>,
@@ -302,7 +302,7 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
         print("    processedOnPath (count \(processedDesc.count)): \(processedDesc)")
         print("    V (count \(vSetDesc.count)): \(vSetDesc), P_atomic: \(pAtomicDesc), N_atomic: \(nAtomicDesc), forSymbol: \(forSymbolDesc)")
     }
-    
+
     // Helper method to handle empty worklist case
     private func handleEmptyWorklist(
         pAtomic: Set<P>,
@@ -362,7 +362,7 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
         // ---- END DEBUG ----
         allPossibleOutcomes.append((currentBasicFormulas, finalV, consistentPath))
     }
-    
+
     // Helper method to check for sticky accepting state
     private func checkForStickyAcceptingState(
         singleObligation: LTLFormula<P>,
@@ -385,10 +385,10 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
                 isStickyAcceptingStateOfEventuality = true
             }
         }
-        
+
         return (isStickyAcceptingStateOfEventuality, subFormulaOfEventuality)
     }
-    
+
     // Helper method to check consistency with symbol
     private func checkConsistencyWithSymbol(
         pAtomic: Set<P>,
@@ -396,14 +396,14 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
         forSymbol: BuchiAlphabetSymbol<PropositionIDType>
     ) -> Bool {
         var consistentPath = true
-        
+
         for p_true in pAtomic {
             if let p_id = p_true.id as? PropositionIDType, !forSymbol.contains(p_id) {
                 consistentPath = false
                 break
             }
         }
-        
+
         if consistentPath {
             for p_false_prop in nAtomic {
                 if let p_id = p_false_prop.id as? PropositionIDType, forSymbol.contains(p_id) {
@@ -412,10 +412,10 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
                 }
             }
         }
-        
+
         return consistentPath
     }
-    
+
     // Main formula expansion switch handler
     private func expandFormulaByType(
         currentFormula: LTLFormula<P>,
@@ -542,7 +542,7 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
             handleErrorCase("Unhandled LTL formula type in solve", currentFormula, allPossibleOutcomes: &allPossibleOutcomes)
         }
     }
-    
+
     // Helper method for error handling
     private func handleErrorCase(
         _ message: String,
@@ -576,7 +576,7 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
             allPossibleOutcomes: &allPossibleOutcomes
         )
     }
-    
+
     // Legacy method for backward compatibility
     private func expandAtomicProposition(p: P,
                                      isNegated: Bool,
@@ -618,7 +618,7 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
             allPossibleOutcomes: &allPossibleOutcomes
         )
     }
-    
+
     // Legacy method for backward compatibility
     private func expandBooleanLiteral(value b: Bool,
                                     isNegated: Bool,
@@ -660,7 +660,7 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
             allPossibleOutcomes: &allPossibleOutcomes
         )
     }
-    
+
     // Legacy method for backward compatibility
     private func expandAnd(_ lhs: LTLFormula<P>, _ rhs: LTLFormula<P>,
                          currentWorklist: [LTLFormula<P>],
@@ -709,7 +709,7 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
             allPossibleOutcomes: &allPossibleOutcomes
         )
     }
-    
+
     // Legacy method for backward compatibility
     private func expandOr(_ lhs: LTLFormula<P>, _ rhs: LTLFormula<P>,
                         currentWorklist: [LTLFormula<P>],
@@ -747,7 +747,7 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
             allPossibleOutcomes: &allPossibleOutcomes
         )
     }
-    
+
     // Legacy method for backward compatibility
     private func expandNext(_ subFormula: LTLFormula<P>,
                         currentWorklist: [LTLFormula<P>],
@@ -798,7 +798,7 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
             allPossibleOutcomes: &allPossibleOutcomes
         )
     }
-    
+
     // Legacy method for backward compatibility
     private func expandUntil(_ phi: LTLFormula<P>, _ psi: LTLFormula<P>,
                          currentFormula: LTLFormula<P>, // This is the (phi U psi) formula itself
@@ -850,7 +850,7 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
             allPossibleOutcomes: &allPossibleOutcomes
         )
     }
-    
+
     // Legacy method for backward compatibility
     private func expandRelease(_ phi: LTLFormula<P>, _ psi: LTLFormula<P>,
                          currentFormula: LTLFormula<P>, // This is the (phi R psi) formula itself
@@ -904,7 +904,7 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
             allPossibleOutcomes: &allPossibleOutcomes
         )
     }
-    
+
     // Legacy method for backward compatibility
     private func expandEventually(_ subFormula: LTLFormula<P>,
                                currentFormula: LTLFormula<P>, // This is F subFormula
@@ -959,7 +959,7 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
             )
         }
     }
-    
+
     // Legacy method for backward compatibility
     private func expandGlobally(_ subFormula: LTLFormula<P>,
                               currentFormula: LTLFormula<P>, // This is G subFormula

@@ -6,7 +6,7 @@ import Testing
 
 @Suite("LTL Formula Basic Operator Trace Evaluation Tests")
 struct LTLFormulaTraceEvaluationBasicTests {
-    
+
     @Test("Atomic Proposition Evaluation")
     func testAtomicPropositionEvaluation() throws {
         let trace = createTrace(length: 3)
@@ -26,7 +26,7 @@ struct LTLFormulaTraceEvaluationBasicTests {
             state.index == 1
         }
         let formula_idx_eq_1: TestFormula = .atomic(idxProp)
-        
+
         #expect(try !formula_idx_eq_1.evaluateAt(trace[0]))
         #expect(try formula_idx_eq_1.evaluateAt(trace[1]))
         #expect(try !formula_idx_eq_1.evaluateAt(trace[2]))
@@ -76,7 +76,7 @@ struct LTLFormulaTraceEvaluationBasicTests {
             state.index == 1
         }
         let formula_not_idx_eq_1: TestFormula = .not(.atomic(idxProp))
-        
+
         #expect(try formula_not_idx_eq_1.evaluateAt(trace[0]))
         #expect(try !formula_not_idx_eq_1.evaluateAt(trace[1]))
         #expect(try formula_not_idx_eq_1.evaluateAt(trace[2]))
@@ -177,7 +177,7 @@ struct LTLFormulaTraceEvaluationBasicTests {
             state.index == 1
         }
         let formula_idx0_or_idx1: TestFormula = .or(.atomic(idx0), .atomic(idx1))
-        
+
         #expect(try formula_idx0_or_idx1.evaluateAt(trace[0]))
         #expect(try formula_idx0_or_idx1.evaluateAt(trace[1]))
         #expect(try !formula_idx0_or_idx1.evaluateAt(trace[2]))
@@ -225,7 +225,7 @@ struct LTLFormulaTraceEvaluationBasicTests {
             state.index == 1
         }
         let formula_idx0_implies_idx1: TestFormula = .implies(.atomic(idx0), .atomic(idx1))
-        
+
         // At index 0: true → false = false
         #expect(try !formula_idx0_implies_idx1.evaluateAt(trace[0]))
         // At index 1: false → true = true

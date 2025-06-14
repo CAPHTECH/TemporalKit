@@ -26,7 +26,7 @@ internal enum NestedDFSAlgorithm {
     ) throws -> (prefix: [StateType], cycle: [StateType])? {
         // Algorithm state
         var dfsState = DFSState<StateType>()
-        
+
         // Try main algorithm from each initial state
         for initialState in automaton.initialStates {
             if !dfsState.visited.contains(initialState) {
@@ -44,7 +44,7 @@ internal enum NestedDFSAlgorithm {
         // Special case checks for edge cases
         return try handleSpecialCases(in: automaton)
     }
-    
+
     // Container for DFS state to avoid passing many parameters
     private struct DFSState<StateType: Hashable> {
         var visited = Set<StateType>() // States visited in outer DFS
@@ -52,7 +52,7 @@ internal enum NestedDFSAlgorithm {
         var inStack = Set<StateType>() // Set of states in the current DFS stack
         var onPath = [StateType: StateType]() // Path reconstruction: key -> parent state
     }
-    
+
     // Outer DFS function - searches for accepting states
     private static func performOuterDFS<StateType: Hashable, AlphabetSymbolType: Hashable>(
         _ state: StateType,
@@ -100,7 +100,7 @@ internal enum NestedDFSAlgorithm {
         dfsState.inStack.remove(state)
         return nil
     }
-    
+
     // Inner DFS function - searches for a cycle containing accepting states
     private static func performInnerDFS<StateType: Hashable, AlphabetSymbolType: Hashable>(
         _ start: StateType,
@@ -145,7 +145,7 @@ internal enum NestedDFSAlgorithm {
         cyclePath.removeLast() // Backtrack
         return false
     }
-    
+
     // Search for a cycle from an accepting state
     private static func searchForCycleFromAcceptingState<StateType: Hashable, AlphabetSymbolType: Hashable>(
         _ state: StateType,
@@ -168,7 +168,7 @@ internal enum NestedDFSAlgorithm {
         }
         return nil
     }
-    
+
     // Helper function to reconstruct cycle to accepting state
     private static func reconstructCycleToAcceptingState<StateType: Hashable, AlphabetSymbolType: Hashable>(
         nextState: StateType,
@@ -204,7 +204,7 @@ internal enum NestedDFSAlgorithm {
         }
         return nil
     }
-    
+
     // Handle special edge cases
     private static func handleSpecialCases<StateType: Hashable, AlphabetSymbolType: Hashable>(
         in automaton: BuchiAutomaton<StateType, AlphabetSymbolType>

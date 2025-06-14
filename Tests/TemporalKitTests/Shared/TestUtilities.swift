@@ -4,8 +4,8 @@ import Testing
 
 // MARK: - Shared Test Helper Structures
 
-public struct TestState { 
-    public let index: Int 
+public struct TestState {
+    public let index: Int
     public init(index: Int) {
         self.index = index
     }
@@ -14,18 +14,18 @@ public struct TestState {
 public struct TestEvalContext: EvaluationContext {
     public let state: TestState
     public let _traceIndex: Int
-    
+
     public init(state: TestState, traceIndex: Int) {
         self.state = state
         self._traceIndex = traceIndex
     }
-    
-    public func currentStateAs<T>(_ type: T.Type) -> T? { 
-        state as? T 
+
+    public func currentStateAs<T>(_ type: T.Type) -> T? {
+        state as? T
     }
-    
-    public var traceIndex: Int? { 
-        _traceIndex 
+
+    public var traceIndex: Int? {
+        _traceIndex
     }
 }
 
