@@ -313,7 +313,7 @@ final class RandomGeneratedTests: XCTestCase {
     private func makeProposition(_ id: String) -> TestProposition {
         // Pre-compute the state mapping to avoid capturing self
         let statePropositionsMap = createStatePropositionsMap()
-        
+
         return TemporalKit.makeProposition(
             id: id,
             name: id,
@@ -324,10 +324,10 @@ final class RandomGeneratedTests: XCTestCase {
             }
         )
     }
-    
+
     private func createStatePropositionsMap() -> [String: [String]] {
         var map: [String: [String]] = [:]
-        
+
         // Collect states from all test structures
         let allStructures = [
             generateStructureWherePImpliesFQHolds(),
@@ -336,13 +336,13 @@ final class RandomGeneratedTests: XCTestCase {
             generateRandomKripkeStructure(stateCount: 20),
             generateRandomKripkeStructure(stateCount: 50)
         ]
-        
+
         for structure in allStructures {
             for state in structure.states {
                 map[state.id] = state.propositions
             }
         }
-        
+
         return map
     }
 

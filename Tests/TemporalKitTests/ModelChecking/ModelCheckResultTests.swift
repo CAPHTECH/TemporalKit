@@ -3,7 +3,7 @@ import Testing
 
 // Using a simple state type for these tests, like an Int or a String,
 // as the actual state content doesn't affect Counterexample's description logic.
-private enum MCR_TestState: String, CustomStringConvertible, Hashable {
+private enum TestState: String, CustomStringConvertible, Hashable {
     case s0, s1, s2, s3
     var description: String { rawValue }
 }
@@ -13,44 +13,44 @@ struct ModelCheckResultTests {
 
     @Test("Counterexample - infinitePathDescription - Prefix Only")
     func testCounterexampleDescription_PrefixOnly() throws {
-        let ce = Counterexample(prefix: [MCR_TestState.s0, MCR_TestState.s1], cycle: [])
+        let ce = Counterexample(prefix: [TestState.s0, TestState.s1], cycle: [])
         #expect(ce.infinitePathDescription == "s0 -> s1")
     }
 
     @Test("Counterexample - infinitePathDescription - Cycle Only")
     func testCounterexampleDescription_CycleOnly() throws {
-        let ce = Counterexample(prefix: [], cycle: [MCR_TestState.s2, MCR_TestState.s3])
+        let ce = Counterexample(prefix: [], cycle: [TestState.s2, TestState.s3])
         #expect(ce.infinitePathDescription == "(s2 -> s3)∞")
     }
 
     @Test("Counterexample - infinitePathDescription - Prefix and Cycle")
     func testCounterexampleDescription_PrefixAndCycle() throws {
-        let ce = Counterexample(prefix: [MCR_TestState.s0], cycle: [MCR_TestState.s1, MCR_TestState.s2])
+        let ce = Counterexample(prefix: [TestState.s0], cycle: [TestState.s1, TestState.s2])
         #expect(ce.infinitePathDescription == "s0 -> (s1 -> s2)∞")
     }
 
     @Test("Counterexample - infinitePathDescription - Empty Prefix and Empty Cycle")
     func testCounterexampleDescription_EmptyPrefixEmptyCycle() throws {
-        let ce = Counterexample<MCR_TestState>(prefix: [], cycle: [])
-        #expect(ce.infinitePathDescription == "")
+        let ce = Counterexample<TestState>(prefix: [], cycle: [])
+        #expect(ce.infinitePathDescription.isEmpty)
     }
 
     @Test("Counterexample - infinitePathDescription - Single State Prefix, Empty Cycle")
     func testCounterexampleDescription_SingleStatePrefixEmptyCycle() throws {
-        let ce = Counterexample(prefix: [MCR_TestState.s0], cycle: [])
+        let ce = Counterexample(prefix: [TestState.s0], cycle: [])
         #expect(ce.infinitePathDescription == "s0")
     }
 
     @Test("Counterexample - infinitePathDescription - Empty Prefix, Single State Cycle")
     func testCounterexampleDescription_EmptyPrefixSingleStateCycle() throws {
-        let ce = Counterexample(prefix: [], cycle: [MCR_TestState.s0])
+        let ce = Counterexample(prefix: [], cycle: [TestState.s0])
         #expect(ce.infinitePathDescription == "(s0)∞")
     }
 
     // Test ModelCheckResult enum itself - just for completeness, likely covered by LTLModelCheckerTests
     @Test("ModelCheckResult - Holds")
     func testModelCheckResultHolds() throws {
-        let result: ModelCheckResult<MCR_TestState> = .holds
+        let result: ModelCheckResult<TestState> = .holds
         if case .holds = result {
             #expect(true)
         } else {
@@ -60,14 +60,13 @@ struct ModelCheckResultTests {
 
     @Test("ModelCheckResult - Fails")
     func testModelCheckResultFails() throws {
-        let counterExample = Counterexample(prefix: [MCR_TestState.s0], cycle: [MCR_TestState.s1])
-        let result: ModelCheckResult<MCR_TestState> = .fails(counterexample: counterExample)
+        let counterExample = Counterexample(prefix: [TestState.s0], cycle: [TestState.s1])
+        let result: ModelCheckResult<TestState> = .fails(counterexample: counterExample)
         if case .fails(let ce) = result {
-            #expect(ce.prefix == [MCR_TestState.s0])
-            #expect(ce.cycle == [MCR_TestState.s1])
+            #expect(ce.prefix == [TestState.s0])
+            #expect(ce.cycle == [TestState.s1])
         } else {
             Issue.record("Expected .fails")
         }
     }
 }
-

@@ -339,11 +339,11 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
         case .globally(let subFormula):
             expandGlobally(subFormula, currentFormula: currentFormula, currentWorklist: worklist, processedOnPath: processed, vSet: V, pAtomicSet: P_atomic, nAtomicSet: N_atomic, forSymbol: forSymbol, initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula, allPossibleOutcomes: &allPossibleOutcomes)
 
-        case .weakUntil(let _phi, let _psi):
+        case .weakUntil:
             print("[TGC SOLVE ERROR] WeakUntil (W) should be converted by NNF. Encountered: \(currentFormula)")
             allPossibleOutcomes.append((Set(), Set(), false))
 
-        case .implies(let _lhs, let _rhs):
+        case .implies:
             print("[TGC SOLVE ERROR] Implies (->) should be converted by NNF. Encountered: \(currentFormula)")
             allPossibleOutcomes.append((Set(), Set(), false))
 

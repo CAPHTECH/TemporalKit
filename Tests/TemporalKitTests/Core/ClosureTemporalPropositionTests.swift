@@ -3,7 +3,7 @@ import Testing
 import Foundation // For UUID
 
 // Dummy StateType for testing, specific to this test file
-private struct CTP_TestState { // Renamed to avoid conflicts
+private struct TestStateStruct { // Renamed to avoid conflicts
     let value: Int
     let shouldThrowInEvaluate: Bool
 
@@ -14,7 +14,7 @@ private struct CTP_TestState { // Renamed to avoid conflicts
 }
 
 // Dummy context for testing, specific to this test file
-private class CTP_TestEvaluationContext: EvaluationContext { // Renamed
+private class TestEvaluationContext: EvaluationContext { // Renamed
     private let state: Any?
     private var _traceIndex: Int = 0
 
@@ -33,7 +33,7 @@ private class CTP_TestEvaluationContext: EvaluationContext { // Renamed
 }
 
 // Custom error for testing evaluation logic throws, specific to this test file
-private enum CTP_TestEvaluationError: Error, Equatable { // Renamed
+private enum TestEvaluationError: Error, Equatable { // Renamed
     case intentionalError
 }
 
@@ -41,12 +41,12 @@ private enum CTP_TestEvaluationError: Error, Equatable { // Renamed
 
     @Test("Evaluate succeeds when context provides correct state type and logic returns value")
     func testEvaluate_Success() throws {
-        let state = CTP_TestState(value: 10)
-        let context = CTP_TestEvaluationContext(state: state)
-        let proposition = ClosureTemporalProposition<CTP_TestState, Int>(
+        let state = TestStateStruct(value: 10)
+        let context = TestEvaluationContext(state: state)
+        let proposition = ClosureTemporalProposition<TestStateStruct, Int>(
             id: "p_success",
             name: "Proposition Success",
-            evaluate: { (testState: CTP_TestState) -> Int in testState.value * 2 } // Explicit type for closure param
+            evaluate: { (testState: TestStateStruct) -> Int in testState.value * 2 } // Explicit type for closure param
         )
 
         let result = try proposition.evaluate(in: context)
@@ -55,11 +55,11 @@ private enum CTP_TestEvaluationError: Error, Equatable { // Renamed
 
     @Test("Evaluate throws stateTypeMismatch when context cannot provide expected state type")
     func testEvaluate_StateTypeMismatch() throws {
-        let context = CTP_TestEvaluationContext(state: "NotTheCorrectState") // String instead of CTP_TestState
-        let proposition = ClosureTemporalProposition<CTP_TestState, Int>(
+        let context = TestEvaluationContext(state: "NotTheCorrectState") // String instead of TestStateStruct
+        let proposition = ClosureTemporalProposition<TestStateStruct, Int>(
             id: "p_mismatch",
             name: "Proposition State Mismatch",
-            evaluate: { (testState: CTP_TestState) -> Int in testState.value } // Explicit type
+            evaluate: { (testState: TestStateStruct) -> Int in testState.value } // Explicit type
         )
 
         // Check for the specific error type
@@ -77,7 +77,7 @@ private enum CTP_TestEvaluationError: Error, Equatable { // Renamed
             switch error {
             case .stateNotAvailable(let expected, let propID, let propName):
                 // This is expected with default EvaluationContext implementation
-                #expect(expected == String(describing: CTP_TestState.self))
+                #expect(expected == String(describing: TestStateStruct.self))
                 #expect(propID == proposition.id)
                 #expect(propName == proposition.name)
             case .stateTypeMismatch:
@@ -93,33 +93,33 @@ private enum CTP_TestEvaluationError: Error, Equatable { // Renamed
 
     @Test("Evaluate rethrows error from evaluationLogic")
     func testEvaluate_EvaluationLogicThrows() throws {
-        let state = CTP_TestState(value: 1, shouldThrowInEvaluate: true)
-        let context = CTP_TestEvaluationContext(state: state)
-        let proposition = ClosureTemporalProposition<CTP_TestState, Int>(
+        let state = TestStateStruct(value: 1, shouldThrowInEvaluate: true)
+        let context = TestEvaluationContext(state: state)
+        let proposition = ClosureTemporalProposition<TestStateStruct, Int>(
             id: "p_eval_throws",
             name: "Proposition Evaluation Throws",
-            evaluate: { (testState: CTP_TestState) -> Int in // Explicit type
+            evaluate: { (testState: TestStateStruct) -> Int in // Explicit type
                 if testState.shouldThrowInEvaluate {
-                    throw CTP_TestEvaluationError.intentionalError
+                    throw TestEvaluationError.intentionalError
                 }
                 return testState.value
             }
         )
 
-        #expect(throws: CTP_TestEvaluationError.intentionalError) {
+        #expect(throws: TestEvaluationError.intentionalError) {
             _ = try proposition.evaluate(in: context)
         }
     }
 
     @Test("nonThrowing factory creates proposition that evaluates correctly")
     func testNonThrowingFactory_Success() throws {
-        let state = CTP_TestState(value: 50)
-        let context = CTP_TestEvaluationContext(state: state)
+        let state = TestStateStruct(value: 50)
+        let context = TestEvaluationContext(state: state)
 
-        let proposition = ClosureTemporalProposition<CTP_TestState, String>.nonThrowing(
+        let proposition = ClosureTemporalProposition<TestStateStruct, String>.nonThrowing(
             id: "p_non_throwing_success",
             name: "Non-Throwing Proposition Success",
-            evaluate: { (testState: CTP_TestState) -> String in "Value is \(testState.value)" } // Explicit type
+            evaluate: { (testState: TestStateStruct) -> String in "Value is \(testState.value)" } // Explicit type
         )
 
         let result = try proposition.evaluate(in: context)
@@ -128,13 +128,13 @@ private enum CTP_TestEvaluationError: Error, Equatable { // Renamed
 
     @Test("nonThrowing factory with non-throwing logic (testing internal throwing adaptation)")
     func testNonThrowingFactory_InternalLogicCoverage() throws {
-        let state = CTP_TestState(value: 1)
-        let context = CTP_TestEvaluationContext(state: state)
+        let state = TestStateStruct(value: 1)
+        let context = TestEvaluationContext(state: state)
 
-        let proposition = ClosureTemporalProposition<CTP_TestState, Int>.nonThrowing(
+        let proposition = ClosureTemporalProposition<TestStateStruct, Int>.nonThrowing(
             id: "p_non_throwing_coverage",
             name: "Non-Throwing Proposition Coverage",
-            evaluate: { (testState: CTP_TestState) -> Int in // Explicit type
+            evaluate: { (testState: TestStateStruct) -> Int in // Explicit type
                 testState.value // This line (inside the nonThrowing's adapted closure) needs coverage
             }
         )

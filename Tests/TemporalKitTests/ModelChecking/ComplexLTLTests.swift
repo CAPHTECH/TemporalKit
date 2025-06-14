@@ -216,22 +216,22 @@ final class ComplexLTLTests: XCTestCase {
         let statePropositionsMap = createStatePropositionsMap()
         return TestKripkeStructureHelper.makeProposition(id: id, stateMapping: statePropositionsMap)
     }
-    
+
     private func createStatePropositionsMap() -> [String: [String]] {
         var map: [String: [String]] = [:]
-        
+
         let allStructures = [
             createAcceptingKripke(),
             createRejectingKripke(),
             createCyclicKripke()
         ]
-        
+
         for structure in allStructures {
             for state in structure.states {
                 map[state.id] = state.propositions
             }
         }
-        
+
         return map
     }
 

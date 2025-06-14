@@ -89,7 +89,7 @@ func createTestTrace(length: Int) -> [TestEvaluationContext] {
 struct TestPropositions {
     static let p_true = TestProposition(name: "p_true", evaluation: { _ in true })
     static let p_false = TestProposition(name: "p_false", evaluation: { _ in false })
-    
+
     // Convenience TRUE/FALSE LTL formulas for testing
     static let ltl_true: LTLFormula<TestProposition> = .atomic(TestPropositions.p_true)
     static let ltl_false: LTLFormula<TestProposition> = .atomic(TestPropositions.p_false)

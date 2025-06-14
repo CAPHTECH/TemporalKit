@@ -86,7 +86,7 @@ public struct ModelCheckingStatistics: Sendable {
 /// When T is not Sendable, you must use UnsafeSendableStateBox instead.
 public struct SendableStateBox<T> {
     public let value: T
-    
+
     public init(_ value: T) {
         self.value = value
     }
@@ -100,7 +100,7 @@ extension SendableStateBox: Sendable where T: Sendable {}
 @available(*, deprecated, message: "Only for migration. Ensure thread safety manually when using non-Sendable state types.")
 public struct UnsafeSendableStateBox<T>: @unchecked Sendable {
     public let value: T
-    
+
     public init(_ value: T) {
         self.value = value
         #if DEBUG

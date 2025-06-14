@@ -205,10 +205,10 @@ final class EdgeCaseTests: XCTestCase {
         let statePropositionsMap = createStatePropositionsMap()
         return TestKripkeStructureHelper.makeProposition(id: id, stateMapping: statePropositionsMap)
     }
-    
+
     private func createStatePropositionsMap() -> [String: [String]] {
         var map: [String: [String]] = [:]
-        
+
         // Collect states from all test structures
         let allStructures = [
             createMultiAcceptanceKripke(),
@@ -217,13 +217,13 @@ final class EdgeCaseTests: XCTestCase {
             createTerminalStateKripke(withPropositionInTerminal: false),
             createTerminalStateKripke(withPropositionInTerminal: true)
         ]
-        
+
         for structure in allStructures {
             for state in structure.states {
                 map[state.id] = state.propositions
             }
         }
-        
+
         return map
     }
 

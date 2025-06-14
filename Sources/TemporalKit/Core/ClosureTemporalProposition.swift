@@ -17,7 +17,6 @@ open class ClosureTemporalProposition<StateType, PropositionResultType: Hashable
     public let id: PropositionID
     public let name: String
     private let evaluationLogic: @Sendable (StateType) throws -> PropositionResultType
-    
 
     /// Initializes a new closure-based temporal proposition.
     ///
@@ -38,7 +37,7 @@ open class ClosureTemporalProposition<StateType, PropositionResultType: Hashable
         self.name = name
         self.evaluationLogic = evaluate
     }
-    
+
     /// Initializes a new closure-based temporal proposition with explicit ID validation.
     ///
     /// - Parameters:

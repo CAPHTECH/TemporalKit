@@ -4,20 +4,20 @@ import Foundation // For UUID if needed by proposition, though not strictly here
 
 // MARK: - Test Model Components for LTLModelCheckerTests
 
-private enum LMC_TestState: String, Hashable, CaseIterable, CustomStringConvertible {
+private enum TestStateEnum: String, Hashable, CaseIterable, CustomStringConvertible {
     case s0, s1, s2, s3
     var description: String { rawValue }
 }
 
 // This enum is for convenience in tests to refer to specific proposition IDs by name.
 // The actual proposition objects will use the official TemporalKit.PropositionID struct.
-private enum LMC_TestPropEnumID: String, Hashable, CustomStringConvertible {
+private enum TestPropEnumID: String, Hashable, CustomStringConvertible {
     case p, q, r
     var description: String { rawValue }
     var officialID: TemporalKit.PropositionID { TemporalKit.PropositionID(rawValue: self.rawValue)! }
 }
 
-private final class LMC_TestProposition: TemporalProposition {
+private final class TestPropositionClass: TemporalProposition {
     typealias Value = Bool
     typealias ID = TemporalKit.PropositionID // Conforms to Identifiable via TemporalProposition
 
@@ -25,7 +25,7 @@ private final class LMC_TestProposition: TemporalProposition {
     let name: String
     var value: Bool // In LTL atomic formulas, value is implicitly true
 
-    init(enumId: LMC_TestPropEnumID, name: String? = nil, value: Bool = true) {
+    init(enumId: TestPropEnumID, name: String? = nil, value: Bool = true) {
         self.id = enumId.officialID
         self.name = name ?? enumId.rawValue
         self.value = value
@@ -45,20 +45,20 @@ private final class LMC_TestProposition: TemporalProposition {
     // Hashable and Equatable are provided by TemporalProposition protocol extension using `id`
 }
 
-private struct LMC_SimpleKripkeModel: KripkeStructure {
-    typealias State = LMC_TestState
+private struct SimpleKripkeModel: KripkeStructure {
+    typealias State = TestStateEnum
     typealias AtomicPropositionIdentifier = TemporalKit.PropositionID // Use official PropositionID
 
-    let states: Set<LMC_TestState>
-    let initialStates: Set<LMC_TestState>
-    let transitions: [LMC_TestState: Set<LMC_TestState>]
-    let labeling: [LMC_TestState: Set<TemporalKit.PropositionID>] // Labeling uses official PropositionID
+    let states: Set<TestStateEnum>
+    let initialStates: Set<TestStateEnum>
+    let transitions: [TestStateEnum: Set<TestStateEnum>]
+    let labeling: [TestStateEnum: Set<TemporalKit.PropositionID>] // Labeling uses official PropositionID
 
     init(
-        states: Set<LMC_TestState> = Set(LMC_TestState.allCases),
-        initialStates: Set<LMC_TestState>,
-        transitions: [LMC_TestState: Set<LMC_TestState>],
-        labeling: [LMC_TestState: Set<TemporalKit.PropositionID>]
+        states: Set<TestStateEnum> = Set(TestStateEnum.allCases),
+        initialStates: Set<TestStateEnum>,
+        transitions: [TestStateEnum: Set<TestStateEnum>],
+        labeling: [TestStateEnum: Set<TemporalKit.PropositionID>]
     ) {
         self.states = states
         self.initialStates = initialStates
@@ -66,13 +66,13 @@ private struct LMC_SimpleKripkeModel: KripkeStructure {
         self.labeling = labeling
     }
 
-    var allStates: Set<LMC_TestState> { states }
+    var allStates: Set<TestStateEnum> { states }
 
-    func successors(of state: LMC_TestState) -> Set<LMC_TestState> {
+    func successors(of state: TestStateEnum) -> Set<TestStateEnum> {
         transitions[state] ?? []
     }
 
-    func atomicPropositionsTrue(in state: LMC_TestState) -> Set<TemporalKit.PropositionID> {
+    func atomicPropositionsTrue(in state: TestStateEnum) -> Set<TemporalKit.PropositionID> {
         labeling[state] ?? []
     }
 }
@@ -81,54 +81,54 @@ private struct LMC_SimpleKripkeModel: KripkeStructure {
 
 @Suite("LTLModelChecker Tests")
 struct LTLModelCheckerTests {
-    fileprivate let checker = LTLModelChecker<LMC_SimpleKripkeModel>()
+    fileprivate let checker = LTLModelChecker<SimpleKripkeModel>()
 
-    fileprivate let model1 = LMC_SimpleKripkeModel(
-        initialStates: [LMC_TestState.s0],
+    fileprivate let model1 = SimpleKripkeModel(
+        initialStates: [TestStateEnum.s0],
         transitions: [
-            LMC_TestState.s0: [LMC_TestState.s1],
-            LMC_TestState.s1: [LMC_TestState.s2],
-            LMC_TestState.s2: [LMC_TestState.s0],
-            LMC_TestState.s3: [LMC_TestState.s3]
+            TestStateEnum.s0: [TestStateEnum.s1],
+            TestStateEnum.s1: [TestStateEnum.s2],
+            TestStateEnum.s2: [TestStateEnum.s0],
+            TestStateEnum.s3: [TestStateEnum.s3]
         ],
         labeling: [
-            LMC_TestState.s0: [LMC_TestPropEnumID.p.officialID],
-            LMC_TestState.s1: [LMC_TestPropEnumID.q.officialID],
-            LMC_TestState.s2: [LMC_TestPropEnumID.p.officialID, LMC_TestPropEnumID.q.officialID],
-            LMC_TestState.s3: [LMC_TestPropEnumID.r.officialID]
+            TestStateEnum.s0: [TestPropEnumID.p.officialID],
+            TestStateEnum.s1: [TestPropEnumID.q.officialID],
+            TestStateEnum.s2: [TestPropEnumID.p.officialID, TestPropEnumID.q.officialID],
+            TestStateEnum.s3: [TestPropEnumID.r.officialID]
         ]
     )
 
-    fileprivate let model2 = LMC_SimpleKripkeModel(
-        states: [LMC_TestState.s0, LMC_TestState.s1],
-        initialStates: [LMC_TestState.s0],
+    fileprivate let model2 = SimpleKripkeModel(
+        states: [TestStateEnum.s0, TestStateEnum.s1],
+        initialStates: [TestStateEnum.s0],
         transitions: [
-            LMC_TestState.s0: [LMC_TestState.s1],
-            LMC_TestState.s1: [LMC_TestState.s1]
+            TestStateEnum.s0: [TestStateEnum.s1],
+            TestStateEnum.s1: [TestStateEnum.s1]
         ],
         labeling: [
-            LMC_TestState.s0: [LMC_TestPropEnumID.p.officialID],
-            LMC_TestState.s1: [LMC_TestPropEnumID.q.officialID]
+            TestStateEnum.s0: [TestPropEnumID.p.officialID],
+            TestStateEnum.s1: [TestPropEnumID.q.officialID]
         ]
     )
 
     @Test("Atomic Proposition Holds")
     func testAtomicPropositionHolds() throws {
-        let p_atomic = LMC_TestProposition(enumId: .p)
-        let p_formula = LTLFormula<LMC_TestProposition>.atomic(p_atomic)
+        let p_atomic = TestPropositionClass(enumId: .p)
+        let p_formula = LTLFormula<TestPropositionClass>.atomic(p_atomic)
         let result = try checker.check(formula: p_formula, model: model1)
         #expect(result.holds)
     }
 
     @Test("Atomic Proposition Fails")
     func testAtomicPropositionFails() throws {
-        let q_atomic = LMC_TestProposition(enumId: .q)
-        let q_formula = LTLFormula<LMC_TestProposition>.atomic(q_atomic)
+        let q_atomic = TestPropositionClass(enumId: .q)
+        let q_formula = LTLFormula<TestPropositionClass>.atomic(q_atomic)
         let result = try checker.check(formula: q_formula, model: model1)
         #expect(!result.holds, "Formula 'q' should fail as s0 does not satisfy q.")
         if case .fails(let counterexample) = result {
-            #expect(counterexample.prefix == [LMC_TestState.s0])
-            #expect(counterexample.cycle.isEmpty || counterexample.cycle == [LMC_TestState.s0])
+            #expect(counterexample.prefix == [TestStateEnum.s0])
+            #expect(counterexample.cycle.isEmpty || counterexample.cycle == [TestStateEnum.s0])
         } else {
             Issue.record("Expected a counterexample for failing atomic proposition 'q'.")
         }
@@ -136,34 +136,34 @@ struct LTLModelCheckerTests {
 
     @Test("Eventually Holds (F p)")
     func testEventuallyHolds() throws {
-        let q_atomic = LMC_TestProposition(enumId: .q)
-        let fq_formula = LTLFormula<LMC_TestProposition>.eventually(.atomic(q_atomic))
+        let q_atomic = TestPropositionClass(enumId: .q)
+        let fq_formula = LTLFormula<TestPropositionClass>.eventually(.atomic(q_atomic))
         let result = try checker.check(formula: fq_formula, model: model1)
         #expect(result.holds, "Formula 'F q' should hold.")
     }
 
     @Test("Eventually Holds (F r) - Different Initial State")
     func testEventuallyHoldsDifferentInitial() throws {
-        let r_atomic = LMC_TestProposition(enumId: .r)
-        let fr_formula = LTLFormula<LMC_TestProposition>.eventually(.atomic(r_atomic))
+        let r_atomic = TestPropositionClass(enumId: .r)
+        let fr_formula = LTLFormula<TestPropositionClass>.eventually(.atomic(r_atomic))
 
         // Model with only s3 as initial state. In s3, r is true
-        let s3TransitionsDict: [LMC_TestState: Set<LMC_TestState>] = [
+        let s3TransitionsDict: [TestStateEnum: Set<TestStateEnum>] = [
             .s0: [.s1],
             .s1: [.s2],
             .s2: [.s0],
             .s3: [.s3] // s3 loops to itself
         ]
 
-        let s3LabelingDict: [LMC_TestState: Set<PropositionID>] = [
+        let s3LabelingDict: [TestStateEnum: Set<PropositionID>] = [
             .s0: [PropositionID(rawValue: "p")!],
             .s1: [PropositionID(rawValue: "q")!],
             .s2: [],
             .s3: [PropositionID(rawValue: "r")!] // r is true in s3
         ]
 
-        let modelInit_s3_only = LMC_SimpleKripkeModel(
-            initialStates: [LMC_TestState.s3],
+        let modelInit_s3_only = SimpleKripkeModel(
+            initialStates: [TestStateEnum.s3],
             transitions: s3TransitionsDict,
             labeling: s3LabelingDict
         )
@@ -184,14 +184,14 @@ struct LTLModelCheckerTests {
 
     @Test("Globally Fails (G p)")
     func testGloballyFails() throws {
-        let p_atomic = LMC_TestProposition(enumId: .p)
-        let gp_formula = LTLFormula<LMC_TestProposition>.globally(.atomic(p_atomic))
+        let p_atomic = TestPropositionClass(enumId: .p)
+        let gp_formula = LTLFormula<TestPropositionClass>.globally(.atomic(p_atomic))
         let result = try checker.check(formula: gp_formula, model: model1)
         #expect(!result.holds, "Formula 'G p' should fail.")
 
         if case .fails(let counterexample) = result {
             let modelStatesInPrefix = counterexample.prefix
-            #expect(modelStatesInPrefix.contains(LMC_TestState.s1), "Counterexample prefix should lead to a state not satisfying p (e.g. s1).")
+            #expect(modelStatesInPrefix.contains(TestStateEnum.s1), "Counterexample prefix should lead to a state not satisfying p (e.g. s1).")
             // The specific path can vary based on the implementation, just ensure s1 is included
         } else {
             Issue.record("Expected a counterexample for failing formula 'G p'.")
@@ -200,30 +200,30 @@ struct LTLModelCheckerTests {
 
     @Test("Globally Holds (G r on s3 loop)")
     func testGloballyHoldsOnLoop() throws {
-         let modelS3Only = LMC_SimpleKripkeModel(
-            states: [LMC_TestState.s3],
-            initialStates: [LMC_TestState.s3],
-            transitions: [LMC_TestState.s3: [LMC_TestState.s3]],
-            labeling: [LMC_TestState.s3: [LMC_TestPropEnumID.r.officialID]]
+         let modelS3Only = SimpleKripkeModel(
+            states: [TestStateEnum.s3],
+            initialStates: [TestStateEnum.s3],
+            transitions: [TestStateEnum.s3: [TestStateEnum.s3]],
+            labeling: [TestStateEnum.s3: [TestPropEnumID.r.officialID]]
         )
-        let r_atomic = LMC_TestProposition(enumId: .r)
-        let gr_formula = LTLFormula<LMC_TestProposition>.globally(.atomic(r_atomic))
+        let r_atomic = TestPropositionClass(enumId: .r)
+        let gr_formula = LTLFormula<TestPropositionClass>.globally(.atomic(r_atomic))
         let result = try checker.check(formula: gr_formula, model: modelS3Only)
         #expect(result.holds, "Formula 'G r' should hold for the s3 self-loop model.")
     }
 
     @Test("Next Holds (X q)")
     func testNextHolds() throws {
-        let q_atomic = LMC_TestProposition(enumId: .q)
-        let xq_formula = LTLFormula<LMC_TestProposition>.next(.atomic(q_atomic))
+        let q_atomic = TestPropositionClass(enumId: .q)
+        let xq_formula = LTLFormula<TestPropositionClass>.next(.atomic(q_atomic))
         let result = try checker.check(formula: xq_formula, model: model1)
         #expect(result.holds, "Formula 'X q' should hold.")
     }
 
     @Test("Next Fails (X p from s1)") // Title was misleading, X r from s0 is the test
     func testNextFails() throws {
-        let r_atomic = LMC_TestProposition(enumId: .r)
-        let xr_from_s0_formula = LTLFormula<LMC_TestProposition>.next(.atomic(r_atomic))
+        let r_atomic = TestPropositionClass(enumId: .r)
+        let xr_from_s0_formula = LTLFormula<TestPropositionClass>.next(.atomic(r_atomic))
         let result_s0 = try checker.check(formula: xr_from_s0_formula, model: model1)
         #expect(!result_s0.holds, "Formula 'X r' from s0 should fail.")
         if case .fails(let counterexample) = result_s0 {
@@ -237,11 +237,11 @@ struct LTLModelCheckerTests {
 
     @Test("Until Holds (p U q)")
     func testUntilHolds() throws {
-        let p_prop = LMC_TestProposition(enumId: .p)
-        let q_prop = LMC_TestProposition(enumId: .q)
-        let p_formula = LTLFormula<LMC_TestProposition>.atomic(p_prop)
-        let q_formula = LTLFormula<LMC_TestProposition>.atomic(q_prop)
-        let pUq_formula = LTLFormula<LMC_TestProposition>.until(p_formula, q_formula)
+        let p_prop = TestPropositionClass(enumId: .p)
+        let q_prop = TestPropositionClass(enumId: .q)
+        let p_formula = LTLFormula<TestPropositionClass>.atomic(p_prop)
+        let q_formula = LTLFormula<TestPropositionClass>.atomic(q_prop)
+        let pUq_formula = LTLFormula<TestPropositionClass>.until(p_formula, q_formula)
 
         let result = try checker.check(formula: pUq_formula, model: model1)
         #expect(result.holds, "Formula 'p U q' should hold for model1 from s0.")
@@ -249,15 +249,15 @@ struct LTLModelCheckerTests {
 
     @Test("Until Fails (q U r from s0 in model1)")
     func testUntilFails() throws {
-        let q_prop = LMC_TestProposition(enumId: .q)
-        let r_prop = LMC_TestProposition(enumId: .r)
-        let q_formula = LTLFormula<LMC_TestProposition>.atomic(q_prop)
-        let r_formula = LTLFormula<LMC_TestProposition>.atomic(r_prop)
-        let qUr_formula = LTLFormula<LMC_TestProposition>.until(q_formula, r_formula)
+        let q_prop = TestPropositionClass(enumId: .q)
+        let r_prop = TestPropositionClass(enumId: .r)
+        let q_formula = LTLFormula<TestPropositionClass>.atomic(q_prop)
+        let r_formula = LTLFormula<TestPropositionClass>.atomic(r_prop)
+        let qUr_formula = LTLFormula<TestPropositionClass>.until(q_formula, r_formula)
         let result = try checker.check(formula: qUr_formula, model: model1)
         #expect(!result.holds, "Formula 'q U r' should fail for model1 from s0.")
         if case .fails(let counterexample) = result {
-            #expect(counterexample.prefix.first == LMC_TestState.s0 && !(model1.atomicPropositionsTrue(in: LMC_TestState.s0).contains(LMC_TestPropEnumID.q.officialID)))
+            #expect(counterexample.prefix.first == TestStateEnum.s0 && !(model1.atomicPropositionsTrue(in: TestStateEnum.s0).contains(TestPropEnumID.q.officialID)))
         } else {
             Issue.record("Expected counterexample for 'q U r'.")
         }
@@ -265,18 +265,18 @@ struct LTLModelCheckerTests {
 
     @Test("Formula 'true' Holds")
     func testTrueHolds() throws {
-        let trueFormula = LTLFormula<LMC_TestProposition>.booleanLiteral(true)
+        let trueFormula = LTLFormula<TestPropositionClass>.booleanLiteral(true)
         let result = try checker.check(formula: trueFormula, model: model2)
         #expect(result.holds, "Formula 'true' should always hold.")
     }
 
     @Test("Formula 'false' Fails")
     func testFalseFails() throws {
-        let falseFormula = LTLFormula<LMC_TestProposition>.booleanLiteral(false)
+        let falseFormula = LTLFormula<TestPropositionClass>.booleanLiteral(false)
         let result = try checker.check(formula: falseFormula, model: model2)
         #expect(!result.holds, "Formula 'false' should always fail.")
         if case .fails(let counterexample) = result {
-            #expect(counterexample.prefix.first == LMC_TestState.s0)
+            #expect(counterexample.prefix.first == TestStateEnum.s0)
         } else {
             Issue.record("Expected a counterexample for 'false'.")
         }
@@ -295,9 +295,9 @@ struct LTLModelCheckerTests {
         }
     }
 
-    // Using LMC_TestProposition for simplicity, but ensuring its ID is distinct if used alongside others.
-    // Or, define a new Proposition type if LMC_TestProposition's evaluation is not suitable.
-    // For this case, we can reuse LMC_TestProposition with a specific ID.
+    // Using TestPropositionClass for simplicity, but ensuring its ID is distinct if used alongside others.
+    // Or, define a new Proposition type if TestPropositionClass's evaluation is not suitable.
+    // For this case, we can reuse TestPropositionClass with a specific ID.
     // Let's define a new proposition type to exactly match how ClosureTemporalProposition works.
     private typealias DemoLikeTestProposition = TemporalKit.ClosureTemporalProposition<DemoLikeTestKripkeModelState, Bool>
 
@@ -358,14 +358,14 @@ struct LTLModelCheckerTests {
 
     @Test("Atomic Proposition with Empty Initial States Model")
     func testAtomicPropositionEmptyInitialStates() throws {
-        let emptyInitialModel = LMC_SimpleKripkeModel(
-            states: [LMC_TestState.s0], // Need at least one state for labeling
+        let emptyInitialModel = SimpleKripkeModel(
+            states: [TestStateEnum.s0], // Need at least one state for labeling
             initialStates: [],
-            transitions: [LMC_TestState.s0: [LMC_TestState.s0]],
-            labeling: [LMC_TestState.s0: [LMC_TestPropEnumID.p.officialID]]
+            transitions: [TestStateEnum.s0: [TestStateEnum.s0]],
+            labeling: [TestStateEnum.s0: [TestPropEnumID.p.officialID]]
         )
-        let p_atomic = LMC_TestProposition(enumId: .p)
-        let p_formula = LTLFormula<LMC_TestProposition>.atomic(p_atomic)
+        let p_atomic = TestPropositionClass(enumId: .p)
+        let p_formula = LTLFormula<TestPropositionClass>.atomic(p_atomic)
         let result = try checker.check(formula: p_formula, model: emptyInitialModel)
         // For .atomic(P), if initialStates is empty, it should hold (vacuously true for "all initial states")
         #expect(result.holds, "Atomic formula should hold for a model with no initial states.")
@@ -373,14 +373,14 @@ struct LTLModelCheckerTests {
 
     @Test("Not Atomic Proposition with Empty Initial States Model")
     func testNotAtomicPropositionEmptyInitialStates() throws {
-        let emptyInitialModel = LMC_SimpleKripkeModel(
-            states: [LMC_TestState.s0],
+        let emptyInitialModel = SimpleKripkeModel(
+            states: [TestStateEnum.s0],
             initialStates: [],
-            transitions: [LMC_TestState.s0: [LMC_TestState.s0]],
-            labeling: [LMC_TestState.s0: [LMC_TestPropEnumID.p.officialID]]
+            transitions: [TestStateEnum.s0: [TestStateEnum.s0]],
+            labeling: [TestStateEnum.s0: [TestPropEnumID.p.officialID]]
         )
-        let p_atomic = LMC_TestProposition(enumId: .p)
-        let not_p_formula = LTLFormula<LMC_TestProposition>.not(.atomic(p_atomic))
+        let p_atomic = TestPropositionClass(enumId: .p)
+        let not_p_formula = LTLFormula<TestPropositionClass>.not(.atomic(p_atomic))
         let result = try checker.check(formula: not_p_formula, model: emptyInitialModel)
         // For .not(.atomic(P)), if initialStates is empty, there's no state to satisfy notP,
         // so ¬P fails to hold from any initial state (as there are none).
@@ -395,24 +395,24 @@ struct LTLModelCheckerTests {
 
     @Test("Not Atomic Proposition - Fails When Prop Holds in All Initial States")
     func testNotAtomicPropositionFailsWhenPropHoldsInAllInitialStates() throws {
-        let modelAllP = LMC_SimpleKripkeModel(
-            initialStates: [LMC_TestState.s0, LMC_TestState.s1], // Two initial states
+        let modelAllP = SimpleKripkeModel(
+            initialStates: [TestStateEnum.s0, TestStateEnum.s1], // Two initial states
             transitions: [
-                LMC_TestState.s0: [LMC_TestState.s0],
-                LMC_TestState.s1: [LMC_TestState.s1]
+                TestStateEnum.s0: [TestStateEnum.s0],
+                TestStateEnum.s1: [TestStateEnum.s1]
             ],
             labeling: [ // p holds in both s0 and s1
-                LMC_TestState.s0: [LMC_TestPropEnumID.p.officialID],
-                LMC_TestState.s1: [LMC_TestPropEnumID.p.officialID]
+                TestStateEnum.s0: [TestPropEnumID.p.officialID],
+                TestStateEnum.s1: [TestPropEnumID.p.officialID]
             ]
         )
-        let p_atomic = LMC_TestProposition(enumId: .p)
-        let not_p_formula = LTLFormula<LMC_TestProposition>.not(.atomic(p_atomic))
+        let p_atomic = TestPropositionClass(enumId: .p)
+        let not_p_formula = LTLFormula<TestPropositionClass>.not(.atomic(p_atomic))
         let result = try checker.check(formula: not_p_formula, model: modelAllP)
         #expect(!result.holds, "not(.atomic(p)) should fail if p holds in all initial states.")
         if case .fails(let counterexample) = result {
             // The current implementation returns the first initial state as prefix.
-             #expect(counterexample.prefix == [LMC_TestState.s0] || counterexample.prefix == [LMC_TestState.s1] )
+             #expect(counterexample.prefix == [TestStateEnum.s0] || counterexample.prefix == [TestStateEnum.s1] )
         } else {
             Issue.record("Expected a failure for not(.atomic(p)) when p holds in all initial states.")
         }
@@ -420,36 +420,36 @@ struct LTLModelCheckerTests {
 
     @Test("Not Atomic Proposition - Holds When Prop Fails in Some Initial State")
     func testNotAtomicPropositionHoldsWhenPropFailsInSomeInitialState() throws {
-        let modelMixedP = LMC_SimpleKripkeModel(
-            states: [LMC_TestState.s0, LMC_TestState.s1, LMC_TestState.s2], // Ensure all states used are declared
-            initialStates: [LMC_TestState.s0, LMC_TestState.s1], // s0 satisfies P, s1 does not
+        let modelMixedP = SimpleKripkeModel(
+            states: [TestStateEnum.s0, TestStateEnum.s1, TestStateEnum.s2], // Ensure all states used are declared
+            initialStates: [TestStateEnum.s0, TestStateEnum.s1], // s0 satisfies P, s1 does not
             transitions: [
-                LMC_TestState.s0: [LMC_TestState.s0],
-                LMC_TestState.s1: [LMC_TestState.s1],
-                LMC_TestState.s2: [LMC_TestState.s2] // Dummy transitions
+                TestStateEnum.s0: [TestStateEnum.s0],
+                TestStateEnum.s1: [TestStateEnum.s1],
+                TestStateEnum.s2: [TestStateEnum.s2] // Dummy transitions
             ],
             labeling: [
-                LMC_TestState.s0: [LMC_TestPropEnumID.p.officialID], // P holds in s0
-                LMC_TestState.s1: []                               // P does not hold in s1
+                TestStateEnum.s0: [TestPropEnumID.p.officialID], // P holds in s0
+                TestStateEnum.s1: []                               // P does not hold in s1
             ]
         )
-        let p_atomic = LMC_TestProposition(enumId: .p)
-        let not_p_formula = LTLFormula<LMC_TestProposition>.not(.atomic(p_atomic))
+        let p_atomic = TestPropositionClass(enumId: .p)
+        let not_p_formula = LTLFormula<TestPropositionClass>.not(.atomic(p_atomic))
         let result = try checker.check(formula: not_p_formula, model: modelMixedP)
         #expect(result.holds, "not(.atomic(p)) should hold if p fails in at least one initial state.")
     }
 
     @Test("ConvertModelToBuchi - Handles State With No Successors")
     func testConvertModelToBuchi_StateWithNoSuccessors() throws {
-        let modelWithTerminalState = LMC_SimpleKripkeModel(
-            states: [LMC_TestState.s0, LMC_TestState.s1],
-            initialStates: [LMC_TestState.s0],
+        let modelWithTerminalState = SimpleKripkeModel(
+            states: [TestStateEnum.s0, TestStateEnum.s1],
+            initialStates: [TestStateEnum.s0],
             transitions: [
-                LMC_TestState.s0: [LMC_TestState.s1] // s1 has no outgoing transitions defined here
+                TestStateEnum.s0: [TestStateEnum.s1] // s1 has no outgoing transitions defined here
             ],
             labeling: [
-                LMC_TestState.s0: [LMC_TestPropEnumID.p.officialID],
-                LMC_TestState.s1: [LMC_TestPropEnumID.q.officialID]
+                TestStateEnum.s0: [TestPropEnumID.p.officialID],
+                TestStateEnum.s1: [TestPropEnumID.q.officialID]
             ]
         )
 
@@ -457,8 +457,8 @@ struct LTLModelCheckerTests {
         // For example, X q. In s0, X q should hold because next state is s1 where q holds.
         // The model checker will convert the model to a Buchi automaton. The state s1,
         // having no successors, should get a self-loop in this automaton.
-        let q_prop = LMC_TestProposition(enumId: .q)
-        let formula_Xq = LTLFormula<LMC_TestProposition>.next(.atomic(q_prop))
+        let q_prop = TestPropositionClass(enumId: .q)
+        let formula_Xq = LTLFormula<TestPropositionClass>.next(.atomic(q_prop))
 
         let result = try checker.check(formula: formula_Xq, model: modelWithTerminalState)
 
@@ -469,7 +469,7 @@ struct LTLModelCheckerTests {
 
     @Test("ConvertModelToBuchi - Handles Empty Model")
     func testConvertModelToBuchi_EmptyModel() throws {
-        let emptyModel = LMC_SimpleKripkeModel(
+        let emptyModel = SimpleKripkeModel(
             states: [],
             initialStates: [],
             transitions: [:],
@@ -478,7 +478,7 @@ struct LTLModelCheckerTests {
         // Use a simple formula. The behavior of LTL formulas on empty models can be nuanced.
         // For `.booleanLiteral(true)`, it should hold.
         // The primary goal is to ensure convertModelToBuchi handles an empty state set.
-        let trueFormula = LTLFormula<LMC_TestProposition>.booleanLiteral(true)
+        let trueFormula = LTLFormula<TestPropositionClass>.booleanLiteral(true)
         _ = try checker.check(formula: trueFormula, model: emptyModel) // Assign to _ to silence warning
 
         // Check the special handling for .booleanLiteral(true) which returns .holds directly in check()
@@ -491,8 +491,8 @@ struct LTLModelCheckerTests {
         // Product construction with this might be interesting.
 
         // Let's test with a formula that *would* go through the full path if the model wasn't empty.
-        let p_prop = LMC_TestProposition(enumId: .p)
-        let formula_Gp = LTLFormula<LMC_TestProposition>.globally(.atomic(p_prop))
+        let p_prop = TestPropositionClass(enumId: .p)
+        let formula_Gp = LTLFormula<TestPropositionClass>.globally(.atomic(p_prop))
 
         let result_Gp = try checker.check(formula: formula_Gp, model: emptyModel)
 
@@ -511,16 +511,16 @@ struct LTLModelCheckerTests {
 
     @Test("ConstructProductAutomaton - Handles Model With No Initial States")
     func testConstructProductAutomaton_ModelWithNoInitialStates() throws {
-        let modelNoInitial = LMC_SimpleKripkeModel(
-            states: [LMC_TestState.s0],
+        let modelNoInitial = SimpleKripkeModel(
+            states: [TestStateEnum.s0],
             initialStates: [], // No initial states
-            transitions: [LMC_TestState.s0: [LMC_TestState.s0]],
-            labeling: [LMC_TestState.s0: [LMC_TestPropEnumID.p.officialID]]
+            transitions: [TestStateEnum.s0: [TestStateEnum.s0]],
+            labeling: [TestStateEnum.s0: [TestPropEnumID.p.officialID]]
         )
 
-        let p_prop = LMC_TestProposition(enumId: .p)
+        let p_prop = TestPropositionClass(enumId: .p)
         // Use a formula that doesn't get short-circuited by initial state checks for atomic propositions.
-        let formula_GXp = LTLFormula<LMC_TestProposition>.globally(.next(.atomic(p_prop)))
+        let formula_GXp = LTLFormula<TestPropositionClass>.globally(.next(.atomic(p_prop)))
 
         // modelAutomaton from convertModelToBuchi will have initialStates = [].
         // In constructProductAutomaton, productInitialStates will be empty.
@@ -534,21 +534,21 @@ struct LTLModelCheckerTests {
     @Test("ConvertModelToBuchi - Throws Error for Invalid Initial States")
     func testConvertModelToBuchiThrowsErrorForInvalidInitialStates() throws {
         // s0 is an initial state, but s0 is not in allStates.
-        let invalidModel = LMC_SimpleKripkeModel(
-            states: [LMC_TestState.s1, LMC_TestState.s2], // s0 is missing from allStates
-            initialStates: [LMC_TestState.s0, LMC_TestState.s1],
+        let invalidModel = SimpleKripkeModel(
+            states: [TestStateEnum.s1, TestStateEnum.s2], // s0 is missing from allStates
+            initialStates: [TestStateEnum.s0, TestStateEnum.s1],
             transitions: [
-                LMC_TestState.s1: [LMC_TestState.s2],
-                LMC_TestState.s2: [LMC_TestState.s1]
+                TestStateEnum.s1: [TestStateEnum.s2],
+                TestStateEnum.s2: [TestStateEnum.s1]
             ],
             labeling: [
-                LMC_TestState.s1: [LMC_TestPropEnumID.p.officialID],
-                LMC_TestState.s2: [LMC_TestPropEnumID.q.officialID]
+                TestStateEnum.s1: [TestPropEnumID.p.officialID],
+                TestStateEnum.s2: [TestPropEnumID.q.officialID]
             ]
         )
-        let p_atomic = LMC_TestProposition(enumId: .p)
+        let p_atomic = TestPropositionClass(enumId: .p)
         // Use a formula that bypasses the atomic special handling in 'check'
-        let formula_Xp = LTLFormula<LMC_TestProposition>.next(.atomic(p_atomic))
+        let formula_Xp = LTLFormula<TestPropositionClass>.next(.atomic(p_atomic))
 
         #expect {
             _ = try checker.check(formula: formula_Xp, model: invalidModel)
@@ -570,7 +570,7 @@ struct LTLModelCheckerTests {
 
     @Test("ExtractPropositions - Handles BooleanLiteral Correctly")
     func testExtractPropositionsHandlesBooleanLiteral() throws {
-        let formula = LTLFormula<LMC_TestProposition>.booleanLiteral(true)
+        let formula = LTLFormula<TestPropositionClass>.booleanLiteral(true)
         // model1には p, q, r が含まれる
         let result = try checker.check(formula: formula, model: model1)
 
@@ -591,12 +591,12 @@ struct LTLModelCheckerTests {
 
     @Test("ExtractPropositions - Handles Complex Formula Correctly")
     func testExtractPropositionsHandlesComplexFormula() throws {
-        let p = LMC_TestProposition(enumId: .p)
-        let q = LMC_TestProposition(enumId: .q)
-        let r = LMC_TestProposition(enumId: .r) // r is in model1.labeling for s3 only
+        let p = TestPropositionClass(enumId: .p)
+        let q = TestPropositionClass(enumId: .q)
+        let r = TestPropositionClass(enumId: .r) // r is in model1.labeling for s3 only
 
         // (p U (X q)) R (F r)
-        let formula: LTLFormula<LMC_TestProposition> = .release(
+        let formula: LTLFormula<TestPropositionClass> = .release(
             .until(.atomic(p), .next(.atomic(q))),
             .eventually(.atomic(r))
         )
@@ -616,13 +616,13 @@ struct LTLModelCheckerTests {
 
     @Test("ExtractPropositions - Covers All Operators (Nested Example)")
     func testExtractPropositionsCoversAllOperators() throws {
-        let p_prop = LMC_TestProposition(enumId: .p)
-        let q_prop = LMC_TestProposition(enumId: .q)
-        let r_prop = LMC_TestProposition(enumId: .r)
+        let p_prop = TestPropositionClass(enumId: .p)
+        let q_prop = TestPropositionClass(enumId: .q)
+        let r_prop = TestPropositionClass(enumId: .r)
 
         // G (p -> (q && (r || X p)))
         // This formula includes: globally, implies, atomic, and, or, next
-        let formula_G_p_implies_q_and_r_or_X_p: LTLFormula<LMC_TestProposition> = .globally(
+        let formula_G_p_implies_q_and_r_or_X_p: LTLFormula<TestPropositionClass> = .globally(
             .implies(
                 .atomic(p_prop),
                 .and(
