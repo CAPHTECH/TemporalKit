@@ -12,18 +12,12 @@ env:
 jobs:
   test-linux:
     name: Test on Linux
-    runs-on: ubuntu-22.04
-    strategy:
-      matrix:
-        swift: ['5.10']
+    runs-on: ubuntu-latest
+    container:
+      image: swift:5.10
     
     steps:
     - uses: actions/checkout@v4
-    
-    - name: Setup Swift
-      uses: swift-actions/setup-swift@v2.2.0
-      with:
-        swift-version: ${{ matrix.swift }}
     
     - name: Show Swift version
       run: swift --version
@@ -77,15 +71,12 @@ jobs:
 
   performance-test:
     name: Performance Tests
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
+    container:
+      image: swift:5.10
     
     steps:
     - uses: actions/checkout@v4
-    
-    - name: Setup Swift
-      uses: swift-actions/setup-swift@v2.2.0
-      with:
-        swift-version: '5.10'
     
     - name: Run performance tests
       run: |
