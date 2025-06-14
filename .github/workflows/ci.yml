@@ -43,13 +43,12 @@ jobs:
 
   build-docs:
     name: Build Documentation
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
+    container:
+      image: swift:6.0
     
     steps:
     - uses: actions/checkout@v4
-    
-    - name: Select Xcode
-      run: sudo xcode-select -s /Applications/Xcode_15.0.app
     
     - name: Build documentation
       run: |
