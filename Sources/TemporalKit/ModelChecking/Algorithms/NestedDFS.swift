@@ -25,131 +25,190 @@ internal enum NestedDFSAlgorithm {
         in automaton: BuchiAutomaton<StateType, AlphabetSymbolType>
     ) throws -> (prefix: [StateType], cycle: [StateType])? {
         // Algorithm state
-        var visited = Set<StateType>() // States visited in outer DFS
-        var stack = [StateType]() // Current outer DFS stack
-        var inStack = Set<StateType>() // Set of states in the current DFS stack
-        var onPath = [StateType: StateType]() // Path reconstruction: key -> parent state
-
-        // Outer DFS function - searches for accepting states
-        func dfs1(_ state: StateType) throws -> (prefix: [StateType], cycle: [StateType])? {
-            visited.insert(state)
-            stack.append(state)
-            inStack.insert(state)
-
-            // If we found an accepting state, start inner DFS to search for a cycle
-            if automaton.acceptingStates.contains(state) {
-                var cycleVisited = Set<StateType>() // States visited during inner DFS
-                var cyclePath = [StateType]() // Path that forms the cycle
-
-                if try dfs2(state, state, &cycleVisited, &cyclePath) {
-                    // Reconstruct prefix path from initial state to accepting state
-                    var prefix = [state]
-                    var current = state
-                    while let prev = onPath[current], prev != current {
-                        prefix.insert(prev, at: 0)
-                        current = prev
-                    }
-
-                    return (prefix: prefix, cycle: cyclePath)
-                }
-            }
-
-            // Continue outer DFS with successors
-            let successors = getSuccessors(of: state, in: automaton)
-            for nextState in successors {
-                if !visited.contains(nextState) {
-                    onPath[nextState] = state // Mark this path for reconstruction later
-                    if let result = try dfs1(nextState) {
-                        return result
-                    }
-                }
-                // Direct cycle detection optimization: Check for cycles to accepting states in stack
-                else if inStack.contains(nextState) && automaton.acceptingStates.contains(nextState) {
-                    // Found a path back to an accepting state in our stack - reconstruct cycle
-                    var cycle = [nextState]
-                    var current = state
-
-                    // Reconstruct cycle path
-                    while current != nextState {
-                        cycle.insert(current, at: 0)
-                        if let prev = onPath[current] {
-                            current = prev
-                        } else {
-                            break // Safety check
-                        }
-                    }
-
-                    // Ensure this cycle contains at least one accepting state
-                    if !automaton.acceptingStates.isDisjoint(with: Set(cycle)) {
-                        // Build the prefix to the accepting state
-                        var prefix = [nextState]
-                        current = nextState
-                        while let prev = onPath[current], prev != current && !cycle.contains(prev) {
-                            prefix.insert(prev, at: 0)
-                            current = prev
-                        }
-
-                        return (prefix: prefix, cycle: cycle)
-                    }
-                }
-            }
-
-            stack.removeLast()
-            inStack.remove(state)
-            return nil
-        }
-
-        // Inner DFS function - searches for a cycle containing accepting states
-        func dfs2(_ start: StateType, _ current: StateType, _ visited: inout Set<StateType>, _ cyclePath: inout [StateType]) throws -> Bool {
-            visited.insert(current)
-            cyclePath.append(current)
-
-            let successors = getSuccessors(of: current, in: automaton)
-            for nextState in successors {
-                // Found a direct cycle back to the accepting state - successfully found an accepting cycle
-                if nextState == start {
-                    cyclePath.append(nextState) // Close the cycle
-                    return true
-                }
-
-                // Continue inner DFS if we haven't visited this state yet
-                if !visited.contains(nextState) {
-                    if try dfs2(start, nextState, &visited, &cyclePath) {
-                        return true
-                    }
-                }
-                // Check for an alternative cycle through states we've already seen
-                else if cyclePath.contains(nextState) {
-                    // Found a state already in the cycle path - extract the cycle
-                    if let index = cyclePath.firstIndex(of: nextState) {
-                        // Extract the cycle part from the current path 
-                        let potentialCycle = Array(cyclePath[index...])
-
-                        // Verify this cycle contains at least one accepting state
-                        if automaton.acceptingStates.contains(where: { potentialCycle.contains($0) }) {
-                            cyclePath = potentialCycle
-                            return true
-                        }
-                    }
-                }
-            }
-
-            cyclePath.removeLast() // Backtrack
-            return false
-        }
-
+        var dfsState = DFSState<StateType>()
+        
         // Try main algorithm from each initial state
         for initialState in automaton.initialStates {
-            if !visited.contains(initialState) {
-                onPath[initialState] = initialState // Mark initial state as its own parent
-                if let result = try dfs1(initialState) {
+            if !dfsState.visited.contains(initialState) {
+                dfsState.onPath[initialState] = initialState // Mark initial state as its own parent
+                if let result = try performOuterDFS(
+                    initialState,
+                    automaton: automaton,
+                    dfsState: &dfsState
+                ) {
                     return result
                 }
             }
         }
 
         // Special case checks for edge cases
+        return try handleSpecialCases(in: automaton)
+    }
+    
+    // Container for DFS state to avoid passing many parameters
+    private struct DFSState<StateType: Hashable> {
+        var visited = Set<StateType>() // States visited in outer DFS
+        var stack = [StateType]() // Current outer DFS stack
+        var inStack = Set<StateType>() // Set of states in the current DFS stack
+        var onPath = [StateType: StateType]() // Path reconstruction: key -> parent state
+    }
+    
+    // Outer DFS function - searches for accepting states
+    private static func performOuterDFS<StateType: Hashable, AlphabetSymbolType: Hashable>(
+        _ state: StateType,
+        automaton: BuchiAutomaton<StateType, AlphabetSymbolType>,
+        dfsState: inout DFSState<StateType>
+    ) throws -> (prefix: [StateType], cycle: [StateType])? {
+        dfsState.visited.insert(state)
+        dfsState.stack.append(state)
+        dfsState.inStack.insert(state)
 
+        // If we found an accepting state, start inner DFS to search for a cycle
+        if automaton.acceptingStates.contains(state) {
+            if let result = try searchForCycleFromAcceptingState(
+                state,
+                onPath: dfsState.onPath,
+                automaton: automaton
+            ) {
+                return result
+            }
+        }
+
+        // Continue outer DFS with successors
+        let successors = getSuccessors(of: state, in: automaton)
+        for nextState in successors {
+            if !dfsState.visited.contains(nextState) {
+                dfsState.onPath[nextState] = state // Mark this path for reconstruction later
+                if let result = try performOuterDFS(nextState, automaton: automaton, dfsState: &dfsState) {
+                    return result
+                }
+            }
+            // Direct cycle detection optimization: Check for cycles to accepting states in stack
+            else if dfsState.inStack.contains(nextState) && automaton.acceptingStates.contains(nextState) {
+                if let result = reconstructCycleToAcceptingState(
+                    nextState: nextState,
+                    currentState: state,
+                    onPath: dfsState.onPath,
+                    automaton: automaton
+                ) {
+                    return result
+                }
+            }
+        }
+
+        dfsState.stack.removeLast()
+        dfsState.inStack.remove(state)
+        return nil
+    }
+    
+    // Inner DFS function - searches for a cycle containing accepting states
+    private static func performInnerDFS<StateType: Hashable, AlphabetSymbolType: Hashable>(
+        _ start: StateType,
+        _ current: StateType,
+        _ visited: inout Set<StateType>,
+        _ cyclePath: inout [StateType],
+        automaton: BuchiAutomaton<StateType, AlphabetSymbolType>
+    ) throws -> Bool {
+        visited.insert(current)
+        cyclePath.append(current)
+
+        let successors = getSuccessors(of: current, in: automaton)
+        for nextState in successors {
+            // Found a direct cycle back to the accepting state - successfully found an accepting cycle
+            if nextState == start {
+                cyclePath.append(nextState) // Close the cycle
+                return true
+            }
+
+            // Continue inner DFS if we haven't visited this state yet
+            if !visited.contains(nextState) {
+                if try performInnerDFS(start, nextState, &visited, &cyclePath, automaton: automaton) {
+                    return true
+                }
+            }
+            // Check for an alternative cycle through states we've already seen
+            else if cyclePath.contains(nextState) {
+                // Found a state already in the cycle path - extract the cycle
+                if let index = cyclePath.firstIndex(of: nextState) {
+                    // Extract the cycle part from the current path 
+                    let potentialCycle = Array(cyclePath[index...])
+
+                    // Verify this cycle contains at least one accepting state
+                    if automaton.acceptingStates.contains(where: { potentialCycle.contains($0) }) {
+                        cyclePath = potentialCycle
+                        return true
+                    }
+                }
+            }
+        }
+
+        cyclePath.removeLast() // Backtrack
+        return false
+    }
+    
+    // Search for a cycle from an accepting state
+    private static func searchForCycleFromAcceptingState<StateType: Hashable, AlphabetSymbolType: Hashable>(
+        _ state: StateType,
+        onPath: [StateType: StateType],
+        automaton: BuchiAutomaton<StateType, AlphabetSymbolType>
+    ) throws -> (prefix: [StateType], cycle: [StateType])? {
+        var cycleVisited = Set<StateType>() // States visited during inner DFS
+        var cyclePath = [StateType]() // Path that forms the cycle
+
+        if try performInnerDFS(state, state, &cycleVisited, &cyclePath, automaton: automaton) {
+            // Reconstruct prefix path from initial state to accepting state
+            var prefix = [state]
+            var current = state
+            while let prev = onPath[current], prev != current {
+                prefix.insert(prev, at: 0)
+                current = prev
+            }
+
+            return (prefix: prefix, cycle: cyclePath)
+        }
+        return nil
+    }
+    
+    // Helper function to reconstruct cycle to accepting state
+    private static func reconstructCycleToAcceptingState<StateType: Hashable, AlphabetSymbolType: Hashable>(
+        nextState: StateType,
+        currentState: StateType,
+        onPath: [StateType: StateType],
+        automaton: BuchiAutomaton<StateType, AlphabetSymbolType>
+    ) -> (prefix: [StateType], cycle: [StateType])? {
+        // Found a path back to an accepting state in our stack - reconstruct cycle
+        var cycle = [nextState]
+        var current = currentState
+
+        // Reconstruct cycle path
+        while current != nextState {
+            cycle.insert(current, at: 0)
+            if let prev = onPath[current] {
+                current = prev
+            } else {
+                break // Safety check
+            }
+        }
+
+        // Ensure this cycle contains at least one accepting state
+        if !automaton.acceptingStates.isDisjoint(with: Set(cycle)) {
+            // Build the prefix to the accepting state
+            var prefix = [nextState]
+            current = nextState
+            while let prev = onPath[current], prev != current && !cycle.contains(prev) {
+                prefix.insert(prev, at: 0)
+                current = prev
+            }
+
+            return (prefix: prefix, cycle: cycle)
+        }
+        return nil
+    }
+    
+    // Handle special edge cases
+    private static func handleSpecialCases<StateType: Hashable, AlphabetSymbolType: Hashable>(
+        in automaton: BuchiAutomaton<StateType, AlphabetSymbolType>
+    ) throws -> (prefix: [StateType], cycle: [StateType])? {
         // Case 1: Initial state is accepting and has only self-loops or no outgoing transitions
         for initState in automaton.initialStates {
             if automaton.acceptingStates.contains(initState) {
@@ -252,9 +311,13 @@ internal enum NestedDFSAlgorithm {
             for w in getSuccessors(of: v, in: automaton) {
                 if indices[w] == nil {
                     strongconnect(w)
-                    lowlinks[v] = min(lowlinks[v]!, lowlinks[w]!)
+                    if let vLowlink = lowlinks[v], let wLowlink = lowlinks[w] {
+                        lowlinks[v] = min(vLowlink, wLowlink)
+                    }
                 } else if onStack.contains(w) {
-                    lowlinks[v] = min(lowlinks[v]!, indices[w]!)
+                    if let vLowlink = lowlinks[v], let wIndex = indices[w] {
+                        lowlinks[v] = min(vLowlink, wIndex)
+                    }
                 }
             }
 

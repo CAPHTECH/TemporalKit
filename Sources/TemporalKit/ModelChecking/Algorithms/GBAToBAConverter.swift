@@ -109,7 +109,9 @@ internal struct GBAToBAConverter<S: Hashable, SymbolT: Hashable> {
                     //     }
                     // }
                     // if isPotentiallyProblematicFNotPSinkTransition || (q_source_gba == q_dest_gba && String(describing:symbol).contains(pDemoLikeRawValue)) {
-                    //     print("[GBAToBAConverter Self-Loop Check or F(!p) Relevant Transition] GBA: \(q_source_gba) --\(symbol)--> \(q_dest_gba). Index: \(i) -> \(j_next_index). BA: \(productStateFrom) --> \(productStateTo)")
+                    //     print("[GBAToBAConverter Self-Loop Check or F(!p) Relevant Transition] " +
+                    //           "GBA: \(q_source_gba) --\(symbol)--> \(q_dest_gba). " +
+                    //           "Index: \(i) -> \(j_next_index). BA: \(productStateFrom) --> \(productStateTo)")
                     //     if orderedAcceptanceSets[0].contains(q_source_gba) {
                     //         print("    Source GBA state \(q_source_gba) is in F_0. BA accepting state involved: \(ProductBATState(originalState: q_source_gba, index:0))")
                     //     }
@@ -121,9 +123,13 @@ internal struct GBAToBAConverter<S: Hashable, SymbolT: Hashable> {
         }
 
         // ---- REMOVED GBAToBAConverter DEBUG ----
-        // print("[GBAToBAConverter DEBUG] Generated BA: States=\(productBAStates.count), Initials=\(productBAInitialStates.count), Accepting=\(productBAAcceptingStates.count), Transitions=\(productBATransitions.count)")
+        // print("[GBAToBAConverter DEBUG] Generated BA: States=\(productBAStates.count), " +
+        //       "Initials=\(productBAInitialStates.count), Accepting=\(productBAAcceptingStates.count), " +
+        //       "Transitions=\(productBATransitions.count)")
         // for trans in productBATransitions.sorted(by: { (t1,t2) -> Bool in
-        //     if String(describing: t1.sourceState.originalState) != String(describing: t2.sourceState.originalState) { return String(describing: t1.sourceState.originalState) < String(describing: t2.sourceState.originalState) }
+        //     if String(describing: t1.sourceState.originalState) != String(describing: t2.sourceState.originalState) {
+        //         return String(describing: t1.sourceState.originalState) < String(describing: t2.sourceState.originalState)
+        //     }
         //     if t1.sourceState.index != t2.sourceState.index { return t1.sourceState.index < t2.sourceState.index }
         //     return String(describing: t1.symbol).count < String(describing: t2.symbol).count
         // }) {
