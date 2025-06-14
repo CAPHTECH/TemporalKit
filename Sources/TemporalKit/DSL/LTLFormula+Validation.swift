@@ -526,7 +526,7 @@ extension LTLFormula {
 // MARK: - Validation Configuration
 
 /// Configuration for formula validation.
-public struct ValidationConfiguration {
+public struct ValidationConfiguration: Sendable {
     /// The level of validation to perform.
     public let level: ValidationLevel
 
@@ -558,7 +558,7 @@ public struct ValidationConfiguration {
 }
 
 /// Levels of validation thoroughness.
-public enum ValidationLevel {
+public enum ValidationLevel: Sendable {
     /// Basic validation for obvious issues.
     case basic
 

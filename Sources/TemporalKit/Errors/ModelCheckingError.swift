@@ -1,7 +1,7 @@
 import Foundation
 
 /// モデルチェッキング処理中に発生するエラー
-public enum ModelCheckingError<State>: Error, LocalizedError {
+public enum ModelCheckingError<State: Sendable>: Error, LocalizedError {
     /// 無効なKripke構造
     case invalidKripkeStructure(reason: String)
 
@@ -60,7 +60,7 @@ public enum ModelCheckingError<State>: Error, LocalizedError {
 }
 
 /// モデルチェッキングの統計情報
-public struct ModelCheckingStatistics {
+public struct ModelCheckingStatistics: Sendable {
     public let statesExplored: Int
     public let transitionsExplored: Int
     public let timeElapsed: TimeInterval

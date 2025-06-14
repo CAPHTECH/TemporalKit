@@ -6,12 +6,12 @@ import Foundation
 /// making it convenient for simpler propositions without needing to create a separate subclass.
 /// It is generic over the `StateType` it expects from the `EvaluationContext` and the
 /// `PropositionResultType` that the evaluation yields.
-open class ClosureTemporalProposition<StateType, PropositionResultType: Hashable>: TemporalProposition {
+open class ClosureTemporalProposition<StateType, PropositionResultType: Hashable>: TemporalProposition, @unchecked Sendable {
     public typealias Value = PropositionResultType
 
     public let id: PropositionID
     public let name: String
-    private let evaluationLogic: (StateType) throws -> PropositionResultType
+    private let evaluationLogic: @Sendable (StateType) throws -> PropositionResultType
 
     /// Initializes a new closure-based temporal proposition.
     ///
@@ -20,7 +20,7 @@ open class ClosureTemporalProposition<StateType, PropositionResultType: Hashable
     ///   - name: The human-readable name of the proposition.
     ///   - evaluate: A closure that takes an object of `StateType` and returns the `PropositionResultType`.
     ///               This closure can throw errors.
-    public init(id: String, name: String, evaluate: @escaping (StateType) throws -> PropositionResultType) {
+    public init(id: String, name: String, evaluate: @escaping @Sendable (StateType) throws -> PropositionResultType) {
         // Use failable initializer and provide fallback for invalid IDs
         self.id = PropositionID(rawValue: id) ?? PropositionID(rawValue: "invalid_id")!
         self.name = name
@@ -67,7 +67,7 @@ open class ClosureTemporalProposition<StateType, PropositionResultType: Hashable
     public static func nonThrowing(
         id: String,
         name: String,
-        evaluate: @escaping (StateType) -> PropositionResultType
+        evaluate: @escaping @Sendable (StateType) -> PropositionResultType
     ) -> ClosureTemporalProposition<StateType, PropositionResultType> {
         ClosureTemporalProposition(
             id: id,

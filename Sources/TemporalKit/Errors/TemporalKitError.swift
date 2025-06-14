@@ -4,7 +4,7 @@ public enum TemporalKitError: Error, LocalizedError {
     case stateTypeMismatch(expected: String, actual: String, propositionID: PropositionID, propositionName: String)
     case stateNotAvailable(expected: String, propositionID: PropositionID, propositionName: String)
     case configurationError(message: String)
-    case invalidArgument(parameter: String, value: Any?, reason: String)
+    case invalidArgument(parameter: String, value: String?, reason: String)
     case unsupportedOperation(operation: String, reason: String)
 
     public var errorDescription: String? {
