@@ -198,10 +198,8 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
         heuristicOriginalLTLFormula: LTLFormula<P>, // The original LTL formula before NNF, for context
         allPossibleOutcomes: inout [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)]
     ) {
-        // ---- RE-ENABLING DEBUG FOR solve() entry ----
+        // Debug initialization
         let isTargetFormulaContextForSolve = shouldDebugFormula(heuristicOriginalLTLFormula)
-        
-        // Create local variables first
         var worklist = currentWorklist
         var processed = processedOnPath
         let vSet = vSet
@@ -219,8 +217,8 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
                 forSymbol: forSymbol
             )
         }
-        // ---- END DEBUG ----
 
+        // Handle empty worklist case
         if worklist.isEmpty {
             handleEmptyWorklist(
                 pAtomic: pAtomic,
@@ -235,6 +233,7 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
             return
         }
 
+        // Process current formula
         let currentFormula = worklist.removeFirst()
         if processed.contains(currentFormula) {
             solve(
@@ -252,185 +251,19 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
         }
         processed.insert(currentFormula)
 
-        switch currentFormula {
-        case .booleanLiteral(let b):
-            expandBooleanLiteral(
-                value: b,
-                isNegated: false,
-                currentWorklist: worklist,
-                processedOnPath: processed,
-                vSet: vSet,
-                pAtomicSet: pAtomic,
-                nAtomicSet: nAtomic,
-                forSymbol: forSymbol,
-                initialWorklistForSolve: initialWorklistForSolve,
-                heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
-                allPossibleOutcomes: &allPossibleOutcomes
-            )
-
-        case .atomic(let p):
-            expandAtomicProposition(
-                p: p,
-                isNegated: false,
-                currentWorklist: worklist,
-                processedOnPath: processed,
-                vSet: vSet,
-                pAtomicSet: pAtomic,
-                nAtomicSet: nAtomic,
-                forSymbol: forSymbol,
-                initialWorklistForSolve: initialWorklistForSolve,
-                heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
-                allPossibleOutcomes: &allPossibleOutcomes
-            )
-
-        case .not(.atomic(let p)):
-            expandAtomicProposition(
-                p: p,
-                isNegated: true,
-                currentWorklist: worklist,
-                processedOnPath: processed,
-                vSet: vSet,
-                pAtomicSet: pAtomic,
-                nAtomicSet: nAtomic,
-                forSymbol: forSymbol,
-                initialWorklistForSolve: initialWorklistForSolve,
-                heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
-                allPossibleOutcomes: &allPossibleOutcomes
-            )
-
-        case .not(.booleanLiteral(let b)):
-            expandBooleanLiteral(
-                value: b,
-                isNegated: true,
-                currentWorklist: worklist,
-                processedOnPath: processed,
-                vSet: vSet,
-                pAtomicSet: pAtomic,
-                nAtomicSet: nAtomic,
-                forSymbol: forSymbol,
-                initialWorklistForSolve: initialWorklistForSolve,
-                heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
-                allPossibleOutcomes: &allPossibleOutcomes
-            )
-
-        case .and(let lhs, let rhs):
-            expandAnd(
-                lhs, rhs,
-                currentWorklist: worklist,
-                processedOnPath: processed,
-                vSet: vSet,
-                pAtomicSet: pAtomic,
-                nAtomicSet: nAtomic,
-                forSymbol: forSymbol,
-                initialWorklistForSolve: initialWorklistForSolve,
-                heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
-                allPossibleOutcomes: &allPossibleOutcomes
-            )
-
-        case .or(let lhs, let rhs):
-            expandOr(
-                lhs, rhs,
-                currentWorklist: worklist,
-                processedOnPath: processed,
-                vSet: vSet,
-                pAtomicSet: pAtomic,
-                nAtomicSet: nAtomic,
-                forSymbol: forSymbol,
-                initialWorklistForSolve: initialWorklistForSolve,
-                heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
-                allPossibleOutcomes: &allPossibleOutcomes
-            )
-
-        case .next(let subFormula):
-            expandNext(
-                subFormula,
-                currentWorklist: worklist,
-                processedOnPath: processed,
-                vSet: vSet,
-                pAtomicSet: pAtomic,
-                nAtomicSet: nAtomic,
-                forSymbol: forSymbol,
-                initialWorklistForSolve: initialWorklistForSolve,
-                heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
-                allPossibleOutcomes: &allPossibleOutcomes
-            )
-
-        case .until(let phi, let psi):
-            expandUntil(
-                phi, psi,
-                currentFormula: currentFormula,
-                currentWorklist: worklist,
-                processedOnPath: processed,
-                vSet: vSet,
-                pAtomicSet: pAtomic,
-                nAtomicSet: nAtomic,
-                forSymbol: forSymbol,
-                initialWorklistForSolve: initialWorklistForSolve,
-                heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
-                allPossibleOutcomes: &allPossibleOutcomes
-            )
-
-        case .release(let phi, let psi):
-            expandRelease(
-                phi, psi,
-                currentFormula: currentFormula,
-                currentWorklist: worklist,
-                processedOnPath: processed,
-                vSet: vSet,
-                pAtomicSet: pAtomic,
-                nAtomicSet: nAtomic,
-                forSymbol: forSymbol,
-                initialWorklistForSolve: initialWorklistForSolve,
-                heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
-                allPossibleOutcomes: &allPossibleOutcomes
-            )
-
-        case .eventually(let subFormula):
-            expandEventually(
-                subFormula,
-                currentFormula: currentFormula,
-                currentWorklist: worklist,
-                processedOnPath: processed,
-                vSet: vSet,
-                pAtomicSet: pAtomic,
-                nAtomicSet: nAtomic,
-                forSymbol: forSymbol,
-                initialWorklistForSolve: initialWorklistForSolve,
-                heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
-                allPossibleOutcomes: &allPossibleOutcomes
-            )
-
-        case .globally(let subFormula):
-            expandGlobally(
-                subFormula,
-                currentFormula: currentFormula,
-                currentWorklist: worklist,
-                processedOnPath: processed,
-                vSet: vSet,
-                pAtomicSet: pAtomic,
-                nAtomicSet: nAtomic,
-                forSymbol: forSymbol,
-                initialWorklistForSolve: initialWorklistForSolve,
-                heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
-                allPossibleOutcomes: &allPossibleOutcomes
-            )
-
-        case .weakUntil:
-            print("[TGC SOLVE ERROR] WeakUntil (W) should be converted by NNF. Encountered: \(currentFormula)")
-            allPossibleOutcomes.append((Set(), Set(), false))
-
-        case .implies:
-            print("[TGC SOLVE ERROR] Implies (->) should be converted by NNF. Encountered: \(currentFormula)")
-            allPossibleOutcomes.append((Set(), Set(), false))
-
-        case .not(.until), .not(.release), .not(.weakUntil), .not(.next), .not(.eventually), .not(.globally):
-            print("[TGC SOLVE ERROR] Unexpected negated temporal operator in solve: \(currentFormula). Should be in NNF.")
-            allPossibleOutcomes.append((Set(), Set(), false))
-
-        default:
-            print("[TGC SOLVE ERROR] Unhandled LTL formula type in solve: \(currentFormula). Current worklist: \(currentWorklist.map { String(describing: $0) })")
-            allPossibleOutcomes.append((Set(), Set(), false))
-        }
+        // Delegate formula expansion based on type
+        expandFormulaByType(
+            currentFormula: currentFormula,
+            currentWorklist: worklist,
+            processedOnPath: processed,
+            vSet: vSet,
+            pAtomicSet: pAtomic,
+            nAtomicSet: nAtomic,
+            forSymbol: forSymbol,
+            initialWorklistForSolve: initialWorklistForSolve,
+            heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
+            allPossibleOutcomes: &allPossibleOutcomes
+        )
     }
     
     // Helper method to check if we should debug a formula
@@ -582,8 +415,169 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
         
         return consistentPath
     }
+    
+    // Main formula expansion switch handler
+    private func expandFormulaByType(
+        currentFormula: LTLFormula<P>,
+        currentWorklist: [LTLFormula<P>],
+        processedOnPath: Set<LTLFormula<P>>,
+        vSet: Set<LTLFormula<P>>,
+        pAtomicSet: Set<P>,
+        nAtomicSet: Set<P>,
+        forSymbol: BuchiAlphabetSymbol<PropositionIDType>,
+        initialWorklistForSolve: [LTLFormula<P>],
+        heuristicOriginalLTLFormula: LTLFormula<P>,
+        allPossibleOutcomes: inout [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)]
+    ) {
+        switch currentFormula {
+        case .booleanLiteral(let b):
+            handleBooleanLiteral(
+                value: b, isNegated: false,
+                currentWorklist: currentWorklist, processedOnPath: processedOnPath, vSet: vSet,
+                pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
+                initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
+                allPossibleOutcomes: &allPossibleOutcomes
+            )
 
-    // New private helper method for .atomic and .not(.atomic)
+        case .atomic(let p):
+            handleAtomicFormula(
+                p: p, isNegated: false,
+                currentWorklist: currentWorklist, processedOnPath: processedOnPath, vSet: vSet,
+                pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
+                initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
+                allPossibleOutcomes: &allPossibleOutcomes
+            )
+
+        case .not(.atomic(let p)):
+            handleAtomicFormula(
+                p: p, isNegated: true,
+                currentWorklist: currentWorklist, processedOnPath: processedOnPath, vSet: vSet,
+                pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
+                initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
+                allPossibleOutcomes: &allPossibleOutcomes
+            )
+
+        case .not(.booleanLiteral(let b)):
+            handleBooleanLiteral(
+                value: b, isNegated: true,
+                currentWorklist: currentWorklist, processedOnPath: processedOnPath, vSet: vSet,
+                pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
+                initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
+                allPossibleOutcomes: &allPossibleOutcomes
+            )
+
+        case .and(let lhs, let rhs):
+            handleAndFormula(
+                lhs: lhs, rhs: rhs,
+                currentWorklist: currentWorklist, processedOnPath: processedOnPath, vSet: vSet,
+                pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
+                initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
+                allPossibleOutcomes: &allPossibleOutcomes
+            )
+
+        case .or(let lhs, let rhs):
+            handleOrFormula(
+                lhs: lhs, rhs: rhs,
+                currentWorklist: currentWorklist, processedOnPath: processedOnPath, vSet: vSet,
+                pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
+                initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
+                allPossibleOutcomes: &allPossibleOutcomes
+            )
+
+        case .next(let subFormula):
+            handleNextFormula(
+                subFormula: subFormula,
+                currentWorklist: currentWorklist, processedOnPath: processedOnPath, vSet: vSet,
+                pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
+                initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
+                allPossibleOutcomes: &allPossibleOutcomes
+            )
+
+        case .until(let phi, let psi):
+            handleUntilFormula(
+                phi: phi, psi: psi, currentFormula: currentFormula,
+                currentWorklist: currentWorklist, processedOnPath: processedOnPath, vSet: vSet,
+                pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
+                initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
+                allPossibleOutcomes: &allPossibleOutcomes
+            )
+
+        case .release(let phi, let psi):
+            handleReleaseFormula(
+                phi: phi, psi: psi, currentFormula: currentFormula,
+                currentWorklist: currentWorklist, processedOnPath: processedOnPath, vSet: vSet,
+                pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
+                initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
+                allPossibleOutcomes: &allPossibleOutcomes
+            )
+
+        case .eventually(let subFormula):
+            handleEventuallyFormula(
+                subFormula: subFormula, currentFormula: currentFormula,
+                currentWorklist: currentWorklist, processedOnPath: processedOnPath, vSet: vSet,
+                pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
+                initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
+                allPossibleOutcomes: &allPossibleOutcomes
+            )
+
+        case .globally(let subFormula):
+            handleGloballyFormula(
+                subFormula: subFormula, currentFormula: currentFormula,
+                currentWorklist: currentWorklist, processedOnPath: processedOnPath, vSet: vSet,
+                pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
+                initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
+                allPossibleOutcomes: &allPossibleOutcomes
+            )
+
+        case .weakUntil:
+            handleErrorCase("WeakUntil (W) should be converted by NNF", currentFormula, allPossibleOutcomes: &allPossibleOutcomes)
+
+        case .implies:
+            handleErrorCase("Implies (->) should be converted by NNF", currentFormula, allPossibleOutcomes: &allPossibleOutcomes)
+
+        case .not(.until), .not(.release), .not(.weakUntil), .not(.next), .not(.eventually), .not(.globally):
+            handleErrorCase("Unexpected negated temporal operator in solve", currentFormula, allPossibleOutcomes: &allPossibleOutcomes)
+
+        default:
+            handleErrorCase("Unhandled LTL formula type in solve", currentFormula, allPossibleOutcomes: &allPossibleOutcomes)
+        }
+    }
+    
+    // Helper method for error handling
+    private func handleErrorCase(
+        _ message: String,
+        _ formula: LTLFormula<P>,
+        allPossibleOutcomes: inout [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)]
+    ) {
+        print("[TGC SOLVE ERROR] \(message). Encountered: \(formula)")
+        allPossibleOutcomes.append((Set(), Set(), false))
+    }
+
+    // Handler for atomic propositions (.atomic and .not(.atomic))
+    private func handleAtomicFormula(
+        p: P, isNegated: Bool,
+        currentWorklist: [LTLFormula<P>], processedOnPath: Set<LTLFormula<P>>, vSet: Set<LTLFormula<P>>,
+        pAtomicSet: Set<P>, nAtomicSet: Set<P>, forSymbol: BuchiAlphabetSymbol<PropositionIDType>,
+        initialWorklistForSolve: [LTLFormula<P>], heuristicOriginalLTLFormula: LTLFormula<P>,
+        allPossibleOutcomes: inout [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)]
+    ) {
+        var currentPAtomic = pAtomicSet
+        var currentNAtomic = nAtomicSet
+
+        if isNegated {
+            currentNAtomic.insert(p)
+        } else {
+            currentPAtomic.insert(p)
+        }
+        solve(
+            currentWorklist: currentWorklist, processedOnPath: processedOnPath, vSet: vSet,
+            pAtomicSet: currentPAtomic, nAtomicSet: currentNAtomic, forSymbol: forSymbol,
+            initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
+            allPossibleOutcomes: &allPossibleOutcomes
+        )
+    }
+    
+    // Legacy method for backward compatibility
     private func expandAtomicProposition(p: P,
                                      isNegated: Bool,
                                      currentWorklist: [LTLFormula<P>],
@@ -595,32 +589,41 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
                                      initialWorklistForSolve: [LTLFormula<P>],
                                      heuristicOriginalLTLFormula: LTLFormula<P>,
                                      allPossibleOutcomes: inout [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)]) {
-        var currentPAtomic = pAtomicSet
-        var currentNAtomic = nAtomicSet
-
-        if isNegated {
-            currentNAtomic.insert(p)
-        } else {
-            currentPAtomic.insert(p)
-        }
-        solve(
-            currentWorklist: currentWorklist,
-            processedOnPath: processedOnPath,
-            vSet: vSet,
-            pAtomicSet: currentPAtomic,
-            nAtomicSet: currentNAtomic,
-            forSymbol: forSymbol,
-            initialWorklistForSolve: initialWorklistForSolve,
-            heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
+        handleAtomicFormula(
+            p: p, isNegated: isNegated,
+            currentWorklist: currentWorklist, processedOnPath: processedOnPath, vSet: vSet,
+            pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
+            initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
             allPossibleOutcomes: &allPossibleOutcomes
         )
     }
 
-    // New private helper method for .booleanLiteral and .not(.booleanLiteral)
+    // Handler for boolean literals (.booleanLiteral and .not(.booleanLiteral))
+    private func handleBooleanLiteral(
+        value b: Bool, isNegated: Bool,
+        currentWorklist: [LTLFormula<P>], processedOnPath: Set<LTLFormula<P>>, vSet: Set<LTLFormula<P>>,
+        pAtomicSet: Set<P>, nAtomicSet: Set<P>, forSymbol: BuchiAlphabetSymbol<PropositionIDType>,
+        initialWorklistForSolve: [LTLFormula<P>], heuristicOriginalLTLFormula: LTLFormula<P>,
+        allPossibleOutcomes: inout [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)]
+    ) {
+        let effectiveValue = isNegated ? !b : b
+        if !effectiveValue {
+            allPossibleOutcomes.append(([], [], false))
+            return
+        }
+        solve(
+            currentWorklist: currentWorklist, processedOnPath: processedOnPath, vSet: vSet,
+            pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
+            initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
+            allPossibleOutcomes: &allPossibleOutcomes
+        )
+    }
+    
+    // Legacy method for backward compatibility
     private func expandBooleanLiteral(value b: Bool,
                                     isNegated: Bool,
                                     currentWorklist: [LTLFormula<P>],
-                                    processedOnPath: Set<LTLFormula<P>>,
+                                    processedOnPath: Set<LTLFormula<P>],
                                     vSet: Set<LTLFormula<P>>,
                                     pAtomicSet: Set<P>,
                                     nAtomicSet: Set<P>,
@@ -628,24 +631,37 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
                                     initialWorklistForSolve: [LTLFormula<P>],
                                     heuristicOriginalLTLFormula: LTLFormula<P>,
                                     allPossibleOutcomes: inout [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)]) {
-        let effectiveValue = isNegated ? !b : b
-        if !effectiveValue {
-            allPossibleOutcomes.append(([], [], false)); return
-        }
-        solve(
-            currentWorklist: currentWorklist,
-            processedOnPath: processedOnPath,
-            vSet: vSet,
-            pAtomicSet: pAtomicSet,
-            nAtomicSet: nAtomicSet,
-            forSymbol: forSymbol,
-            initialWorklistForSolve: initialWorklistForSolve,
-            heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
+        handleBooleanLiteral(
+            value: b, isNegated: isNegated,
+            currentWorklist: currentWorklist, processedOnPath: processedOnPath, vSet: vSet,
+            pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
+            initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
             allPossibleOutcomes: &allPossibleOutcomes
         )
     }
 
-    // New private helper method for .and
+    // Handler for AND formulas (.and)
+    private func handleAndFormula(
+        lhs: LTLFormula<P>, rhs: LTLFormula<P>,
+        currentWorklist: [LTLFormula<P>], processedOnPath: Set<LTLFormula<P>>, vSet: Set<LTLFormula<P>>,
+        pAtomicSet: Set<P>, nAtomicSet: Set<P>, forSymbol: BuchiAlphabetSymbol<PropositionIDType>,
+        initialWorklistForSolve: [LTLFormula<P>], heuristicOriginalLTLFormula: LTLFormula<P>,
+        allPossibleOutcomes: inout [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)]
+    ) {
+        var newWorklist = currentWorklist
+        // Add children to the front of the worklist to process them before other items already in the worklist.
+        // This maintains the depth-first nature of the tableau expansion for the conjunction.
+        if !processedOnPath.contains(rhs) { newWorklist.insert(rhs, at: 0) }
+        if !processedOnPath.contains(lhs) { newWorklist.insert(lhs, at: 0) }
+        solve(
+            currentWorklist: newWorklist, processedOnPath: processedOnPath, vSet: vSet,
+            pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
+            initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
+            allPossibleOutcomes: &allPossibleOutcomes
+        )
+    }
+    
+    // Legacy method for backward compatibility
     private func expandAnd(_ lhs: LTLFormula<P>, _ rhs: LTLFormula<P>,
                          currentWorklist: [LTLFormula<P>],
                          processedOnPath: Set<LTLFormula<P>>,
@@ -656,25 +672,45 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
                          initialWorklistForSolve: [LTLFormula<P>],
                          heuristicOriginalLTLFormula: LTLFormula<P>,
                          allPossibleOutcomes: inout [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)]) {
-        var newWorklist = currentWorklist
-        // Add children to the front of the worklist to process them before other items already in the worklist.
-        // This maintains the depth-first nature of the tableau expansion for the conjunction.
-        if !processedOnPath.contains(rhs) { newWorklist.insert(rhs, at: 0) }
-        if !processedOnPath.contains(lhs) { newWorklist.insert(lhs, at: 0) }
-        solve(
-            currentWorklist: newWorklist,
-            processedOnPath: processedOnPath,
-            vSet: vSet,
-            pAtomicSet: pAtomicSet,
-            nAtomicSet: nAtomicSet,
-            forSymbol: forSymbol,
-            initialWorklistForSolve: initialWorklistForSolve,
-            heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
+        handleAndFormula(
+            lhs: lhs, rhs: rhs,
+            currentWorklist: currentWorklist, processedOnPath: processedOnPath, vSet: vSet,
+            pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
+            initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
             allPossibleOutcomes: &allPossibleOutcomes
         )
     }
 
-    // New private helper method for .or
+    // Handler for OR formulas (.or)
+    private func handleOrFormula(
+        lhs: LTLFormula<P>, rhs: LTLFormula<P>,
+        currentWorklist: [LTLFormula<P>], processedOnPath: Set<LTLFormula<P>>, vSet: Set<LTLFormula<P>>,
+        pAtomicSet: Set<P>, nAtomicSet: Set<P>, forSymbol: BuchiAlphabetSymbol<PropositionIDType>,
+        initialWorklistForSolve: [LTLFormula<P>], heuristicOriginalLTLFormula: LTLFormula<P>,
+        allPossibleOutcomes: inout [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)]
+    ) {
+        // Branch for lhs
+        var worklistLhs = currentWorklist
+        if !processedOnPath.contains(lhs) { worklistLhs.insert(lhs, at: 0) }
+        solve(
+            currentWorklist: worklistLhs, processedOnPath: processedOnPath, vSet: vSet,
+            pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
+            initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
+            allPossibleOutcomes: &allPossibleOutcomes
+        )
+
+        // Branch for rhs
+        var worklistRhs = currentWorklist
+        if !processedOnPath.contains(rhs) { worklistRhs.insert(rhs, at: 0) }
+        solve(
+            currentWorklist: worklistRhs, processedOnPath: processedOnPath, vSet: vSet,
+            pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
+            initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
+            allPossibleOutcomes: &allPossibleOutcomes
+        )
+    }
+    
+    // Legacy method for backward compatibility
     private func expandOr(_ lhs: LTLFormula<P>, _ rhs: LTLFormula<P>,
                         currentWorklist: [LTLFormula<P>],
                         processedOnPath: Set<LTLFormula<P>>,
@@ -685,38 +721,34 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
                         initialWorklistForSolve: [LTLFormula<P>],
                         heuristicOriginalLTLFormula: LTLFormula<P>,
                         allPossibleOutcomes: inout [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)]) {
-        // Branch for lhs
-        var worklistLhs = currentWorklist // Make a mutable copy for this branch
-        if !processedOnPath.contains(lhs) { worklistLhs.insert(lhs, at: 0) }
-        solve(
-            currentWorklist: worklistLhs,
-            processedOnPath: processedOnPath,
-            vSet: vSet,
-            pAtomicSet: pAtomicSet,
-            nAtomicSet: nAtomicSet,
-            forSymbol: forSymbol,
-            initialWorklistForSolve: initialWorklistForSolve,
-            heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
-            allPossibleOutcomes: &allPossibleOutcomes
-        )
-
-        // Branch for rhs
-        // Use a fresh copy of the original currentWorklist for the rhs branch
-        var worklistRhs = currentWorklist
-        if !processedOnPath.contains(rhs) { worklistRhs.insert(rhs, at: 0) }
-        solve(
-            currentWorklist: worklistRhs,
-            processedOnPath: processedOnPath,
-            vSet: vSet,
-            pAtomicSet: pAtomicSet,
-            nAtomicSet: nAtomicSet,
-            forSymbol: forSymbol,
-            initialWorklistForSolve: initialWorklistForSolve,
-            heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
+        handleOrFormula(
+            lhs: lhs, rhs: rhs,
+            currentWorklist: currentWorklist, processedOnPath: processedOnPath, vSet: vSet,
+            pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
+            initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
             allPossibleOutcomes: &allPossibleOutcomes
         )
     }
 
+    // Handler for NEXT formulas (.next)
+    private func handleNextFormula(
+        subFormula: LTLFormula<P>,
+        currentWorklist: [LTLFormula<P>], processedOnPath: Set<LTLFormula<P>>, vSet: Set<LTLFormula<P>>,
+        pAtomicSet: Set<P>, nAtomicSet: Set<P>, forSymbol: BuchiAlphabetSymbol<PropositionIDType>,
+        initialWorklistForSolve: [LTLFormula<P>], heuristicOriginalLTLFormula: LTLFormula<P>,
+        allPossibleOutcomes: inout [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)]
+    ) {
+        var newV = vSet
+        newV.insert(subFormula)
+        solve(
+            currentWorklist: currentWorklist, processedOnPath: processedOnPath, vSet: newV,
+            pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
+            initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
+            allPossibleOutcomes: &allPossibleOutcomes
+        )
+    }
+    
+    // Legacy method for backward compatibility
     private func expandNext(_ subFormula: LTLFormula<P>,
                         currentWorklist: [LTLFormula<P>],
                         processedOnPath: Set<LTLFormula<P>>,
@@ -727,20 +759,47 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
                         initialWorklistForSolve: [LTLFormula<P>],
                         heuristicOriginalLTLFormula: LTLFormula<P>,
                         allPossibleOutcomes: inout [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)]) {
-        var newV = vSet; newV.insert(subFormula)
-        solve(
-            currentWorklist: currentWorklist,
-            processedOnPath: processedOnPath,
-            vSet: newV,
-            pAtomicSet: pAtomicSet,
-            nAtomicSet: nAtomicSet,
-            forSymbol: forSymbol,
-            initialWorklistForSolve: initialWorklistForSolve,
-            heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
+        handleNextFormula(
+            subFormula: subFormula,
+            currentWorklist: currentWorklist, processedOnPath: processedOnPath, vSet: vSet,
+            pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
+            initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
             allPossibleOutcomes: &allPossibleOutcomes
         )
     }
 
+    // Handler for UNTIL formulas (.until)
+    private func handleUntilFormula(
+        phi: LTLFormula<P>, psi: LTLFormula<P>, currentFormula: LTLFormula<P>,
+        currentWorklist: [LTLFormula<P>], processedOnPath: Set<LTLFormula<P>>, vSet: Set<LTLFormula<P>>,
+        pAtomicSet: Set<P>, nAtomicSet: Set<P>, forSymbol: BuchiAlphabetSymbol<PropositionIDType>,
+        initialWorklistForSolve: [LTLFormula<P>], heuristicOriginalLTLFormula: LTLFormula<P>,
+        allPossibleOutcomes: inout [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)]
+    ) {
+        // Branch 1: psi holds now
+        var worklistPsiBranch = currentWorklist
+        if !processedOnPath.contains(psi) { worklistPsiBranch.insert(psi, at: 0) }
+        solve(
+            currentWorklist: worklistPsiBranch, processedOnPath: processedOnPath, vSet: vSet,
+            pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
+            initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
+            allPossibleOutcomes: &allPossibleOutcomes
+        )
+
+        // Branch 2: phi holds now AND X(phi U psi) holds next
+        var worklistPhiBranch = currentWorklist
+        if !processedOnPath.contains(phi) { worklistPhiBranch.insert(phi, at: 0) }
+        var vForPhiBranch = vSet
+        vForPhiBranch.insert(currentFormula) // currentFormula is phi U psi
+        solve(
+            currentWorklist: worklistPhiBranch, processedOnPath: processedOnPath, vSet: vForPhiBranch,
+            pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
+            initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
+            allPossibleOutcomes: &allPossibleOutcomes
+        )
+    }
+    
+    // Legacy method for backward compatibility
     private func expandUntil(_ phi: LTLFormula<P>, _ psi: LTLFormula<P>,
                          currentFormula: LTLFormula<P>, // This is the (phi U psi) formula itself
                          currentWorklist: [LTLFormula<P>],
@@ -752,39 +811,47 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
                          initialWorklistForSolve: [LTLFormula<P>],
                          heuristicOriginalLTLFormula: LTLFormula<P>,
                          allPossibleOutcomes: inout [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)]) {
-        // Branch 1: psi holds now
-        var worklistPsiBranch = currentWorklist
-        if !processedOnPath.contains(psi) { worklistPsiBranch.insert(psi, at: 0) }
-        solve(
-            currentWorklist: worklistPsiBranch,
-            processedOnPath: processedOnPath,
-            vSet: vSet,
-            pAtomicSet: pAtomicSet,
-            nAtomicSet: nAtomicSet,
-            forSymbol: forSymbol,
-            initialWorklistForSolve: initialWorklistForSolve,
-            heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
-            allPossibleOutcomes: &allPossibleOutcomes
-        )
-
-        // Branch 2: phi holds now AND X(phi U psi) holds next
-        var worklistPhiBranch = currentWorklist
-        if !processedOnPath.contains(phi) { worklistPhiBranch.insert(phi, at: 0) }
-        var vForPhiBranch = vSet; vForPhiBranch.insert(currentFormula) // currentFormula is phi U psi
-        solve(
-            currentWorklist: worklistPhiBranch,
-            processedOnPath: processedOnPath,
-            vSet: vForPhiBranch,
-            pAtomicSet: pAtomicSet,
-            nAtomicSet: nAtomicSet,
-            forSymbol: forSymbol,
-            initialWorklistForSolve: initialWorklistForSolve,
-            heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
+        handleUntilFormula(
+            phi: phi, psi: psi, currentFormula: currentFormula,
+            currentWorklist: currentWorklist, processedOnPath: processedOnPath, vSet: vSet,
+            pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
+            initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
             allPossibleOutcomes: &allPossibleOutcomes
         )
     }
 
-    // New private helper method for .release
+    // Handler for RELEASE formulas (.release)
+    private func handleReleaseFormula(
+        phi: LTLFormula<P>, psi: LTLFormula<P>, currentFormula: LTLFormula<P>,
+        currentWorklist: [LTLFormula<P>], processedOnPath: Set<LTLFormula<P>>, vSet: Set<LTLFormula<P>>,
+        pAtomicSet: Set<P>, nAtomicSet: Set<P>, forSymbol: BuchiAlphabetSymbol<PropositionIDType>,
+        initialWorklistForSolve: [LTLFormula<P>], heuristicOriginalLTLFormula: LTLFormula<P>,
+        allPossibleOutcomes: inout [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)]
+    ) {
+        // Branch 1: psi holds now
+        var worklistBranchPsi = currentWorklist
+        if !processedOnPath.contains(psi) { worklistBranchPsi.insert(psi, at: 0) }
+        solve(
+            currentWorklist: worklistBranchPsi, processedOnPath: processedOnPath, vSet: vSet,
+            pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
+            initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
+            allPossibleOutcomes: &allPossibleOutcomes
+        )
+
+        // Branch 2: phi holds now AND X(phi R psi) holds next
+        var worklistBranchPhi = currentWorklist
+        if !processedOnPath.contains(phi) { worklistBranchPhi.insert(phi, at: 0) }
+        var vSetBranchPhiAndXR = vSet
+        vSetBranchPhiAndXR.insert(currentFormula) // Add X(phi R psi)
+        solve(
+            currentWorklist: worklistBranchPhi, processedOnPath: processedOnPath, vSet: vSetBranchPhiAndXR,
+            pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
+            initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
+            allPossibleOutcomes: &allPossibleOutcomes
+        )
+    }
+    
+    // Legacy method for backward compatibility
     private func expandRelease(_ phi: LTLFormula<P>, _ psi: LTLFormula<P>,
                          currentFormula: LTLFormula<P>, // This is the (phi R psi) formula itself
                          currentWorklist: [LTLFormula<P>],
@@ -796,26 +863,49 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
                          initialWorklistForSolve: [LTLFormula<P>],
                          heuristicOriginalLTLFormula: LTLFormula<P>,
                          allPossibleOutcomes: inout [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)]) {
-        // Branch 1: psi holds now.
-        var worklistBranchPsi = currentWorklist
-        if !processedOnPath.contains(psi) { worklistBranchPsi.insert(psi, at: 0) }
-        solve(currentWorklist: worklistBranchPsi, processedOnPath: processedOnPath, vSet: vSet,
-              pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
-              initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
-              allPossibleOutcomes: &allPossibleOutcomes)
-
-        // Branch 2: phi holds now AND X(phi R psi) holds next.
-        var worklistBranchPhi = currentWorklist
-        if !processedOnPath.contains(phi) { worklistBranchPhi.insert(phi, at: 0) }
-        var vSetBranchPhiAndXR = vSet
-        vSetBranchPhiAndXR.insert(currentFormula) // Add X(phi R psi)
-        solve(currentWorklist: worklistBranchPhi, processedOnPath: processedOnPath, vSet: vSetBranchPhiAndXR,
-              pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
-              initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
-              allPossibleOutcomes: &allPossibleOutcomes)
+        handleReleaseFormula(
+            phi: phi, psi: psi, currentFormula: currentFormula,
+            currentWorklist: currentWorklist, processedOnPath: processedOnPath, vSet: vSet,
+            pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
+            initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
+            allPossibleOutcomes: &allPossibleOutcomes
+        )
     }
 
-    // New private helper method for .eventually
+    // Handler for EVENTUALLY formulas (.eventually)
+    private func handleEventuallyFormula(
+        subFormula: LTLFormula<P>, currentFormula: LTLFormula<P>,
+        currentWorklist: [LTLFormula<P>], processedOnPath: Set<LTLFormula<P>>, vSet: Set<LTLFormula<P>>,
+        pAtomicSet: Set<P>, nAtomicSet: Set<P>, forSymbol: BuchiAlphabetSymbol<PropositionIDType>,
+        initialWorklistForSolve: [LTLFormula<P>], heuristicOriginalLTLFormula: LTLFormula<P>,
+        allPossibleOutcomes: inout [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)]
+    ) {
+        // F subFormula  ≡  subFormula ∨ X (F subFormula)
+        // This is equivalent to: true U subFormula
+
+        // Branch 1: subFormula holds now
+        var worklistSubFormulaBranch = currentWorklist
+        if !processedOnPath.contains(subFormula) { worklistSubFormulaBranch.insert(subFormula, at: 0) }
+        solve(
+            currentWorklist: worklistSubFormulaBranch, processedOnPath: processedOnPath, vSet: vSet,
+            pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
+            initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
+            allPossibleOutcomes: &allPossibleOutcomes
+        )
+
+        // Branch 2: X (F subFormula) holds next
+        let worklistNextBranch = currentWorklist
+        var vForNextBranch = vSet
+        vForNextBranch.insert(currentFormula) // currentFormula is F subFormula
+        solve(
+            currentWorklist: worklistNextBranch, processedOnPath: processedOnPath, vSet: vForNextBranch,
+            pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
+            initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
+            allPossibleOutcomes: &allPossibleOutcomes
+        )
+    }
+    
+    // Legacy method for backward compatibility
     private func expandEventually(_ subFormula: LTLFormula<P>,
                                currentFormula: LTLFormula<P>, // This is F subFormula
                                currentWorklist: [LTLFormula<P>],
@@ -827,41 +917,50 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
                                initialWorklistForSolve: [LTLFormula<P>],
                                heuristicOriginalLTLFormula: LTLFormula<P>,
                                allPossibleOutcomes: inout [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)]) {
-        // F subFormula  ≡  subFormula ∨ X (F subFormula)
-        // This is equivalent to: true U subFormula
-
-        // Branch 1: subFormula holds now
-        var worklistSubFormulaBranch = currentWorklist
-        if !processedOnPath.contains(subFormula) { worklistSubFormulaBranch.insert(subFormula, at: 0) }
-        solve(
-            currentWorklist: worklistSubFormulaBranch,
-            processedOnPath: processedOnPath,
-            vSet: vSet,
-            pAtomicSet: pAtomicSet,
-            nAtomicSet: nAtomicSet,
-            forSymbol: forSymbol,
-            initialWorklistForSolve: initialWorklistForSolve,
-            heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
-            allPossibleOutcomes: &allPossibleOutcomes
-        )
-
-        // Branch 2: X (F subFormula) holds next (phi (true) is implicitly satisfied in 'true U subFormula')
-        let worklistNextBranch = currentWorklist // Ensure this is let
-        var vForNextBranch = vSet; vForNextBranch.insert(currentFormula) // currentFormula is F subFormula
-        solve(
-            currentWorklist: worklistNextBranch,
-            processedOnPath: processedOnPath,
-            vSet: vForNextBranch,
-            pAtomicSet: pAtomicSet,
-            nAtomicSet: nAtomicSet,
-            forSymbol: forSymbol,
-            initialWorklistForSolve: initialWorklistForSolve,
-            heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
+        handleEventuallyFormula(
+            subFormula: subFormula, currentFormula: currentFormula,
+            currentWorklist: currentWorklist, processedOnPath: processedOnPath, vSet: vSet,
+            pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
+            initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
             allPossibleOutcomes: &allPossibleOutcomes
         )
     }
 
-    // New private helper method for .globally
+    // Handler for GLOBALLY formulas (.globally)
+    private func handleGloballyFormula(
+        subFormula: LTLFormula<P>, currentFormula: LTLFormula<P>,
+        currentWorklist: [LTLFormula<P>], processedOnPath: Set<LTLFormula<P>>, vSet: Set<LTLFormula<P>>,
+        pAtomicSet: Set<P>, nAtomicSet: Set<P>, forSymbol: BuchiAlphabetSymbol<PropositionIDType>,
+        initialWorklistForSolve: [LTLFormula<P>], heuristicOriginalLTLFormula: LTLFormula<P>,
+        allPossibleOutcomes: inout [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)]
+    ) {
+        // G subFormula  ≡  subFormula ∧ X (G subFormula)
+
+        var worklistSubFormulaBranch = currentWorklist
+        if !processedOnPath.contains(subFormula) { worklistSubFormulaBranch.insert(subFormula, at: 0) }
+
+        var subFormulaOutcomes: [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)] = []
+        solve(
+            currentWorklist: worklistSubFormulaBranch, processedOnPath: processedOnPath, vSet: vSet,
+            pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
+            initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
+            allPossibleOutcomes: &subFormulaOutcomes
+        )
+
+        for outcome in subFormulaOutcomes where outcome.isConsistent {
+            var vForXGBranch = outcome.nextSetOfNextObligations
+            vForXGBranch.insert(currentFormula)
+
+            solve(
+                currentWorklist: Array(outcome.nextSetOfCurrentObligations), processedOnPath: processedOnPath, vSet: vForXGBranch,
+                pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
+                initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
+                allPossibleOutcomes: &allPossibleOutcomes
+            )
+        }
+    }
+    
+    // Legacy method for backward compatibility
     private func expandGlobally(_ subFormula: LTLFormula<P>,
                               currentFormula: LTLFormula<P>, // This is G subFormula
                               currentWorklist: [LTLFormula<P>],
@@ -873,38 +972,13 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
                               initialWorklistForSolve: [LTLFormula<P>],
                               heuristicOriginalLTLFormula: LTLFormula<P>,
                               allPossibleOutcomes: inout [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)]) {
-        // G subFormula  ≡  subFormula ∧ X (G subFormula)
-
-        var worklistSubFormulaBranch = currentWorklist
-        if !processedOnPath.contains(subFormula) { worklistSubFormulaBranch.insert(subFormula, at: 0) }
-
-        var subFormulaOutcomes: [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)] = []
-        solve(
-            currentWorklist: worklistSubFormulaBranch,
-            processedOnPath: processedOnPath,
-            vSet: vSet,
-            pAtomicSet: pAtomicSet,
-            nAtomicSet: nAtomicSet,
-            forSymbol: forSymbol,
-            initialWorklistForSolve: initialWorklistForSolve,
-            heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
-            allPossibleOutcomes: &subFormulaOutcomes
+        handleGloballyFormula(
+            subFormula: subFormula, currentFormula: currentFormula,
+            currentWorklist: currentWorklist, processedOnPath: processedOnPath, vSet: vSet,
+            pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
+            initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
+            allPossibleOutcomes: &allPossibleOutcomes
         )
-
-        for outcome in subFormulaOutcomes where outcome.isConsistent {
-            var vForXGBranch = outcome.nextSetOfNextObligations
-            vForXGBranch.insert(currentFormula)
-
-            solve(currentWorklist: Array(outcome.nextSetOfCurrentObligations),
-                  processedOnPath: processedOnPath,
-                  vSet: vForXGBranch,
-                  pAtomicSet: pAtomicSet,
-                  nAtomicSet: nAtomicSet,
-                  forSymbol: forSymbol,
-                  initialWorklistForSolve: initialWorklistForSolve,
-                  heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
-                  allPossibleOutcomes: &allPossibleOutcomes)
-        }
     }
 }
 

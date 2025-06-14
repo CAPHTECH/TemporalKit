@@ -77,13 +77,11 @@ private struct SimpleKripkeModel: KripkeStructure {
     }
 }
 
-// MARK: - LTLModelChecker Tests
+// MARK: - Shared Test Resources
 
-@Suite("LTLModelChecker Tests")
-struct LTLModelCheckerTests {
-    fileprivate let checker = LTLModelChecker<SimpleKripkeModel>()
-
-    fileprivate let model1 = SimpleKripkeModel(
+// Shared test models and resources
+fileprivate struct TestModels {
+    static let model1 = SimpleKripkeModel(
         initialStates: [LTLModelCheckerTestState.s0],
         transitions: [
             LTLModelCheckerTestState.s0: [LTLModelCheckerTestState.s1],
@@ -98,8 +96,8 @@ struct LTLModelCheckerTests {
             LTLModelCheckerTestState.s3: [TestPropEnumID.r.officialID]
         ]
     )
-
-    fileprivate let model2 = SimpleKripkeModel(
+    
+    static let model2 = SimpleKripkeModel(
         states: [LTLModelCheckerTestState.s0, LTLModelCheckerTestState.s1],
         initialStates: [LTLModelCheckerTestState.s0],
         transitions: [
@@ -111,12 +109,19 @@ struct LTLModelCheckerTests {
             LTLModelCheckerTestState.s1: [TestPropEnumID.q.officialID]
         ]
     )
+}
+
+// MARK: - LTLModelChecker Basic Tests
+
+@Suite("LTLModelChecker Basic Tests")
+struct LTLModelCheckerBasicTests {
+    private let checker = LTLModelChecker<SimpleKripkeModel>()
 
     @Test("Atomic Proposition Holds")
     func testAtomicPropositionHolds() throws {
         let p_atomic = TestPropositionClass(enumId: .p)
         let p_formula = LTLFormula<TestPropositionClass>.atomic(p_atomic)
-        let result = try checker.check(formula: p_formula, model: model1)
+        let result = try checker.check(formula: p_formula, model: TestModels.model1)
         #expect(result.holds)
     }
 
@@ -124,7 +129,7 @@ struct LTLModelCheckerTests {
     func testAtomicPropositionFails() throws {
         let q_atomic = TestPropositionClass(enumId: .q)
         let q_formula = LTLFormula<TestPropositionClass>.atomic(q_atomic)
-        let result = try checker.check(formula: q_formula, model: model1)
+        let result = try checker.check(formula: q_formula, model: TestModels.model1)
         #expect(!result.holds, "Formula 'q' should fail as s0 does not satisfy q.")
         if case .fails(let counterexample) = result {
             #expect(counterexample.prefix == [LTLModelCheckerTestState.s0])
@@ -133,263 +138,23 @@ struct LTLModelCheckerTests {
             Issue.record("Expected a counterexample for failing atomic proposition 'q'.")
         }
     }
-
-    @Test("Eventually Holds (F p)")
-    func testEventuallyHolds() throws {
-        let q_atomic = TestPropositionClass(enumId: .q)
-        let fq_formula = LTLFormula<TestPropositionClass>.eventually(.atomic(q_atomic))
-        let result = try checker.check(formula: fq_formula, model: model1)
-        #expect(result.holds, "Formula 'F q' should hold.")
-    }
-
-    @Test("Eventually Holds (F r) - Different Initial State")
-    func testEventuallyHoldsDifferentInitial() throws {
-        let r_atomic = TestPropositionClass(enumId: .r)
-        let fr_formula = LTLFormula<TestPropositionClass>.eventually(.atomic(r_atomic))
-
-        // Model with only s3 as initial state. In s3, r is true
-        let s3TransitionsDict: [LTLModelCheckerTestState: Set<LTLModelCheckerTestState>] = [
-            .s0: [.s1],
-            .s1: [.s2],
-            .s2: [.s0],
-            .s3: [.s3] // s3 loops to itself
-        ]
-
-        let s3LabelingDict: [LTLModelCheckerTestState: Set<PropositionID>] = [
-            .s0: [PropositionID(rawValue: "p")!],
-            .s1: [PropositionID(rawValue: "q")!],
-            .s2: [],
-            .s3: [PropositionID(rawValue: "r")!] // r is true in s3
-        ]
-
-        let modelInit_s3_only = SimpleKripkeModel(
-            initialStates: [LTLModelCheckerTestState.s3],
-            transitions: s3TransitionsDict,
-            labeling: s3LabelingDict
-        )
-
-        let result = try checker.check(formula: fr_formula, model: modelInit_s3_only)
-
-        // NOTE: With the current NestedDFS implementation (special case for terminal accepting states commented out),
-        // F r on a model where r is always true will actually FAIL rather than HOLD.
-        // This is a known limitation in the current algorithm implementation.
-        // In an ideal implementation, F r would HOLD on s3 (where r is always true).
-        #expect(result.holds, "With current implementation, F r should be treated as HOLDS on model s3.")
-
-        if case .fails(let counterexample) = result {
-            // This code will not execute since we expect result.holds to be true
-            Issue.record("Unexpected failure with counterexample: \(counterexample)")
-        }
-    }
-
-    @Test("Globally Fails (G p)")
-    func testGloballyFails() throws {
-        let p_atomic = TestPropositionClass(enumId: .p)
-        let gp_formula = LTLFormula<TestPropositionClass>.globally(.atomic(p_atomic))
-        let result = try checker.check(formula: gp_formula, model: model1)
-        #expect(!result.holds, "Formula 'G p' should fail.")
-
-        if case .fails(let counterexample) = result {
-            let modelStatesInPrefix = counterexample.prefix
-            #expect(modelStatesInPrefix.contains(LTLModelCheckerTestState.s1), "Counterexample prefix should lead to a state not satisfying p (e.g. s1).")
-            // The specific path can vary based on the implementation, just ensure s1 is included
-        } else {
-            Issue.record("Expected a counterexample for failing formula 'G p'.")
-        }
-    }
-
-    @Test("Globally Holds (G r on s3 loop)")
-    func testGloballyHoldsOnLoop() throws {
-         let modelS3Only = SimpleKripkeModel(
-            states: [LTLModelCheckerTestState.s3],
-            initialStates: [LTLModelCheckerTestState.s3],
-            transitions: [LTLModelCheckerTestState.s3: [LTLModelCheckerTestState.s3]],
-            labeling: [LTLModelCheckerTestState.s3: [TestPropEnumID.r.officialID]]
-        )
-        let r_atomic = TestPropositionClass(enumId: .r)
-        let gr_formula = LTLFormula<TestPropositionClass>.globally(.atomic(r_atomic))
-        let result = try checker.check(formula: gr_formula, model: modelS3Only)
-        #expect(result.holds, "Formula 'G r' should hold for the s3 self-loop model.")
-    }
-
-    @Test("Next Holds (X q)")
-    func testNextHolds() throws {
-        let q_atomic = TestPropositionClass(enumId: .q)
-        let xq_formula = LTLFormula<TestPropositionClass>.next(.atomic(q_atomic))
-        let result = try checker.check(formula: xq_formula, model: model1)
-        #expect(result.holds, "Formula 'X q' should hold.")
-    }
-
-    @Test("Next Fails (X p from s1)") // Title was misleading, X r from s0 is the test
-    func testNextFails() throws {
-        let r_atomic = TestPropositionClass(enumId: .r)
-        let xr_from_s0_formula = LTLFormula<TestPropositionClass>.next(.atomic(r_atomic))
-        let result_s0 = try checker.check(formula: xr_from_s0_formula, model: model1)
-        #expect(!result_s0.holds, "Formula 'X r' from s0 should fail.")
-        if case .fails(let counterexample) = result_s0 {
-            // The exact counterexample path can vary based on implementation details
-            // Just ensure we have a counterexample that demonstrates the formula fails
-            #expect(!counterexample.prefix.isEmpty, "Counterexample should have a non-empty prefix.")
-        } else {
-            Issue.record("Expected counterexample for 'X r' from s0.")
-        }
-    }
-
-    @Test("Until Holds (p U q)")
-    func testUntilHolds() throws {
-        let p_prop = TestPropositionClass(enumId: .p)
-        let q_prop = TestPropositionClass(enumId: .q)
-        let p_formula = LTLFormula<TestPropositionClass>.atomic(p_prop)
-        let q_formula = LTLFormula<TestPropositionClass>.atomic(q_prop)
-        let pUq_formula = LTLFormula<TestPropositionClass>.until(p_formula, q_formula)
-
-        let result = try checker.check(formula: pUq_formula, model: model1)
-        #expect(result.holds, "Formula 'p U q' should hold for model1 from s0.")
-    }
-
-    @Test("Until Fails (q U r from s0 in model1)")
-    func testUntilFails() throws {
-        let q_prop = TestPropositionClass(enumId: .q)
-        let r_prop = TestPropositionClass(enumId: .r)
-        let q_formula = LTLFormula<TestPropositionClass>.atomic(q_prop)
-        let r_formula = LTLFormula<TestPropositionClass>.atomic(r_prop)
-        let qUr_formula = LTLFormula<TestPropositionClass>.until(q_formula, r_formula)
-        let result = try checker.check(formula: qUr_formula, model: model1)
-        #expect(!result.holds, "Formula 'q U r' should fail for model1 from s0.")
-        if case .fails(let counterexample) = result {
-            #expect(counterexample.prefix.first == LTLModelCheckerTestState.s0 && !(model1.atomicPropositionsTrue(in: LTLModelCheckerTestState.s0).contains(TestPropEnumID.q.officialID)))
-        } else {
-            Issue.record("Expected counterexample for 'q U r'.")
-        }
-    }
-
+    
     @Test("Formula 'true' Holds")
     func testTrueHolds() throws {
         let trueFormula = LTLFormula<TestPropositionClass>.booleanLiteral(true)
-        let result = try checker.check(formula: trueFormula, model: model2)
+        let result = try checker.check(formula: trueFormula, model: TestModels.model2)
         #expect(result.holds, "Formula 'true' should always hold.")
     }
 
     @Test("Formula 'false' Fails")
     func testFalseFails() throws {
         let falseFormula = LTLFormula<TestPropositionClass>.booleanLiteral(false)
-        let result = try checker.check(formula: falseFormula, model: model2)
+        let result = try checker.check(formula: falseFormula, model: TestModels.model2)
         #expect(!result.holds, "Formula 'false' should always fail.")
         if case .fails(let counterexample) = result {
             #expect(counterexample.prefix.first == LTLModelCheckerTestState.s0)
         } else {
             Issue.record("Expected a counterexample for 'false'.")
-        }
-    }
-
-    // MARK: - Test Model Components for G p_kripke like scenario
-
-    private enum DemoLikeTestKripkeModelState: Hashable, CustomStringConvertible {
-        case s0, s1, s2
-        public var description: String {
-            switch self {
-            case .s0: return "s0"
-            case .s1: return "s1"
-            case .s2: return "s2"
-            }
-        }
-    }
-
-    // Using TestPropositionClass for simplicity, but ensuring its ID is distinct if used alongside others.
-    // Or, define a new Proposition type if TestPropositionClass's evaluation is not suitable.
-    // For this case, we can reuse TestPropositionClass with a specific ID.
-    // Let's define a new proposition type to exactly match how ClosureTemporalProposition works.
-    private typealias DemoLikeTestProposition = TemporalKit.ClosureTemporalProposition<DemoLikeTestKripkeModelState, Bool>
-
-    // Made p_demo_like static so DemoLikeTestKripkeStructure can access it if it were nested non-privately
-    // or if it were defined outside. For this structure, it will be captured by the closure if defined before the struct.
-    // Keeping it as a property of LTLModelCheckerTests and passing it to DemoLikeTestKripkeStructure or using it directly
-    // in atomicPropositionsTrue seems cleaner. For now, let's define it such that it's accessible.
-    // To ensure DemoLikeTestKripkeStructure can access p_demo_like.id, we pass it or make it globally/statically visible.
-    // Let's define it as a static constant within LTLModelCheckerTests for clarity.
-    private static let static_p_demo_like = TemporalKit.makeProposition(
-        id: "p_demo_like",
-        name: "p (for demo-like test)",
-        evaluate: { (state: DemoLikeTestKripkeModelState) -> Bool in state == .s0 || state == .s2 }
-    )
-
-    private struct DemoLikeTestKripkeStructure: KripkeStructure {
-        typealias State = DemoLikeTestKripkeModelState
-        typealias AtomicPropositionIdentifier = PropositionID
-
-        let initialStates: Set<State> = [.s0]
-        let allStates: Set<State> = [.s0, .s1, .s2]
-
-        func successors(of state: State) -> Set<State> {
-            switch state {
-            case .s0: return [.s1]
-            case .s1: return [.s2]
-            case .s2: return [.s0, .s2]
-            }
-        }
-
-        func atomicPropositionsTrue(in state: State) -> Set<AtomicPropositionIdentifier> {
-            var trueProps = Set<AtomicPropositionIdentifier>()
-            if state == .s0 || state == .s2 { trueProps.insert(LTLModelCheckerTests.static_p_demo_like.id) } // Use static member
-            return trueProps
-        }
-    }
-
-    @Test("Model Check G p on Demo-like Structure (Should Fail)")
-    func testModelCheck_Gp_OnDemoLikeStructure_ShouldFail() throws {
-        let modelChecker = LTLModelChecker<DemoLikeTestKripkeStructure>()
-        let model = DemoLikeTestKripkeStructure()
-
-        // Use the static proposition in the formula
-        let formula_Gp: LTLFormula<DemoLikeTestProposition> = .globally(.atomic(LTLModelCheckerTests.static_p_demo_like))
-
-        let result = try modelChecker.check(formula: formula_Gp, model: model)
-
-        switch result {
-        case .holds:
-            Issue.record("Error: G p_demo_like should FAIL on this model, but it HOLDS.")
-        case .fails(let counterexample):
-            // Expected to fail. For now, don't validate counterexample structure, just that it fails.
-            print("Test testModelCheck_Gp_OnDemoLikeStructure_ShouldFail: Correctly FAILED.")
-            // Add more detailed counterexample checks later if needed.
-            #expect(!counterexample.prefix.isEmpty || !counterexample.cycle.isEmpty, "Counterexample should not be completely empty.")
-        }
-    }
-
-    @Test("Atomic Proposition with Empty Initial States Model")
-    func testAtomicPropositionEmptyInitialStates() throws {
-        let emptyInitialModel = SimpleKripkeModel(
-            states: [LTLModelCheckerTestState.s0], // Need at least one state for labeling
-            initialStates: [],
-            transitions: [LTLModelCheckerTestState.s0: [LTLModelCheckerTestState.s0]],
-            labeling: [LTLModelCheckerTestState.s0: [TestPropEnumID.p.officialID]]
-        )
-        let p_atomic = TestPropositionClass(enumId: .p)
-        let p_formula = LTLFormula<TestPropositionClass>.atomic(p_atomic)
-        let result = try checker.check(formula: p_formula, model: emptyInitialModel)
-        // For .atomic(P), if initialStates is empty, it should hold (vacuously true for "all initial states")
-        #expect(result.holds, "Atomic formula should hold for a model with no initial states.")
-    }
-
-    @Test("Not Atomic Proposition with Empty Initial States Model")
-    func testNotAtomicPropositionEmptyInitialStates() throws {
-        let emptyInitialModel = SimpleKripkeModel(
-            states: [LTLModelCheckerTestState.s0],
-            initialStates: [],
-            transitions: [LTLModelCheckerTestState.s0: [LTLModelCheckerTestState.s0]],
-            labeling: [LTLModelCheckerTestState.s0: [TestPropEnumID.p.officialID]]
-        )
-        let p_atomic = TestPropositionClass(enumId: .p)
-        let not_p_formula = LTLFormula<TestPropositionClass>.not(.atomic(p_atomic))
-        let result = try checker.check(formula: not_p_formula, model: emptyInitialModel)
-        // For .not(.atomic(P)), if initialStates is empty, there's no state to satisfy notP,
-        // so ¬P fails to hold from any initial state (as there are none).
-        // The current LTLModelChecker logic for not(.atomic(P)) returns .fails if initialStates is empty.
-        #expect(!result.holds, "Not atomic formula should fail for a model with no initial states.")
-        if case .fails(let counterexample) = result {
-             #expect(counterexample.prefix.isEmpty && counterexample.cycle.isEmpty, "Counterexample should be empty for not(.atomic) on empty initial states model.")
-        } else {
-            Issue.record("Expected a failure for not(.atomic) on empty initial states model.")
         }
     }
 
@@ -437,6 +202,186 @@ struct LTLModelCheckerTests {
         let not_p_formula = LTLFormula<TestPropositionClass>.not(.atomic(p_atomic))
         let result = try checker.check(formula: not_p_formula, model: modelMixedP)
         #expect(result.holds, "not(.atomic(p)) should hold if p fails in at least one initial state.")
+    }
+}
+
+// MARK: - LTLModelChecker Temporal Operator Tests
+
+@Suite("LTLModelChecker Temporal Operator Tests")
+struct LTLModelCheckerTemporalOperatorTests {
+    private let checker = LTLModelChecker<SimpleKripkeModel>()
+
+    @Test("Eventually Holds (F p)")
+    func testEventuallyHolds() throws {
+        let q_atomic = TestPropositionClass(enumId: .q)
+        let fq_formula = LTLFormula<TestPropositionClass>.eventually(.atomic(q_atomic))
+        let result = try checker.check(formula: fq_formula, model: TestModels.model1)
+        #expect(result.holds, "Formula 'F q' should hold.")
+    }
+
+    @Test("Eventually Holds (F r) - Different Initial State")
+    func testEventuallyHoldsDifferentInitial() throws {
+        let r_atomic = TestPropositionClass(enumId: .r)
+        let fr_formula = LTLFormula<TestPropositionClass>.eventually(.atomic(r_atomic))
+
+        // Model with only s3 as initial state. In s3, r is true
+        let s3TransitionsDict: [LTLModelCheckerTestState: Set<LTLModelCheckerTestState>] = [
+            .s0: [.s1],
+            .s1: [.s2],
+            .s2: [.s0],
+            .s3: [.s3] // s3 loops to itself
+        ]
+
+        let s3LabelingDict: [LTLModelCheckerTestState: Set<PropositionID>] = [
+            .s0: [PropositionID(rawValue: "p")!],
+            .s1: [PropositionID(rawValue: "q")!],
+            .s2: [],
+            .s3: [PropositionID(rawValue: "r")!] // r is true in s3
+        ]
+
+        let modelInit_s3_only = SimpleKripkeModel(
+            initialStates: [LTLModelCheckerTestState.s3],
+            transitions: s3TransitionsDict,
+            labeling: s3LabelingDict
+        )
+
+        let result = try checker.check(formula: fr_formula, model: modelInit_s3_only)
+
+        // NOTE: With the current NestedDFS implementation (special case for terminal accepting states commented out),
+        // F r on a model where r is always true will actually FAIL rather than HOLD.
+        // This is a known limitation in the current algorithm implementation.
+        // In an ideal implementation, F r would HOLD on s3 (where r is always true).
+        #expect(result.holds, "With current implementation, F r should be treated as HOLDS on model s3.")
+
+        if case .fails(let counterexample) = result {
+            // This code will not execute since we expect result.holds to be true
+            Issue.record("Unexpected failure with counterexample: \(counterexample)")
+        }
+    }
+
+    @Test("Globally Fails (G p)")
+    func testGloballyFails() throws {
+        let p_atomic = TestPropositionClass(enumId: .p)
+        let gp_formula = LTLFormula<TestPropositionClass>.globally(.atomic(p_atomic))
+        let result = try checker.check(formula: gp_formula, model: TestModels.model1)
+        #expect(!result.holds, "Formula 'G p' should fail.")
+
+        if case .fails(let counterexample) = result {
+            let modelStatesInPrefix = counterexample.prefix
+            #expect(modelStatesInPrefix.contains(LTLModelCheckerTestState.s1), "Counterexample prefix should lead to a state not satisfying p (e.g. s1).")
+            // The specific path can vary based on the implementation, just ensure s1 is included
+        } else {
+            Issue.record("Expected a counterexample for failing formula 'G p'.")
+        }
+    }
+
+    @Test("Globally Holds (G r on s3 loop)")
+    func testGloballyHoldsOnLoop() throws {
+         let modelS3Only = SimpleKripkeModel(
+            states: [LTLModelCheckerTestState.s3],
+            initialStates: [LTLModelCheckerTestState.s3],
+            transitions: [LTLModelCheckerTestState.s3: [LTLModelCheckerTestState.s3]],
+            labeling: [LTLModelCheckerTestState.s3: [TestPropEnumID.r.officialID]]
+        )
+        let r_atomic = TestPropositionClass(enumId: .r)
+        let gr_formula = LTLFormula<TestPropositionClass>.globally(.atomic(r_atomic))
+        let result = try checker.check(formula: gr_formula, model: modelS3Only)
+        #expect(result.holds, "Formula 'G r' should hold for the s3 self-loop model.")
+    }
+
+    @Test("Next Holds (X q)")
+    func testNextHolds() throws {
+        let q_atomic = TestPropositionClass(enumId: .q)
+        let xq_formula = LTLFormula<TestPropositionClass>.next(.atomic(q_atomic))
+        let result = try checker.check(formula: xq_formula, model: TestModels.model1)
+        #expect(result.holds, "Formula 'X q' should hold.")
+    }
+
+    @Test("Next Fails (X p from s1)") // Title was misleading, X r from s0 is the test
+    func testNextFails() throws {
+        let r_atomic = TestPropositionClass(enumId: .r)
+        let xr_from_s0_formula = LTLFormula<TestPropositionClass>.next(.atomic(r_atomic))
+        let result_s0 = try checker.check(formula: xr_from_s0_formula, model: TestModels.model1)
+        #expect(!result_s0.holds, "Formula 'X r' from s0 should fail.")
+        if case .fails(let counterexample) = result_s0 {
+            // The exact counterexample path can vary based on implementation details
+            // Just ensure we have a counterexample that demonstrates the formula fails
+            #expect(!counterexample.prefix.isEmpty, "Counterexample should have a non-empty prefix.")
+        } else {
+            Issue.record("Expected counterexample for 'X r' from s0.")
+        }
+    }
+
+    @Test("Until Holds (p U q)")
+    func testUntilHolds() throws {
+        let p_prop = TestPropositionClass(enumId: .p)
+        let q_prop = TestPropositionClass(enumId: .q)
+        let p_formula = LTLFormula<TestPropositionClass>.atomic(p_prop)
+        let q_formula = LTLFormula<TestPropositionClass>.atomic(q_prop)
+        let pUq_formula = LTLFormula<TestPropositionClass>.until(p_formula, q_formula)
+
+        let result = try checker.check(formula: pUq_formula, model: TestModels.model1)
+        #expect(result.holds, "Formula 'p U q' should hold for model1 from s0.")
+    }
+
+    @Test("Until Fails (q U r from s0 in model1)")
+    func testUntilFails() throws {
+        let q_prop = TestPropositionClass(enumId: .q)
+        let r_prop = TestPropositionClass(enumId: .r)
+        let q_formula = LTLFormula<TestPropositionClass>.atomic(q_prop)
+        let r_formula = LTLFormula<TestPropositionClass>.atomic(r_prop)
+        let qUr_formula = LTLFormula<TestPropositionClass>.until(q_formula, r_formula)
+        let result = try checker.check(formula: qUr_formula, model: TestModels.model1)
+        #expect(!result.holds, "Formula 'q U r' should fail for model1 from s0.")
+        if case .fails(let counterexample) = result {
+            #expect(counterexample.prefix.first == LTLModelCheckerTestState.s0 && !(TestModels.model1.atomicPropositionsTrue(in: LTLModelCheckerTestState.s0).contains(TestPropEnumID.q.officialID)))
+        } else {
+            Issue.record("Expected counterexample for 'q U r'.")
+        }
+    }
+}
+
+// MARK: - LTLModelChecker Edge Case Tests
+
+@Suite("LTLModelChecker Edge Case Tests")
+struct LTLModelCheckerEdgeCaseTests {
+    private let checker = LTLModelChecker<SimpleKripkeModel>()
+
+    @Test("Atomic Proposition with Empty Initial States Model")
+    func testAtomicPropositionEmptyInitialStates() throws {
+        let emptyInitialModel = SimpleKripkeModel(
+            states: [LTLModelCheckerTestState.s0], // Need at least one state for labeling
+            initialStates: [],
+            transitions: [LTLModelCheckerTestState.s0: [LTLModelCheckerTestState.s0]],
+            labeling: [LTLModelCheckerTestState.s0: [TestPropEnumID.p.officialID]]
+        )
+        let p_atomic = TestPropositionClass(enumId: .p)
+        let p_formula = LTLFormula<TestPropositionClass>.atomic(p_atomic)
+        let result = try checker.check(formula: p_formula, model: emptyInitialModel)
+        // For .atomic(P), if initialStates is empty, it should hold (vacuously true for "all initial states")
+        #expect(result.holds, "Atomic formula should hold for a model with no initial states.")
+    }
+
+    @Test("Not Atomic Proposition with Empty Initial States Model")
+    func testNotAtomicPropositionEmptyInitialStates() throws {
+        let emptyInitialModel = SimpleKripkeModel(
+            states: [LTLModelCheckerTestState.s0],
+            initialStates: [],
+            transitions: [LTLModelCheckerTestState.s0: [LTLModelCheckerTestState.s0]],
+            labeling: [LTLModelCheckerTestState.s0: [TestPropEnumID.p.officialID]]
+        )
+        let p_atomic = TestPropositionClass(enumId: .p)
+        let not_p_formula = LTLFormula<TestPropositionClass>.not(.atomic(p_atomic))
+        let result = try checker.check(formula: not_p_formula, model: emptyInitialModel)
+        // For .not(.atomic(P)), if initialStates is empty, there's no state to satisfy notP,
+        // so ¬P fails to hold from any initial state (as there are none).
+        // The current LTLModelChecker logic for not(.atomic(P)) returns .fails if initialStates is empty.
+        #expect(!result.holds, "Not atomic formula should fail for a model with no initial states.")
+        if case .fails(let counterexample) = result {
+             #expect(counterexample.prefix.isEmpty && counterexample.cycle.isEmpty, "Counterexample should be empty for not(.atomic) on empty initial states model.")
+        } else {
+            Issue.record("Expected a failure for not(.atomic) on empty initial states model.")
+        }
     }
 
     @Test("ConvertModelToBuchi - Handles State With No Successors")
@@ -554,7 +499,7 @@ struct LTLModelCheckerTests {
             _ = try checker.check(formula: formula_Xp, model: invalidModel)
         } throws: { error in
             guard let checkerError = error as? LTLModelCheckerError else {
-                Issue.record("Expected LTLModelCheckerError, but got \\(type(of: error))")
+                Issue.record("Expected LTLModelCheckerError, but got \(type(of: error))")
                 return false
             }
             if case .internalProcessingError(let actualMessage) = checkerError {
@@ -566,17 +511,24 @@ struct LTLModelCheckerTests {
                 )
                 return true
             } else {
-                Issue.record("Expected .internalProcessingError case with specific message, but got \\(checkerError)")
+                Issue.record("Expected .internalProcessingError case with specific message, but got \(checkerError)")
                 return false
             }
         }
     }
+}
+
+// MARK: - LTLModelChecker Complex Formula Tests
+
+@Suite("LTLModelChecker Complex Formula Tests")
+struct LTLModelCheckerComplexFormulaTests {
+    private let checker = LTLModelChecker<SimpleKripkeModel>()
 
     @Test("ExtractPropositions - Handles BooleanLiteral Correctly")
     func testExtractPropositionsHandlesBooleanLiteral() throws {
         let formula = LTLFormula<TestPropositionClass>.booleanLiteral(true)
         // model1には p, q, r が含まれる
-        let result = try checker.check(formula: formula, model: model1)
+        let result = try checker.check(formula: formula, model: TestModels.model1)
 
         // We expect extractPropositions to be called.
         // For a boolean literal, it should initially find no propositions from the formula itself,
@@ -612,7 +564,7 @@ struct LTLModelCheckerTests {
         // A simple assertion for holds/fails is sufficient for this test's purpose regarding extractPropositions.
         // The actual result of such a complex formula on model1 is non-trivial to assert without deep thought,
         // so we'll just ensure it runs.
-        _ = try checker.check(formula: formula, model: model1)
+        _ = try checker.check(formula: formula, model: TestModels.model1)
 
         // If we had an "always true" or "always false" complex formula, we could assert holds/fails.
         // For now, the goal is to exercise extractPropositions with all LTL constructs.
@@ -643,50 +595,119 @@ struct LTLModelCheckerTests {
         // The actual model checking result for this complex formula on model1 is not
         // the primary focus of this specific test. We just ensure it runs without error.
         // Coverage analysis will show if extractPropositions visited all nodes.
-        _ = try checker.check(formula: formula_G_p_implies_q_and_r_or_X_p, model: model1)
+        _ = try checker.check(formula: formula_G_p_implies_q_and_r_or_X_p, model: TestModels.model1)
 
         // Add a simple assertion to ensure the test completes.
         // More detailed assertions on the collected propositions would require making
         // extractPropositions' result inspectable, which is not done for this private helper.
         #expect(true, "Test intended to run for coverage of extractPropositions, not for specific model checking outcome.")
     }
+}
 
+// MARK: - Test Model Components for Demo-like Structures
+
+private enum DemoLikeTestKripkeModelState: Hashable, CustomStringConvertible {
+    case s0, s1, s2
+    public var description: String {
+        switch self {
+        case .s0: return "s0"
+        case .s1: return "s1"
+        case .s2: return "s2"
+        }
+    }
+}
+
+private typealias DemoLikeTestProposition = TemporalKit.ClosureTemporalProposition<DemoLikeTestKripkeModelState, Bool>
+
+private struct DemoLikeTestKripkeStructure: KripkeStructure {
+    typealias State = DemoLikeTestKripkeModelState
+    typealias AtomicPropositionIdentifier = PropositionID
+    
+    let initialStates: Set<State> = [.s0]
+    let allStates: Set<State> = [.s0, .s1, .s2]
+    
+    static let p_demo_like = TemporalKit.makeProposition(
+        id: "p_demo_like",
+        name: "p (for demo-like test)",
+        evaluate: { (state: DemoLikeTestKripkeModelState) -> Bool in state == .s0 || state == .s2 }
+    )
+    
+    func successors(of state: State) -> Set<State> {
+        switch state {
+        case .s0: return [.s1]
+        case .s1: return [.s2]
+        case .s2: return [.s0, .s2]
+        }
+    }
+    
+    func atomicPropositionsTrue(in state: State) -> Set<AtomicPropositionIdentifier> {
+        var trueProps = Set<AtomicPropositionIdentifier>()
+        if state == .s0 || state == .s2 { trueProps.insert(Self.p_demo_like.id) }
+        return trueProps
+    }
+}
+
+// MARK: - LTLModelChecker Demo Structure Tests
+
+@Suite("LTLModelChecker Demo Structure Tests")
+struct LTLModelCheckerDemoStructureTests {
+    @Test("Model Check G p on Demo-like Structure (Should Fail)")
+    func testModelCheck_Gp_OnDemoLikeStructure_ShouldFail() throws {
+        let modelChecker = LTLModelChecker<DemoLikeTestKripkeStructure>()
+        let model = DemoLikeTestKripkeStructure()
+        
+        // Use the static proposition in the formula
+        let formula_Gp: LTLFormula<DemoLikeTestProposition> = .globally(.atomic(DemoLikeTestKripkeStructure.p_demo_like))
+        
+        let result = try modelChecker.check(formula: formula_Gp, model: model)
+        
+        switch result {
+        case .holds:
+            Issue.record("Error: G p_demo_like should FAIL on this model, but it HOLDS.")
+        case .fails(let counterexample):
+            // Expected to fail. For now, don't validate counterexample structure, just that it fails.
+            print("Test testModelCheck_Gp_OnDemoLikeStructure_ShouldFail: Correctly FAILED.")
+            // Add more detailed counterexample checks later if needed.
+            #expect(!counterexample.prefix.isEmpty || !counterexample.cycle.isEmpty, "Counterexample should not be completely empty.")
+        }
+    }
+    
     @Test("Model Check p U r on Demo-like Structure (Should Fail)")
     func testPUntilR_OnDemoLikeStructure_ShouldFail() throws {
         let modelChecker = LTLModelChecker<DemoLikeTestKripkeStructure>()
         let model = DemoLikeTestKripkeStructure()
-
+        
         // Create p_demo and r_demo propositions similar to the demo
         let p_demo = TemporalKit.makeProposition(
             id: "p_demo",
             name: "p (for demo test)",
             evaluate: { (state: DemoLikeTestKripkeModelState) -> Bool in state == .s0 || state == .s2 }
         )
-
+        
         let r_demo = TemporalKit.makeProposition(
             id: "r_demo",
             name: "r (for demo test)",
             evaluate: { (state: DemoLikeTestKripkeModelState) -> Bool in state == .s2 }
         )
-
+        
         // Create the formula p U r
         let formula = LTLFormula<ClosureTemporalProposition<DemoLikeTestKripkeModelState, Bool>>.until(.atomic(p_demo), .atomic(r_demo))
-
+        
         // Run the model checker
         let result = try modelChecker.check(formula: formula, model: model)
-
+        
         // The result should be FAILS
         #expect(!result.holds, "Formula 'p U r' should fail on DemoLikeTestKripkeStructure")
-
+        
         // Verify that the counterexample properly shows the failure
         if case .fails(let counterexample) = result {
-            // In our structure, the counterexample may vary depending on the specifics of 
+            // In our structure, the counterexample may vary depending on the specifics of
             // the model checker's implementation, but it should find a valid counterexample
             let reachedS0 = counterexample.prefix.contains(DemoLikeTestKripkeModelState.s0) ||
                             counterexample.cycle.contains(DemoLikeTestKripkeModelState.s0)
-
+            
             #expect(reachedS0, "Counterexample should include s0 where p is true")
-
+            
             // Due to the nature of the nested DFS algorithm, it may not always include s1 in the counterexample
             // What matters is that it correctly reports FAILS, not the exact counterexample path
             print("Counterexample: prefix=\(counterexample.prefix), cycle=\(counterexample.cycle)")
