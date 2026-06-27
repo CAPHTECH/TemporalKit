@@ -41,7 +41,7 @@ internal enum LTLToBuchiConverter {
             originalPreNNFFormula: ltlFormula,
             relevantPropositions: relevantPropositions
         )
-        tableauConstructor.buildGraph()
+        try tableauConstructor.buildGraph()
 
         let constructedTableauNodes = tableauConstructor.constructedTableauNodes
         let nodeToGBAStateIDMap = tableauConstructor.gbaStateIDMap

@@ -71,7 +71,9 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
     }
 
     /// Builds the tableau graph, populating GBA states, transitions, and initial states.
-    internal func buildGraph() {
+    internal func buildGraph() throws {
+        /// Guard against runaway tableau construction for formulas with exponential state spaces.
+        let maxGBAStateCount = 150
         let initialTableauNode = Self.decomposeFormulaForInitialTableauNode(self.nnfLTLFormula)
         self.worklist = [initialTableauNode]
         _ = getOrCreateGBAStateID(for: initialTableauNode)
@@ -93,37 +95,6 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
                     heuristicOriginalLTLFormula: self.originalPreNNFLTLFormula
                 )
 
-                // ---- DEBUG for X(¬q) specific expansion ----
-                var isXNotQContext = false
-                if case .next(let sub) = self.originalPreNNFLTLFormula,
-                   case .not(let nSub) = sub,
-                   case .atomic(let a) = nSub,
-                   String(describing: a.id) == "q" {
-                    isXNotQContext = true
-                }
-
-                var currentNodeContainsNotQ = false
-                for f in currentNodeToExpand.currentFormulas {
-                    if case .not(let subF) = f, case .atomic(let atomF) = subF, String(describing: atomF.id) == "q" {
-                        currentNodeContainsNotQ = true
-                        break
-                    }
-                }
-                let symbolContainsQ = symbol.contains(where: { String(describing: $0).contains("q") })
-
-                if isXNotQContext && currentNodeContainsNotQ && symbolContainsQ {
-                    let currentFormulaDescs = currentNodeToExpand.currentFormulas.map { String(describing: $0).prefix(20) }
-                    let nextFormulaDescs = currentNodeToExpand.nextFormulas.map { String(describing: $0).prefix(20) }
-                    print("[TGC BUILDGRAPH DEBUG XNOTQ] For node (current: \(currentFormulaDescs), next: \(nextFormulaDescs)) with symbol \(symbol):")
-                    print("    expandFormulasInNode produced \(expansionResults.count) outcomes:")
-                    for (idx, outcome) in expansionResults.enumerated() {
-                        let currObligations = outcome.nextSetOfCurrentObligations.map { String(describing: $0).prefix(20) }
-                        let nextObligations = outcome.nextSetOfNextObligations.map { String(describing: $0).prefix(20) }
-                        print("      Outcome \(idx): consistent=\(outcome.isConsistent), currO=\(currObligations), nextO=\(nextObligations) ")
-                    }
-                }
-                // ---- END DEBUG ----
-
                 for expansionResult in expansionResults {
                     if !expansionResult.isConsistent { continue }
 
@@ -140,15 +111,13 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
                         worklist.append(successorNode)
                     }
 
-                    if nodeToStateIDMap.count > 150 {
-                        print("Warning: Max GBA states (150) reached in tableau. Aborting expansion.")
-                        self.worklist.removeAll()
-                        break
+                    if nodeToStateIDMap.count > maxGBAStateCount {
+                        throw LTLModelCheckerError.internalProcessingError(
+                            "GBA state limit (\(maxGBAStateCount)) exceeded during tableau construction; result may be unsound"
+                        )
                     }
                 }
-                if nodeToStateIDMap.count > 150 { break }
             }
-            if nodeToStateIDMap.count > 150 { break }
         }
     }
 

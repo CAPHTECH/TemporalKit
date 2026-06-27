@@ -130,6 +130,21 @@ struct LTLToBuchiConverterTests {
             Issue.record("Initial state was nil, cannot check if it's accepting.")
         }
     }
+    /// Verifies that buildGraph() throws when the GBA state count exceeds maxGBAStateCount (150).
+    ///
+    /// F(¬p1) ∧ F(¬p2) ∧ ... ∧ F(¬p8) has up to 2^8 = 256 GBA states because each
+    /// Eventually obligation can independently be pending or discharged. This exceeds the
+    /// 150-state guard and must throw LTLModelCheckerError.internalProcessingError.
+    @Test func buildGraphThrowsWhenGBAStateLimitExceeded() {
+        let propIDs = Set((1...8).map { PropositionID(rawValue: "limit_p\($0)")! })
+        // F(¬p1) ∧ F(¬p2) ∧ ... ∧ F(¬p8)
+        let eventuallyFormulas: [Formula] = (1...8).map { .eventually(.not(.prop("limit_p\($0)"))) }
+        let formula: Formula = eventuallyFormulas.dropFirst().reduce(eventuallyFormulas[0]) { .and($0, $1) }
+
+        #expect(throws: LTLModelCheckerError.self) {
+            _ = try LTLToBuchiConverter.translateLTLToBuchi(formula, relevantPropositions: propIDs)
+        }
+    }
 }
 
 // Note: More complex assertions will require comparing the generated automaton's language
