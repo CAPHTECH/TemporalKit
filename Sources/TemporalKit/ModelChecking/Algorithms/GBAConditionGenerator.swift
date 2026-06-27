@@ -90,22 +90,27 @@ internal struct GBAConditionGenerator<P: TemporalProposition> where P.Value == B
 
                     switch livenessFormula {
                     case .until(let lhsU, let rhsU):
-                        // For Until (A U B), a node contributes to acceptance set if:
-                        // 1. It contains B (right side of Until is satisfied), OR
-                        // 2. It does not contain A U B (formula doesn't need to be satisfied)
+                        // For Until (A U B), a node is accepting only if:
+                        // 1. It contains B (obligation satisfied now), OR
+                        // 2. A U B is pending in neither current nor next formulas (fully resolved)
+                        //
+                        // Checking nextFormulas is required: Branch-2 states (where A U B is deferred
+                        // to the next step) must NOT be considered accepting, otherwise the Until
+                        // automaton accepts runs that never actually satisfy B.
                         if lhsU.isBooleanLiteralTrue() {
                             conditionMet = tableauNode.currentFormulas.contains(rhsU)
                         } else {
                             conditionMet = tableauNode.currentFormulas.contains(rhsU) ||
-                                         !tableauNode.currentFormulas.contains(livenessFormula)
+                                         (!tableauNode.currentFormulas.contains(livenessFormula) &&
+                                          !tableauNode.nextFormulas.contains(livenessFormula))
                         }
 
                     case .eventually(let subE):
-                        // For Eventually (F A), a node contributes to acceptance set if:
-                        // 1. It contains A (the Eventually is satisfied), OR
-                        // 2. It does not contain F A (formula doesn't need to be satisfied)
+                        // For Eventually (F A), same reasoning as Until: Branch-2 states (where
+                        // F A is deferred) must NOT be accepting to ensure A eventually holds.
                         conditionMet = tableauNode.currentFormulas.contains(subE) ||
-                                     !tableauNode.currentFormulas.contains(livenessFormula)
+                                     (!tableauNode.currentFormulas.contains(livenessFormula) &&
+                                      !tableauNode.nextFormulas.contains(livenessFormula))
 
                     case .release(let lhsR, let rhsR):
                         // For Release (A R B), acceptance requires satisfying B until A & B holds

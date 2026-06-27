@@ -46,23 +46,12 @@ internal struct LTLFormulaNNFConverter {
             return convert(fNotSub) // Convert the produced F formula
 
         case .not(.until(let lhs, let rhs)):
-            // ¬(φ U ψ)  ->  (¬ψ R ¬φ) (NNF)
-            // This is a fundamental duality in LTL: 
-            // The negation of "φ holds until ψ holds" is
-            // "¬ψ holds, RELEASED only when ¬φ also holds"
-            //
-            // To verify: For this formula to be false, either:
-            // 1. ψ never holds (¬ψ always holds), OR
-            // 2. φ fails to hold before ψ (¬φ holds at some point before ψ)
-            // This is exactly what (¬ψ R ¬φ) encodes.
-            return .release(convert(.not(rhs)), convert(.not(lhs)))
+            // ¬(φ U ψ)  ≡  (¬φ) R (¬ψ)  (NNF duality)
+            return .release(convert(.not(lhs)), convert(.not(rhs)))
 
         case .not(.weakUntil(let lhs, let rhs)):
-            // φ W ψ  ≡  (φ U ψ) ∨ Gφ
-            // So, ¬(φ W ψ) ≡ ¬((φ U ψ) ∨ Gφ)
-            //              ≡ ¬(φ U ψ) ∧ ¬(Gφ)
-            //              ≡ (¬ψ R ¬φ) ∧ (F¬φ)  (using ¬(φ U ψ) -> (¬ψ R ¬φ) and ¬Gφ -> F¬φ)
-            let term1 = LTLFormula<P>.release(convert(.not(rhs)), convert(.not(lhs)))
+            // ¬(φ W ψ) ≡ ¬((φ U ψ) ∨ Gφ) ≡ (¬φ) R (¬ψ) ∧ F(¬φ)
+            let term1 = LTLFormula<P>.release(convert(.not(lhs)), convert(.not(rhs)))
             let term2 = LTLFormula<P>.eventually(convert(.not(lhs)))
             return .and(term1, term2)
 

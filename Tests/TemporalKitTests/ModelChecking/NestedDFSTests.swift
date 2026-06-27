@@ -82,9 +82,9 @@ final class NestedDFSTests: XCTestCase {
         // Print result for debugging
         print("p U r result: \(result.holds ? "HOLDS" : "FAILS")")
 
-        // Our improved algorithm should determine p U r holds for this model
-        // because there exists a path [s0, s1, s2] where r is true at s2
-        XCTAssertTrue(result.holds, "p U r should HOLD for the test model with the improved algorithm")
+        // p U r must FAIL: on every path from s0, the transition s0(p)→s1(q)→s2(p,r) has
+        // p=false at s1 before r becomes true at s2, violating the Until requirement.
+        XCTAssertFalse(result.holds, "p U r should FAIL because p is false at s1 before r holds")
     }
 
     /// Test for the p U r formula on a modified model where it should hold
