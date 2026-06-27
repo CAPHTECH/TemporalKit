@@ -828,27 +828,93 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
         initialWorklistForSolve: [LTLFormula<P>], heuristicOriginalLTLFormula: LTLFormula<P>,
         allPossibleOutcomes: inout [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)]
     ) {
-        // Branch 1: psi holds now
-        var worklistBranchPsi = currentWorklist
-        if !processedOnPath.contains(psi) { worklistBranchPsi.insert(psi, at: 0) }
-        solve(
-            currentWorklist: worklistBranchPsi, processedOnPath: processedOnPath, vSet: vSet,
-            pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
-            initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
-            allPossibleOutcomes: &allPossibleOutcomes
-        )
+        // φ R ψ ≡ ψ ∧ (φ ∨ X(φ R ψ))
+        //
+        // For simple (atomic/negated-atomic/boolean) phi and psi, verify them directly
+        // against the current symbol WITHOUT adding to the worklist. This prevents their
+        // atom constraints from propagating into the successor GBA state's currentFormulas,
+        // which would incorrectly constrain future model steps beyond the Release obligation.
+        let psiDirectSat = isSimpleFormulaSatisfiedBySymbol(psi, forSymbol: forSymbol)
+        let phiDirectSat = isSimpleFormulaSatisfiedBySymbol(phi, forSymbol: forSymbol)
 
-        // Branch 2: phi holds now AND X(phi R psi) holds next
-        var worklistBranchPhi = currentWorklist
-        if !processedOnPath.contains(phi) { worklistBranchPhi.insert(phi, at: 0) }
-        var vSetBranchPhiAndXR = vSet
-        vSetBranchPhiAndXR.insert(currentFormula) // Add X(phi R psi)
-        solve(
-            currentWorklist: worklistBranchPhi, processedOnPath: processedOnPath, vSet: vSetBranchPhiAndXR,
-            pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
-            initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
-            allPossibleOutcomes: &allPossibleOutcomes
-        )
+        // Branch 1 (terminate): both phi and psi hold now, Release obligation discharged.
+        // Handle each operand independently (mirroring Branch 2 below): a simple operand is
+        // verified directly against the symbol and kept OUT of the worklist so its atom
+        // constraints don't leak into the successor state's currentFormulas; only a genuinely
+        // complex, not-yet-processed operand is inserted into the worklist. The previous
+        // all-or-nothing split re-added a simple operand whenever the other side was complex
+        // (e.g. p R Xq), over-constraining the Release.
+        var worklistBranch1 = currentWorklist
+        let phiReady: Bool
+        if let phiSat = phiDirectSat {
+            phiReady = phiSat
+        } else {
+            phiReady = true
+            if !processedOnPath.contains(phi) { worklistBranch1.insert(phi, at: 0) }
+        }
+        let psiReady: Bool
+        if let psiSat = psiDirectSat {
+            psiReady = psiSat
+        } else {
+            psiReady = true
+            if !processedOnPath.contains(psi) { worklistBranch1.insert(psi, at: 0) }
+        }
+        if phiReady && psiReady {
+            solve(
+                currentWorklist: worklistBranch1, processedOnPath: processedOnPath, vSet: vSet,
+                pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
+                initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
+                allPossibleOutcomes: &allPossibleOutcomes
+            )
+        }
+
+        // Branch 2 (continue): psi holds now AND X(phi R psi) holds next
+        if let psiSat = psiDirectSat {
+            // Simple psi: verify directly, call solve without adding psi to worklist
+            if psiSat {
+                var vSetBranch2 = vSet
+                vSetBranch2.insert(currentFormula) // Add X(phi R psi)
+                solve(
+                    currentWorklist: currentWorklist, processedOnPath: processedOnPath, vSet: vSetBranch2,
+                    pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
+                    initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
+                    allPossibleOutcomes: &allPossibleOutcomes
+                )
+            }
+        } else {
+            // Complex psi: use worklist processing
+            var worklistBranch2 = currentWorklist
+            if !processedOnPath.contains(psi) { worklistBranch2.insert(psi, at: 0) }
+            var vSetBranch2 = vSet
+            vSetBranch2.insert(currentFormula) // Add X(phi R psi)
+            solve(
+                currentWorklist: worklistBranch2, processedOnPath: processedOnPath, vSet: vSetBranch2,
+                pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
+                initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
+                allPossibleOutcomes: &allPossibleOutcomes
+            )
+        }
+    }
+
+    /// Checks if a simple (atomic, negated-atomic, or boolean) formula is satisfied by the
+    /// current alphabet symbol, WITHOUT modifying any atomic sets or worklists.
+    /// Returns nil for complex formulas that require worklist processing.
+    private func isSimpleFormulaSatisfiedBySymbol(_ formula: LTLFormula<P>, forSymbol: BuchiAlphabetSymbol<PropositionIDType>) -> Bool? {
+        switch formula {
+        case .atomic(let p):
+            guard let propID = p.id as? PropositionIDType else { return true }
+            return forSymbol.contains(propID)
+        case .not(let sub):
+            if case .atomic(let p) = sub {
+                guard let propID = p.id as? PropositionIDType else { return true }
+                return !forSymbol.contains(propID)
+            }
+            return nil // Non-atomic negation requires worklist
+        case .booleanLiteral(let b):
+            return b
+        default:
+            return nil // Temporal formula requires worklist
+        }
     }
 
     // Legacy method for backward compatibility

@@ -80,15 +80,14 @@ public class LTLModelChecker<Model: KripkeStructure> {
             return .holds
         case .not(let subFormula):
             if case .atomic(let prop) = subFormula {
-                if model.initialStates.isEmpty { return .fails(counterexample: Counterexample(prefix: [], cycle: [])) }
-                var anyInitialSatisfiesNotP = false
+                // ¬p holds iff p is false in every initial state; vacuously true when no initial states.
+                if model.initialStates.isEmpty { return .holds }
                 for initialState in model.initialStates {
-                    if !(model.atomicPropositionsTrue(in: initialState).contains(prop.id)) {
-                        anyInitialSatisfiesNotP = true
-                        break
+                    if model.atomicPropositionsTrue(in: initialState).contains(prop.id) {
+                        return .fails(counterexample: Counterexample(prefix: [initialState], cycle: []))
                     }
                 }
-                return anyInitialSatisfiesNotP ? .holds : .fails(counterexample: Counterexample(prefix: model.initialStates.isEmpty ? [] : [model.initialStates.first!], cycle: []))
+                return .holds
             }
         default:
             break

@@ -164,11 +164,11 @@ struct WeakUntilModelCheckingTests {
         let weakUntilResult = try modelChecker.check(formula: weakUntilFormula, model: model)
         #expect(weakUntilResult.holds, "The formula p W q should hold in the model due to the path where p holds forever")
 
-        // Test until: p U q (should also hold in this model configuration)
-        // In the modified model, there is a path where q eventually becomes true (S0 -> S1 -> S2 -> S3)
-        // This makes p U q also hold, since it requires just one path where q eventually becomes true
+        // Test until: p U q (should FAIL because S0 has p=false and q=false)
+        // LTL uses universal path quantification: p U q fails at S0 since neither p nor q holds there.
+        // The path S0→S1→S4→S3→S3→... is a witness: at S0 p is false so U cannot be delayed.
         let untilFormula = LTLFormula<MockProposition>.until(.atomic(p), .atomic(q))
         let untilResult = try modelChecker.check(formula: untilFormula, model: model)
-        #expect(untilResult.holds, "The formula p U q should hold in the model as there's a path where q eventually becomes true")
+        #expect(!untilResult.holds, "The formula p U q should fail because p=false at the initial state S0")
     }
 }

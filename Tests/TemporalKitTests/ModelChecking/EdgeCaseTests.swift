@@ -111,21 +111,17 @@ final class EdgeCaseTests: XCTestCase {
         // Create propositions for "p"
         let p = makeProposition("p")
 
-        // Test with formulas like G(F(p)) which should fail on terminal states,
-        // but currently passes with the known limitation in the current algorithm
+        // G(F(p)) on a structure whose terminal (self-looping) state never satisfies p.
+        // Once the run reaches the terminal state, p never holds again, so F(p) fails from
+        // that point on and G(F(p)) must NOT hold.
         let formula = LTLFormula<TestProposition>.globally(.eventually(.atomic(p)))
 
-        // NOTE: In the current implementation, G(F(p)) actually HOLDS on a terminal state, 
-        // even though ideally it should FAIL. 
-        // This is a known limitation of the current algorithm as mentioned in the handover notes.
+        // This previously (wrongly) HELD: deferred F-obligations were accepted by the GBA,
+        // a known liveness limitation. With the acceptance-condition fix it now correctly FAILS.
         do {
             let result = try modelChecker.check(formula: formula, model: kripke)
 
-            // We expect it to HOLD due to the current algorithm behavior
-            XCTAssertTrue(result.holds, "G(F(p)) currently holds in the structure with a terminal state due to a known limitation in the NestedDFS algorithm")
-
-            // In an ideal implementation, we would expect:
-            // XCTAssertFalse(result.holds, "G(F(p)) should not hold in a structure with a terminal state")
+            XCTAssertFalse(result.holds, "G(F(p)) should not hold: the terminal state never satisfies p")
         } catch {
             XCTFail("Model checking threw an error: \(error)")
         }

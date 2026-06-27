@@ -183,8 +183,8 @@ struct LTLModelCheckerBasicTests {
         }
     }
 
-    @Test("Not Atomic Proposition - Holds When Prop Fails in Some Initial State")
-    func testNotAtomicPropositionHoldsWhenPropFailsInSomeInitialState() throws {
+    @Test("Not Atomic Proposition - Fails When Prop Holds in Some Initial State")
+    func testNotAtomicPropositionFailsWhenPropHoldsInSomeInitialState() throws {
         let modelMixedP = SimpleKripkeModel(
             states: [LTLModelCheckerTestState.s0, LTLModelCheckerTestState.s1, LTLModelCheckerTestState.s2], // Ensure all states used are declared
             initialStates: [LTLModelCheckerTestState.s0, LTLModelCheckerTestState.s1], // s0 satisfies P, s1 does not
@@ -201,7 +201,7 @@ struct LTLModelCheckerBasicTests {
         let p_atomic = TestPropositionClass(enumId: .p)
         let not_p_formula = LTLFormula<TestPropositionClass>.not(.atomic(p_atomic))
         let result = try checker.check(formula: not_p_formula, model: modelMixedP)
-        #expect(result.holds, "not(.atomic(p)) should hold if p fails in at least one initial state.")
+        #expect(!result.holds, "not(.atomic(p)) should fail when any initial state has p true.")
     }
 }
 
@@ -381,18 +381,9 @@ struct LTLModelCheckerEdgeCaseTests {
         let p_atomic = TestPropositionClass(enumId: .p)
         let not_p_formula = LTLFormula<TestPropositionClass>.not(.atomic(p_atomic))
         let result = try checker.check(formula: not_p_formula, model: emptyInitialModel)
-        // For .not(.atomic(P)), if initialStates is empty, there's no state to satisfy notP,
-        // so ¬P fails to hold from any initial state (as there are none).
-        // The current LTLModelChecker logic for not(.atomic(P)) returns .fails if initialStates is empty.
-        #expect(!result.holds, "Not atomic formula should fail for a model with no initial states.")
-        if case .fails(let counterexample) = result {
-            #expect(
-                counterexample.prefix.isEmpty && counterexample.cycle.isEmpty,
-                "Counterexample should be empty for not(.atomic) on empty initial states model."
-            )
-        } else {
-            Issue.record("Expected a failure for not(.atomic) on empty initial states model.")
-        }
+        // For .not(.atomic(P)) with no initial states, there are no paths, so the property
+        // holds vacuously — consistent with .atomic(P) which also holds vacuously when empty.
+        #expect(result.holds, "Not atomic formula should hold vacuously for a model with no initial states.")
     }
 
     @Test("ConvertModelToBuchi - Handles State With No Successors")
@@ -796,9 +787,10 @@ struct LTLModelCheckerHelperMethodTests {
         // This will call convertModelToBuchi internally
         let result = try checker.check(formula: formula, model: complexModel)
 
-        // G F p should hold since p is true in s0 and s2, and the model has cycles
-        // that allow returning to states where p holds
-        #expect(result.holds, "G F p should hold for complex model with various transition patterns")
+        // G F p does NOT hold: the path s0 → s1 → s1 → … gets trapped in the s1 self-loop,
+        // where only q holds, so p never recurs and "infinitely often p" is violated.
+        // (Counterexample: prefix [s0, s1], cycle [s1].)
+        #expect(!result.holds, "G F p should fail: the s1 self-loop never satisfies p")
     }
 
     @Test("convertModelToBuchi - Model with only terminal states")
@@ -1033,8 +1025,8 @@ struct LTLModelCheckerHelperMethodTests {
             (.eventually(.atomic(q)), false),        // F q should fail
             (.next(.atomic(p)), true),              // X p should hold
             (.until(.atomic(p), .atomic(q)), false), // p U q should fail
-            (.weakUntil(.atomic(p), .atomic(q)), false), // p W q should fail - q is never true
-            (.release(.atomic(q), .atomic(p)), false)    // q R p should fail - requires q to hold initially
+            (.weakUntil(.atomic(p), .atomic(q)), true),  // p W q should hold - G p holds
+            (.release(.atomic(q), .atomic(p)), true)     // q R p should hold - p holds forever
         ]
 
         for (formula, expectedResult) in formulas {
