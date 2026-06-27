@@ -837,22 +837,29 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
         let psiDirectSat = isSimpleFormulaSatisfiedBySymbol(psi, forSymbol: forSymbol)
         let phiDirectSat = isSimpleFormulaSatisfiedBySymbol(phi, forSymbol: forSymbol)
 
-        // Branch 1 (terminate): both phi and psi hold now, Release obligation discharged
-        if let psiSat = psiDirectSat, let phiSat = phiDirectSat {
-            // Simple case: verify directly, call solve without adding phi/psi to worklist
-            if phiSat && psiSat {
-                solve(
-                    currentWorklist: currentWorklist, processedOnPath: processedOnPath, vSet: vSet,
-                    pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
-                    initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
-                    allPossibleOutcomes: &allPossibleOutcomes
-                )
-            }
+        // Branch 1 (terminate): both phi and psi hold now, Release obligation discharged.
+        // Handle each operand independently (mirroring Branch 2 below): a simple operand is
+        // verified directly against the symbol and kept OUT of the worklist so its atom
+        // constraints don't leak into the successor state's currentFormulas; only a genuinely
+        // complex, not-yet-processed operand is inserted into the worklist. The previous
+        // all-or-nothing split re-added a simple operand whenever the other side was complex
+        // (e.g. p R Xq), over-constraining the Release.
+        var worklistBranch1 = currentWorklist
+        let phiReady: Bool
+        if let phiSat = phiDirectSat {
+            phiReady = phiSat
         } else {
-            // Complex phi/psi: use worklist processing
-            var worklistBranch1 = currentWorklist
+            phiReady = true
             if !processedOnPath.contains(phi) { worklistBranch1.insert(phi, at: 0) }
+        }
+        let psiReady: Bool
+        if let psiSat = psiDirectSat {
+            psiReady = psiSat
+        } else {
+            psiReady = true
             if !processedOnPath.contains(psi) { worklistBranch1.insert(psi, at: 0) }
+        }
+        if phiReady && psiReady {
             solve(
                 currentWorklist: worklistBranch1, processedOnPath: processedOnPath, vSet: vSet,
                 pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,

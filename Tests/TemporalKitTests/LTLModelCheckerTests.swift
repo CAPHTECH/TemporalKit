@@ -183,8 +183,8 @@ struct LTLModelCheckerBasicTests {
         }
     }
 
-    @Test("Not Atomic Proposition - Holds When Prop Fails in Some Initial State")
-    func testNotAtomicPropositionHoldsWhenPropFailsInSomeInitialState() throws {
+    @Test("Not Atomic Proposition - Fails When Prop Holds in Some Initial State")
+    func testNotAtomicPropositionFailsWhenPropHoldsInSomeInitialState() throws {
         let modelMixedP = SimpleKripkeModel(
             states: [LTLModelCheckerTestState.s0, LTLModelCheckerTestState.s1, LTLModelCheckerTestState.s2], // Ensure all states used are declared
             initialStates: [LTLModelCheckerTestState.s0, LTLModelCheckerTestState.s1], // s0 satisfies P, s1 does not
@@ -787,9 +787,10 @@ struct LTLModelCheckerHelperMethodTests {
         // This will call convertModelToBuchi internally
         let result = try checker.check(formula: formula, model: complexModel)
 
-        // G F p should hold since p is true in s0 and s2, and the model has cycles
-        // that allow returning to states where p holds
-        #expect(result.holds, "G F p should hold for complex model with various transition patterns")
+        // G F p does NOT hold: the path s0 → s1 → s1 → … gets trapped in the s1 self-loop,
+        // where only q holds, so p never recurs and "infinitely often p" is violated.
+        // (Counterexample: prefix [s0, s1], cycle [s1].)
+        #expect(!result.holds, "G F p should fail: the s1 self-loop never satisfies p")
     }
 
     @Test("convertModelToBuchi - Model with only terminal states")

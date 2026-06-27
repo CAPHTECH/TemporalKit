@@ -89,7 +89,7 @@ internal struct GBAConditionGenerator<P: TemporalProposition> where P.Value == B
                     var conditionMet = false
 
                     switch livenessFormula {
-                    case .until(let lhsU, let rhsU):
+                    case .until(_, let rhsU):
                         // For Until (A U B), a node is accepting only if:
                         // 1. It contains B (obligation satisfied now), OR
                         // 2. A U B is pending in neither current nor next formulas (fully resolved)
@@ -97,13 +97,14 @@ internal struct GBAConditionGenerator<P: TemporalProposition> where P.Value == B
                         // Checking nextFormulas is required: Branch-2 states (where A U B is deferred
                         // to the next step) must NOT be considered accepting, otherwise the Until
                         // automaton accepts runs that never actually satisfy B.
-                        if lhsU.isBooleanLiteralTrue() {
-                            conditionMet = tableauNode.currentFormulas.contains(rhsU)
-                        } else {
-                            conditionMet = tableauNode.currentFormulas.contains(rhsU) ||
-                                         (!tableauNode.currentFormulas.contains(livenessFormula) &&
-                                          !tableauNode.nextFormulas.contains(livenessFormula))
-                        }
+                        //
+                        // This is identical to the .eventually condition below: true U B ≡ F B and
+                        // must not be treated more strictly. A previous special case for true U B
+                        // only accepted states containing B, wrongly rejecting fully-resolved
+                        // branches (e.g. the r side of (F q) ∨ r) and shrinking the accepting set.
+                        conditionMet = tableauNode.currentFormulas.contains(rhsU) ||
+                                     (!tableauNode.currentFormulas.contains(livenessFormula) &&
+                                      !tableauNode.nextFormulas.contains(livenessFormula))
 
                     case .eventually(let subE):
                         // For Eventually (F A), same reasoning as Until: Branch-2 states (where

@@ -138,10 +138,12 @@ final class ComplexLTLTests: XCTestCase {
             )
         )
 
-        // Test on the accepting Kripke structure
+        // This formula does NOT hold on the structure: at s4 (and the s5 loop) q holds but
+        // r never recurs after s3, so the (q -> F r) conjunct is violated there and G(...) fails.
+        // (Previously this wrongly "held" due to the deferred-liveness GBA bug.)
         do {
             let result = try modelChecker.check(formula: complexFormula, model: kripke)
-            XCTAssertTrue(result.holds, "The complex formula combining all operators should hold on the accepting Kripke structure")
+            XCTAssertFalse(result.holds, "The complex formula must not hold: (q -> F r) is violated once r stops recurring")
         } catch {
             XCTFail("Model checking threw an error: \(error)")
         }
