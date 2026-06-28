@@ -141,14 +141,16 @@ struct LTLToBuchiConverterTests {
         let eventuallyFormulas: [Formula] = (1...8).map { .eventually(.not(.prop("limit_p\($0)"))) }
         let formula: Formula = eventuallyFormulas.dropFirst().reduce(eventuallyFormulas[0]) { .and($0, $1) }
 
-        #expect {
+        // Note: assert via do/catch rather than `#expect { } throws: { #expect(...) }`.
+        // A nested `#expect` inside the `throws:` matcher crashes the Swift 6.0 Linux
+        // type-checker (signal 11); do/catch pins the same case + message portably.
+        do {
             _ = try LTLToBuchiConverter.translateLTLToBuchi(formula, relevantPropositions: propIDs)
-        } throws: { error in
-            guard case let LTLModelCheckerError.internalProcessingError(message) = error else {
-                return false
-            }
+            Issue.record("Expected LTLModelCheckerError.internalProcessingError to be thrown for >150 GBA states")
+        } catch let LTLModelCheckerError.internalProcessingError(message) {
             #expect(message.contains("GBA state limit"))
-            return true
+        } catch {
+            Issue.record("Unexpected error type: \(error)")
         }
     }
 }
