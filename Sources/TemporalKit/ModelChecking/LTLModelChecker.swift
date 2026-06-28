@@ -101,7 +101,7 @@ public class LTLModelChecker<Model: KripkeStructure> {
 
         let productAutomaton = try constructProductAutomaton(
             modelAutomaton: modelAutomaton,
-            formulaAutomaton: formulaAutomatonForNegated,
+            formulaAutomaton: formulaAutomatonForNegated
         )
 
         if let acceptingRun = try NestedDFSAlgorithm.findAcceptingRun(in: productAutomaton) {
@@ -213,7 +213,7 @@ public class LTLModelChecker<Model: KripkeStructure> {
     /// The product automaton Am × A¬φ accepts runs that are in both Am and A¬φ.
     private func constructProductAutomaton(
         modelAutomaton: BuchiAutomaton<ModelAutomatonState, BuchiAlphabetSymbol>,
-        formulaAutomaton: BuchiAutomaton<FormulaAutomatonState, BuchiAlphabetSymbol>,
+        formulaAutomaton: BuchiAutomaton<FormulaAutomatonState, BuchiAlphabetSymbol>
     ) throws -> BuchiAutomaton<ActualProductAutomatonState, BuchiAlphabetSymbol> {
 
         var productStates = Set<ActualProductAutomatonState>()
