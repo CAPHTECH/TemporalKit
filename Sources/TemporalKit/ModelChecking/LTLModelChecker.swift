@@ -101,8 +101,7 @@ public class LTLModelChecker<Model: KripkeStructure> {
 
         let productAutomaton = try constructProductAutomaton(
             modelAutomaton: modelAutomaton,
-            formulaAutomaton: formulaAutomatonForNegated,
-            forceLogDetails: false
+            formulaAutomaton: formulaAutomatonForNegated
         )
 
         if let acceptingRun = try NestedDFSAlgorithm.findAcceptingRun(in: productAutomaton) {
@@ -165,8 +164,6 @@ public class LTLModelChecker<Model: KripkeStructure> {
         }
         propositionsInFormula.formUnion(allPropsEverTrueInModel)
 
-        // print("LTLModelChecker Helper: extractPropositions - Updated with LTLFormula.swift cases.") // Original print
-        // print("LTLModelChecker Helper: extractPropositions - Formula Props: \(propositionsInFormula), Model Props Considered: \(allPropsEverTrueInModel)")
         return propositionsInFormula
     }
 
@@ -216,8 +213,7 @@ public class LTLModelChecker<Model: KripkeStructure> {
     /// The product automaton Am × A¬φ accepts runs that are in both Am and A¬φ.
     private func constructProductAutomaton(
         modelAutomaton: BuchiAutomaton<ModelAutomatonState, BuchiAlphabetSymbol>,
-        formulaAutomaton: BuchiAutomaton<FormulaAutomatonState, BuchiAlphabetSymbol>,
-        forceLogDetails: Bool // Added parameter
+        formulaAutomaton: BuchiAutomaton<FormulaAutomatonState, BuchiAlphabetSymbol>
     ) throws -> BuchiAutomaton<ActualProductAutomatonState, BuchiAlphabetSymbol> {
 
         var productStates = Set<ActualProductAutomatonState>()
@@ -238,36 +234,23 @@ public class LTLModelChecker<Model: KripkeStructure> {
 
         while let currentProductState = worklist.popLast() {
             if visited.contains(currentProductState) {
-                if forceLogDetails { print("    [CPA DEBUG] Skipping already visited: \(currentProductState)") }
                 continue
             }
             visited.insert(currentProductState)
-            if forceLogDetails {
-                print("    [CPA DEBUG] Popped from worklist: \(currentProductState), Visited count: \(visited.count), Worklist count: \(worklist.count)")
-            }
 
             if formulaAutomaton.acceptingStates.contains(currentProductState.s2) {
                 productAcceptingStates.insert(currentProductState)
-                if forceLogDetails { print("        [CPA DEBUG] \(currentProductState) is accepting (formula part \(currentProductState.s2) is accepting in A_¬φ)") }
             }
 
             for modelTrans in modelAutomaton.transitions where modelTrans.sourceState == currentProductState.s1 {
                 for formulaTrans in formulaAutomaton.transitions where formulaTrans.sourceState == currentProductState.s2 {
                     if modelTrans.symbol == formulaTrans.symbol {
                         let nextProductState = ProductState(modelTrans.destinationState, formulaTrans.destinationState)
-                        if forceLogDetails {
-                            print("        [CPA DEBUG] Matched on symbol (strict equality): \(modelTrans.symbol)")
-                            print("            Model:   \(modelTrans.sourceState) --[\(modelTrans.symbol)]--> \(modelTrans.destinationState)")
-                            print("            Formula: \(formulaTrans.sourceState) --[\(formulaTrans.symbol)]--> \(formulaTrans.destinationState)")
-                            print("            Product: \(currentProductState) --[\(modelTrans.symbol)]--> \(nextProductState)")
-                        }
                         productStates.insert(nextProductState)
                         productTransitions.insert(.init(from: currentProductState, on: modelTrans.symbol, to: nextProductState))
                         if !visited.contains(nextProductState) && !worklist.contains(nextProductState) {
                             worklist.append(nextProductState)
-                            if forceLogDetails { print("            [CPA DEBUG] Added \(nextProductState) to worklist.") }
                         } else {
-                            if forceLogDetails { print("            [CPA DEBUG] \(nextProductState) already visited or in worklist.") }
                         }
                     }
                 }
@@ -289,16 +272,6 @@ public class LTLModelChecker<Model: KripkeStructure> {
             acceptingStates: productAcceptingStates
         )
 
-        if forceLogDetails {
-            print("[LTLModelChecker.constructProductAutomaton DEBUG] Product BA Accepting States directly from construction (count: \(finalProductAutomaton.acceptingStates.count)):")
-            finalProductAutomaton.acceptingStates.sorted(by: { s1, s2 -> Bool in
-                let s1m = String(describing: s1.s1); let s2m = String(describing: s2.s1)
-                if s1m != s2m { return s1m < s2m }
-                return String(describing: s1.s2) < String(describing: s2.s2)
-            }).forEach { accState in
-                print("    Accepting Product State: (\(String(describing: accState.s1)), \(String(describing: accState.s2)))")
-            }
-        }
         return finalProductAutomaton
     }
 
@@ -314,17 +287,12 @@ public class LTLModelChecker<Model: KripkeStructure> {
 
 /// Defines errors that can be thrown by the `LTLModelChecker`.
 public enum LTLModelCheckerError: Error, LocalizedError {
-    /// Indicates that one or more core model checking algorithms are not yet implemented.
-    case algorithmsNotImplemented(String)
-
     /// Placeholder for other potential errors, e.g., issues during automaton construction,
     /// inconsistencies in the model, or unsupported LTL formula constructs.
     case internalProcessingError(String)
 
     public var errorDescription: String? {
         switch self {
-        case .algorithmsNotImplemented(let message):
-            return "LTLModelChecker Error: Algorithms Not Implemented. Culprit: \(message)"
         case .internalProcessingError(let message):
             return "LTLModelChecker Error: Internal Processing Failed. Details: \(message)"
         }
