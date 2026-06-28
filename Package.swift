@@ -6,8 +6,8 @@ import PackageDescription
 let package = Package(
     name: "TemporalKit",
     platforms: [
-        .macOS(.v10_15), // Example platform, adjust as needed
-        .iOS(.v13),      // Example platform, adjust as needed
+        .macOS(.v10_15),
+        .iOS(.v13),
     ],
     products: [
         // Products define the executables and libraries a package produces, making them visible to other packages.
