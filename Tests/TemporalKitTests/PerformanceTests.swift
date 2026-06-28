@@ -176,7 +176,7 @@ final class PerformanceTests: XCTestCase {
         GBAConditionGenerator<TestProposition>()
     }
 
-    func testGBAGeneration_Performance_SimpleFormula() {
+    func testGBAGeneration_Performance_SimpleFormula() throws {
         let p = makeProposition("p")
         let formula: LTLFormula<TestProposition> = .globally(.atomic(p))
         let nnfFormula = LTLFormulaNNFConverter.convert(formula) // Convert to NNF
@@ -186,7 +186,7 @@ final class PerformanceTests: XCTestCase {
             originalPreNNFFormula: formula,
             relevantPropositions: Set([p.id])
         )
-        constructor.buildGraph()
+        try constructor.buildGraph()
         let tableauNodes = constructor.constructedTableauNodes
         let nodeMap = constructor.gbaStateIDMap
 
@@ -201,7 +201,7 @@ final class PerformanceTests: XCTestCase {
         }
     }
 
-    func testGBAGeneration_Performance_MediumFormula() {
+    func testGBAGeneration_Performance_MediumFormula() throws {
         let p = makeProposition("p")
         let q = makeProposition("q")
         let formula: LTLFormula<TestProposition> = .globally(
@@ -217,7 +217,7 @@ final class PerformanceTests: XCTestCase {
             originalPreNNFFormula: formula,
             relevantPropositions: Set([p.id, q.id])
         )
-        constructor.buildGraph()
+        try constructor.buildGraph()
         let tableauNodes = constructor.constructedTableauNodes
         let nodeMap = constructor.gbaStateIDMap
 
@@ -232,7 +232,7 @@ final class PerformanceTests: XCTestCase {
         }
     }
 
-    func testGBAGeneration_Performance_ComplexFormula() {
+    func testGBAGeneration_Performance_ComplexFormula() throws {
         let p = makeProposition("p")
         let q = makeProposition("q")
         let r = makeProposition("r")
@@ -255,7 +255,7 @@ final class PerformanceTests: XCTestCase {
             originalPreNNFFormula: formula,
             relevantPropositions: Set([p.id, q.id, r.id, s.id])
         )
-        constructor.buildGraph()
+        try constructor.buildGraph()
         let tableauNodes = constructor.constructedTableauNodes
         let nodeMap = constructor.gbaStateIDMap
 

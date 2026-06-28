@@ -130,6 +130,29 @@ struct LTLToBuchiConverterTests {
             Issue.record("Initial state was nil, cannot check if it's accepting.")
         }
     }
+    /// Verifies that buildGraph() throws when the GBA state count exceeds maxGBAStateCount (150).
+    ///
+    /// F(¬p1) ∧ F(¬p2) ∧ ... ∧ F(¬p8) has up to 2^8 = 256 GBA states because each
+    /// Eventually obligation can independently be pending or discharged. This exceeds the
+    /// 150-state guard and must throw LTLModelCheckerError.internalProcessingError.
+    @Test func buildGraphThrowsWhenGBAStateLimitExceeded() {
+        let propIDs = Set((1...8).map { PropositionID(rawValue: "limit_p\($0)")! })
+        // F(¬p1) ∧ F(¬p2) ∧ ... ∧ F(¬p8)
+        let eventuallyFormulas: [Formula] = (1...8).map { .eventually(.not(.prop("limit_p\($0)"))) }
+        let formula: Formula = eventuallyFormulas.dropFirst().reduce(eventuallyFormulas[0]) { .and($0, $1) }
+
+        // Note: assert via do/catch rather than `#expect { } throws: { #expect(...) }`.
+        // A nested `#expect` inside the `throws:` matcher crashes the Swift 6.0 Linux
+        // type-checker (signal 11); do/catch pins the same case + message portably.
+        do {
+            _ = try LTLToBuchiConverter.translateLTLToBuchi(formula, relevantPropositions: propIDs)
+            Issue.record("Expected LTLModelCheckerError.internalProcessingError to be thrown for >150 GBA states")
+        } catch let LTLModelCheckerError.internalProcessingError(message) {
+            #expect(message.contains("GBA state limit"))
+        } catch {
+            Issue.record("Unexpected error type: \(error)")
+        }
+    }
 }
 
 // Note: More complex assertions will require comparing the generated automaton's language
