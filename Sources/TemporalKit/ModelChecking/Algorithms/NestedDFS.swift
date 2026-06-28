@@ -39,7 +39,9 @@ internal enum NestedDFSAlgorithm {
             red.insert(current)
             for t in succ[current, default: []] {
                 if t == seed {
-                    return (prefix: blueStack, cycle: redPath)
+                    // Drop the seed from prefix so that prefix.last → cycle.first is a real
+                    // transition (contract: Counterexample.cycle doc, ModelCheckResult.swift L31-33).
+                    return (prefix: Array(blueStack.dropLast()), cycle: redPath)
                 }
                 if !red.contains(t) {
                     if let result = dfsRed(seed: seed, current: t, redPath: redPath + [t]) {

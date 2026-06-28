@@ -459,9 +459,15 @@ final class NestedDFSTests: XCTestCase {
         }
     }
 
-    // MARK: - Direct NDFS unit tests (pipeline-independent)
+}
 
-    // Shared helpers: Int states, Set<Int> as a dummy alphabet symbol (NDFS ignores symbols).
+// MARK: - Direct NDFS unit tests (pipeline-independent)
+
+/// Tests `NestedDFSAlgorithm.findAcceptingRun` directly on hand-crafted `BuchiAutomaton` instances,
+/// bypassing the full model-checking pipeline. State type is `Int`; the alphabet symbol is `Set<Int>`
+/// (a dummy — NDFS does not inspect symbols).
+final class NestedDFSDirectTests: XCTestCase {
+
     private typealias NBA = BuchiAutomaton<Int, Set<Int>>
     private static func t(_ from: Int, _ to: Int) -> NBA.Transition {
         NBA.Transition(from: from, on: Set<Int>(), to: to)
