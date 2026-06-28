@@ -35,7 +35,6 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
 
     /// Decomposes the initial NNF formula to form the first TableauNode.
     private static func decomposeFormulaForInitialTableauNode(_ formula: LTLFormula<P>) -> TableauNode<P> {
-        // print("TableauGraphConstructor.decomposeFormulaForInitialTableauNode: Placeholder from original.")
         // The initial node should satisfy the input `formula` (which is NNF here).
         // `formula` itself is the primary member of `currentFormulas`.
         // Further decomposition happens in `expandFormulasInNode`.
@@ -546,27 +545,6 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
         )
     }
 
-    // Legacy method for backward compatibility
-    private func expandAtomicProposition(p: P,
-                                     isNegated: Bool,
-                                     currentWorklist: [LTLFormula<P>],
-                                     processedOnPath: Set<LTLFormula<P>>,
-                                     vSet: Set<LTLFormula<P>>,
-                                     pAtomicSet: Set<P>,
-                                     nAtomicSet: Set<P>,
-                                     forSymbol: BuchiAlphabetSymbol<PropositionIDType>,
-                                     initialWorklistForSolve: [LTLFormula<P>],
-                                     heuristicOriginalLTLFormula: LTLFormula<P>,
-                                     allPossibleOutcomes: inout [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)]) {
-        handleAtomicFormula(
-            p: p, isNegated: isNegated,
-            currentWorklist: currentWorklist, processedOnPath: processedOnPath, vSet: vSet,
-            pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
-            initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
-            allPossibleOutcomes: &allPossibleOutcomes
-        )
-    }
-
     // Handler for boolean literals (.booleanLiteral and .not(.booleanLiteral))
     private func handleBooleanLiteral(
         value b: Bool, isNegated: Bool,
@@ -581,27 +559,6 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
             return
         }
         solve(
-            currentWorklist: currentWorklist, processedOnPath: processedOnPath, vSet: vSet,
-            pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
-            initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
-            allPossibleOutcomes: &allPossibleOutcomes
-        )
-    }
-
-    // Legacy method for backward compatibility
-    private func expandBooleanLiteral(value b: Bool,
-                                    isNegated: Bool,
-                                    currentWorklist: [LTLFormula<P>],
-                                    processedOnPath: Set<LTLFormula<P>>,
-                                    vSet: Set<LTLFormula<P>>,
-                                    pAtomicSet: Set<P>,
-                                    nAtomicSet: Set<P>,
-                                    forSymbol: BuchiAlphabetSymbol<PropositionIDType>,
-                                    initialWorklistForSolve: [LTLFormula<P>],
-                                    heuristicOriginalLTLFormula: LTLFormula<P>,
-                                    allPossibleOutcomes: inout [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)]) {
-        handleBooleanLiteral(
-            value: b, isNegated: isNegated,
             currentWorklist: currentWorklist, processedOnPath: processedOnPath, vSet: vSet,
             pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
             initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
@@ -624,26 +581,6 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
         if !processedOnPath.contains(lhs) { newWorklist.insert(lhs, at: 0) }
         solve(
             currentWorklist: newWorklist, processedOnPath: processedOnPath, vSet: vSet,
-            pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
-            initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
-            allPossibleOutcomes: &allPossibleOutcomes
-        )
-    }
-
-    // Legacy method for backward compatibility
-    private func expandAnd(_ lhs: LTLFormula<P>, _ rhs: LTLFormula<P>,
-                         currentWorklist: [LTLFormula<P>],
-                         processedOnPath: Set<LTLFormula<P>>,
-                         vSet: Set<LTLFormula<P>>,
-                         pAtomicSet: Set<P>,
-                         nAtomicSet: Set<P>,
-                         forSymbol: BuchiAlphabetSymbol<PropositionIDType>,
-                         initialWorklistForSolve: [LTLFormula<P>],
-                         heuristicOriginalLTLFormula: LTLFormula<P>,
-                         allPossibleOutcomes: inout [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)]) {
-        handleAndFormula(
-            lhs: lhs, rhs: rhs,
-            currentWorklist: currentWorklist, processedOnPath: processedOnPath, vSet: vSet,
             pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
             initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
             allPossibleOutcomes: &allPossibleOutcomes
@@ -679,26 +616,6 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
         )
     }
 
-    // Legacy method for backward compatibility
-    private func expandOr(_ lhs: LTLFormula<P>, _ rhs: LTLFormula<P>,
-                        currentWorklist: [LTLFormula<P>],
-                        processedOnPath: Set<LTLFormula<P>>,
-                        vSet: Set<LTLFormula<P>>,
-                        pAtomicSet: Set<P>,
-                        nAtomicSet: Set<P>,
-                        forSymbol: BuchiAlphabetSymbol<PropositionIDType>,
-                        initialWorklistForSolve: [LTLFormula<P>],
-                        heuristicOriginalLTLFormula: LTLFormula<P>,
-                        allPossibleOutcomes: inout [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)]) {
-        handleOrFormula(
-            lhs: lhs, rhs: rhs,
-            currentWorklist: currentWorklist, processedOnPath: processedOnPath, vSet: vSet,
-            pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
-            initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
-            allPossibleOutcomes: &allPossibleOutcomes
-        )
-    }
-
     // Handler for NEXT formulas (.next)
     private func handleNextFormula(
         subFormula: LTLFormula<P>,
@@ -711,26 +628,6 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
         newV.insert(subFormula)
         solve(
             currentWorklist: currentWorklist, processedOnPath: processedOnPath, vSet: newV,
-            pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
-            initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
-            allPossibleOutcomes: &allPossibleOutcomes
-        )
-    }
-
-    // Legacy method for backward compatibility
-    private func expandNext(_ subFormula: LTLFormula<P>,
-                        currentWorklist: [LTLFormula<P>],
-                        processedOnPath: Set<LTLFormula<P>>,
-                        vSet: Set<LTLFormula<P>>,
-                        pAtomicSet: Set<P>,
-                        nAtomicSet: Set<P>,
-                        forSymbol: BuchiAlphabetSymbol<PropositionIDType>,
-                        initialWorklistForSolve: [LTLFormula<P>],
-                        heuristicOriginalLTLFormula: LTLFormula<P>,
-                        allPossibleOutcomes: inout [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)]) {
-        handleNextFormula(
-            subFormula: subFormula,
-            currentWorklist: currentWorklist, processedOnPath: processedOnPath, vSet: vSet,
             pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
             initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
             allPossibleOutcomes: &allPossibleOutcomes
@@ -762,27 +659,6 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
         vForPhiBranch.insert(currentFormula) // currentFormula is phi U psi
         solve(
             currentWorklist: worklistPhiBranch, processedOnPath: processedOnPath, vSet: vForPhiBranch,
-            pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
-            initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
-            allPossibleOutcomes: &allPossibleOutcomes
-        )
-    }
-
-    // Legacy method for backward compatibility
-    private func expandUntil(_ phi: LTLFormula<P>, _ psi: LTLFormula<P>,
-                         currentFormula: LTLFormula<P>, // This is the (phi U psi) formula itself
-                         currentWorklist: [LTLFormula<P>],
-                         processedOnPath: Set<LTLFormula<P>>,
-                         vSet: Set<LTLFormula<P>>,
-                         pAtomicSet: Set<P>,
-                         nAtomicSet: Set<P>,
-                         forSymbol: BuchiAlphabetSymbol<PropositionIDType>,
-                         initialWorklistForSolve: [LTLFormula<P>],
-                         heuristicOriginalLTLFormula: LTLFormula<P>,
-                         allPossibleOutcomes: inout [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)]) {
-        handleUntilFormula(
-            phi: phi, psi: psi, currentFormula: currentFormula,
-            currentWorklist: currentWorklist, processedOnPath: processedOnPath, vSet: vSet,
             pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
             initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
             allPossibleOutcomes: &allPossibleOutcomes
@@ -886,27 +762,6 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
         }
     }
 
-    // Legacy method for backward compatibility
-    private func expandRelease(_ phi: LTLFormula<P>, _ psi: LTLFormula<P>,
-                         currentFormula: LTLFormula<P>, // This is the (phi R psi) formula itself
-                         currentWorklist: [LTLFormula<P>],
-                         processedOnPath: Set<LTLFormula<P>>,
-                         vSet: Set<LTLFormula<P>>,
-                         pAtomicSet: Set<P>,
-                         nAtomicSet: Set<P>,
-                         forSymbol: BuchiAlphabetSymbol<PropositionIDType>,
-                         initialWorklistForSolve: [LTLFormula<P>],
-                         heuristicOriginalLTLFormula: LTLFormula<P>,
-                         allPossibleOutcomes: inout [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)]) {
-        handleReleaseFormula(
-            phi: phi, psi: psi, currentFormula: currentFormula,
-            currentWorklist: currentWorklist, processedOnPath: processedOnPath, vSet: vSet,
-            pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
-            initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
-            allPossibleOutcomes: &allPossibleOutcomes
-        )
-    }
-
     // Handler for EVENTUALLY formulas (.eventually)
     private func handleEventuallyFormula(
         subFormula: LTLFormula<P>, currentFormula: LTLFormula<P>,
@@ -934,27 +789,6 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
         vForNextBranch.insert(currentFormula) // currentFormula is F subFormula
         solve(
             currentWorklist: worklistNextBranch, processedOnPath: processedOnPath, vSet: vForNextBranch,
-            pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
-            initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
-            allPossibleOutcomes: &allPossibleOutcomes
-        )
-    }
-
-    // Legacy method for backward compatibility
-    private func expandEventually(_ subFormula: LTLFormula<P>,
-                               currentFormula: LTLFormula<P>, // This is F subFormula
-                               currentWorklist: [LTLFormula<P>],
-                               processedOnPath: Set<LTLFormula<P>>,
-                               vSet: Set<LTLFormula<P>>,
-                               pAtomicSet: Set<P>,
-                               nAtomicSet: Set<P>,
-                               forSymbol: BuchiAlphabetSymbol<PropositionIDType>,
-                               initialWorklistForSolve: [LTLFormula<P>],
-                               heuristicOriginalLTLFormula: LTLFormula<P>,
-                               allPossibleOutcomes: inout [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)]) {
-        handleEventuallyFormula(
-            subFormula: subFormula, currentFormula: currentFormula,
-            currentWorklist: currentWorklist, processedOnPath: processedOnPath, vSet: vSet,
             pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
             initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
             allPossibleOutcomes: &allPossibleOutcomes
@@ -995,26 +829,6 @@ internal class TableauGraphConstructor<P: TemporalProposition, PropositionIDType
         }
     }
 
-    // Legacy method for backward compatibility
-    private func expandGlobally(_ subFormula: LTLFormula<P>,
-                              currentFormula: LTLFormula<P>, // This is G subFormula
-                              currentWorklist: [LTLFormula<P>],
-                              processedOnPath: Set<LTLFormula<P>>,
-                              vSet: Set<LTLFormula<P>>,
-                              pAtomicSet: Set<P>,
-                              nAtomicSet: Set<P>,
-                              forSymbol: BuchiAlphabetSymbol<PropositionIDType>,
-                              initialWorklistForSolve: [LTLFormula<P>],
-                              heuristicOriginalLTLFormula: LTLFormula<P>,
-                              allPossibleOutcomes: inout [(nextSetOfCurrentObligations: Set<LTLFormula<P>>, nextSetOfNextObligations: Set<LTLFormula<P>>, isConsistent: Bool)]) {
-        handleGloballyFormula(
-            subFormula: subFormula, currentFormula: currentFormula,
-            currentWorklist: currentWorklist, processedOnPath: processedOnPath, vSet: vSet,
-            pAtomicSet: pAtomicSet, nAtomicSet: nAtomicSet, forSymbol: forSymbol,
-            initialWorklistForSolve: initialWorklistForSolve, heuristicOriginalLTLFormula: heuristicOriginalLTLFormula,
-            allPossibleOutcomes: &allPossibleOutcomes
-        )
-    }
 }
 
 // Helper extensions for LTLFormula to check patterns

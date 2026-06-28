@@ -55,15 +55,6 @@ internal struct GBAToBAConverter<S: Hashable, SymbolT: Hashable> {
 
         let orderedAcceptanceSets = Array(gbaAcceptanceSets)
 
-        // ---- REMOVED GBAToBAConverter DEBUG ----
-        // if k > 0 && !orderedAcceptanceSets.isEmpty {
-        //     print("[GBAToBAConverter DEBUG] Number of GBA acceptance sets (k): \(k)")
-        //     let f0Content = orderedAcceptanceSets[0].map { String(describing: $0) }.sorted().joined(separator: ", ")
-        //     print("[GBAToBAConverter DEBUG] F_0 (orderedAcceptanceSets[0]): {\(f0Content)}")
-        // } else if k > 0 {
-        //      print("[GBAToBAConverter DEBUG] k = \(k) but orderedAcceptanceSets is empty. This is unexpected.")
-        // }
-
         for q_gba in gbaStates {
             for i in 0..<k {
                 let productState = ProductBATState(originalState: q_gba, index: i)
@@ -98,43 +89,10 @@ internal struct GBAToBAConverter<S: Hashable, SymbolT: Hashable> {
                 if productBAStates.contains(productStateFrom) && productBAStates.contains(productStateTo) {
                     productBATransitions.insert(BuchiAutomaton<ProductBATState<S>, SymbolT>.Transition(from: productStateFrom, on: symbol_on, to: productStateTo))
 
-                    // ---- REMOVED GBAToBAConverter DEBUG ----
-                    // let qSourceDesc = String(describing: q_source_gba)
-                    // let pDemoLikeRawValue = "p_demo_like"
-                    // var isPotentiallyProblematicFNotPSinkTransition = false
-                    // if qSourceDesc.count < 5 { 
-                    //     let symbolDescription = String(describing: symbol)
-                    //     if symbolDescription.contains(pDemoLikeRawValue) || symbolDescription == "[]" || symbolDescription == "Set([])" {
-                    //         isPotentiallyProblematicFNotPSinkTransition = true
-                    //     }
-                    // }
-                    // if isPotentiallyProblematicFNotPSinkTransition || (q_source_gba == q_dest_gba && String(describing:symbol).contains(pDemoLikeRawValue)) {
-                    //     print("[GBAToBAConverter Self-Loop Check or F(!p) Relevant Transition] " +
-                    //           "GBA: \(q_source_gba) --\(symbol)--> \(q_dest_gba). " +
-                    //           "Index: \(i) -> \(j_next_index). BA: \(productStateFrom) --> \(productStateTo)")
-                    //     if orderedAcceptanceSets[0].contains(q_source_gba) {
-                    //         print("    Source GBA state \(q_source_gba) is in F_0. BA accepting state involved: \(ProductBATState(originalState: q_source_gba, index:0))")
-                    //     }
-                    // }
-                } else {
-                    // print("Warning: Product state for transition not found in productBAStates. From: \(productStateFrom), To: \(productStateTo)")
                 }
             }
         }
 
-        // ---- REMOVED GBAToBAConverter DEBUG ----
-        // print("[GBAToBAConverter DEBUG] Generated BA: States=\(productBAStates.count), " +
-        //       "Initials=\(productBAInitialStates.count), Accepting=\(productBAAcceptingStates.count), " +
-        //       "Transitions=\(productBATransitions.count)")
-        // for trans in productBATransitions.sorted(by: { (t1,t2) -> Bool in
-        //     if String(describing: t1.sourceState.originalState) != String(describing: t2.sourceState.originalState) {
-        //         return String(describing: t1.sourceState.originalState) < String(describing: t2.sourceState.originalState)
-        //     }
-        //     if t1.sourceState.index != t2.sourceState.index { return t1.sourceState.index < t2.sourceState.index }
-        //     return String(describing: t1.symbol).count < String(describing: t2.symbol).count
-        // }) {
-        //     print("    Transition: \(trans.sourceState) -- \(String(describing: trans.symbol)) --> \(trans.destinationState)")
-        // }
 
         let finalBuchiAutomaton = BuchiAutomaton(
             states: productBAStates,

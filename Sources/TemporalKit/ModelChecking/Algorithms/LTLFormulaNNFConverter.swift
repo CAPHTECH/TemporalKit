@@ -7,7 +7,6 @@ internal struct LTLFormulaNNFConverter {
     /// Converts an LTL formula to its Negation Normal Form (NNF).
     /// In NNF, negations are applied only to atomic propositions.
     internal static func convert<P: TemporalProposition>(_ formula: LTLFormula<P>) -> LTLFormula<P> where P.Value == Bool {
-        // print("LTLFormulaNNFConverter.convert: Implementing NNF conversion.") // Original debug print
         switch formula {
         // Base cases for NNF:
         case .booleanLiteral:
