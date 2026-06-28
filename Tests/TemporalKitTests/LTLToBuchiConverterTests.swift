@@ -141,8 +141,14 @@ struct LTLToBuchiConverterTests {
         let eventuallyFormulas: [Formula] = (1...8).map { .eventually(.not(.prop("limit_p\($0)"))) }
         let formula: Formula = eventuallyFormulas.dropFirst().reduce(eventuallyFormulas[0]) { .and($0, $1) }
 
-        #expect(throws: LTLModelCheckerError.self) {
+        #expect {
             _ = try LTLToBuchiConverter.translateLTLToBuchi(formula, relevantPropositions: propIDs)
+        } throws: { error in
+            guard case let LTLModelCheckerError.internalProcessingError(message) = error else {
+                return false
+            }
+            #expect(message.contains("GBA state limit"))
+            return true
         }
     }
 }
