@@ -458,4 +458,86 @@ final class NestedDFSTests: XCTestCase {
             XCTAssertTrue(!prefixSet.intersection([4, 5]).isEmpty, "Prefix should pass through SCC2")
         }
     }
+
+}
+
+// MARK: - Direct NDFS unit tests (pipeline-independent)
+
+/// Tests `NestedDFSAlgorithm.findAcceptingRun` directly on hand-crafted `BuchiAutomaton` instances,
+/// bypassing the full model-checking pipeline. State type is `Int`; the alphabet symbol is `Set<Int>`
+/// (a dummy — NDFS does not inspect symbols).
+final class NestedDFSDirectTests: XCTestCase {
+
+    private typealias NBA = BuchiAutomaton<Int, Set<Int>>
+    private static func t(_ from: Int, _ to: Int) -> NBA.Transition {
+        NBA.Transition(from: from, on: Set<Int>(), to: to)
+    }
+
+    /// Case 1: accepting self-loop — must detect.
+    func testFindAcceptingRun_AcceptingSelfLoop() throws {
+        // states {0}, initial {0}, 0→0, accepting {0}
+        let automaton = NBA(
+            states: [0],
+            alphabet: [Set<Int>()],
+            initialStates: [0],
+            transitions: [Self.t(0, 0)],
+            acceptingStates: [0]
+        )
+        let result = try NestedDFSAlgorithm.findAcceptingRun(in: automaton)
+        XCTAssertNotNil(result, "Accepting self-loop should produce a run")
+        if let run = result {
+            XCTAssertFalse(run.cycle.isEmpty, "Cycle must not be empty")
+            XCTAssertTrue(Set(run.cycle).contains(0), "Cycle must contain the accepting state 0")
+        }
+    }
+
+    /// Case 2: accepting lasso — must detect.
+    /// states {0,1,2}, initial {0}, 0→1, 1→2, 2→1, accepting {1}
+    /// The only cycle is 1→2→1 and it contains accepting state 1.
+    func testFindAcceptingRun_AcceptingLasso() throws {
+        let automaton = NBA(
+            states: [0, 1, 2],
+            alphabet: [Set<Int>()],
+            initialStates: [0],
+            transitions: [Self.t(0, 1), Self.t(1, 2), Self.t(2, 1)],
+            acceptingStates: [1]
+        )
+        let result = try NestedDFSAlgorithm.findAcceptingRun(in: automaton)
+        XCTAssertNotNil(result, "Lasso with accepting state 1 in cycle should produce a run")
+        if let run = result {
+            XCTAssertTrue(run.prefix.contains(0) || run.cycle.contains(0) || run.prefix.isEmpty,
+                          "Prefix should lead from state 0")
+            XCTAssertTrue(Set(run.cycle).contains(1), "Cycle must contain accepting state 1")
+        }
+    }
+
+    /// Case 3: cycle exists but the only accepting state is not on any cycle — must return nil.
+    /// states {0,1}, initial {0}, 0→1, 1→1 (self-loop), accepting {0}
+    /// State 0 is accepting but has no outgoing cycle back to itself; state 1 loops but is not accepting.
+    func testFindAcceptingRun_AcceptingStateNotOnCycle() throws {
+        let automaton = NBA(
+            states: [0, 1],
+            alphabet: [Set<Int>()],
+            initialStates: [0],
+            transitions: [Self.t(0, 1), Self.t(1, 1)],
+            acceptingStates: [0]
+        )
+        let result = try NestedDFSAlgorithm.findAcceptingRun(in: automaton)
+        XCTAssertNil(result, "Accepting state 0 has no cycle back to itself; must return nil")
+    }
+
+    /// Case 4: terminal accepting state (no successors) — must return nil.
+    /// states {0,1,2}, initial {0}, 0→1, 1→2, accepting {2} (2 has no successors)
+    /// A true terminal node cannot form a cycle, so no accepting run exists.
+    func testFindAcceptingRun_TerminalAcceptingState() throws {
+        let automaton = NBA(
+            states: [0, 1, 2],
+            alphabet: [Set<Int>()],
+            initialStates: [0],
+            transitions: [Self.t(0, 1), Self.t(1, 2)],
+            acceptingStates: [2]
+        )
+        let result = try NestedDFSAlgorithm.findAcceptingRun(in: automaton)
+        XCTAssertNil(result, "Terminal accepting state 2 forms no cycle; must return nil")
+    }
 }
